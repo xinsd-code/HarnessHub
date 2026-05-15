@@ -18,7 +18,7 @@ export function SyncTemplateDialog({ templateId, onClose }: { templateId: string
   const [targetAgent, setTargetAgent] = useState(agents[0]?.name ?? "");
   const [error, setError] = useState<string | null>(null);
   const [conflicted, setConflicted] = useState(false);
-  const relTarget = PRIMARY_TARGETS[targetAgent] ?? "agent project rules path";
+  const relTarget = PRIMARY_TARGETS[targetAgent] ?? "";
   const project = projects.find((item) => item.path === projectPath);
   const targetPreview = project ? `${project.path}/${relTarget}` : relTarget;
 
@@ -28,7 +28,7 @@ export function SyncTemplateDialog({ templateId, onClose }: { templateId: string
         <h3 className="text-base font-semibold">Sync to Project</h3>
         <div className="mt-4 space-y-3">
           <select value={projectPath} onChange={(event) => setProjectPath(event.target.value)} className="h-9 w-full rounded-lg border border-border bg-card px-3 text-sm">
-            {projects.map((project) => <option key={project.id} value={project.path}>{project.name}</option>)}
+            {projects.map((p) => <option key={p.id} value={p.path}>{p.name}</option>)}
           </select>
           <select value={targetAgent} onChange={(event) => setTargetAgent(event.target.value)} className="h-9 w-full rounded-lg border border-border bg-card px-3 text-sm">
             {agents.map((agent) => <option key={agent.name} value={agent.name}>{agent.name}</option>)}
