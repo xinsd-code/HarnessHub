@@ -6,6 +6,7 @@ import { AgentDetail } from "@/components/agents/agent-detail";
 import { AgentList } from "@/components/agents/agent-list";
 import { AgentScopeTree } from "@/components/agents/agent-scope-tree";
 import type { AgentDetail as AgentDetailType, Project } from "@/lib/types";
+import { AgentConfigHubPage } from "@/components/agent-config-hub/agent-config-hub-page";
 import { useScope } from "@/hooks/use-scope";
 import { useAgentConfigStore } from "@/stores/agent-config-store";
 import { useProjectStore } from "@/stores/project-store";
@@ -139,17 +140,30 @@ export default function ProjectsPage() {
     return <div className="p-4 text-sm text-muted-foreground">Loading...</div>;
   }
 
+  const isAgentConfig = (scope as { type: string }).type === "agent-config";
+
   return (
     <div className="flex h-full">
       <div className="w-[240px] shrink-0 overflow-y-auto overscroll-contain border-r border-border">
+        <button
+          onClick={() => setScope({ type: "agent-config" } as never)}
+          className={clsx(
+            "mx-2 mt-2 flex w-[calc(100%-1rem)] items-center rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors",
+            isAgentConfig ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+          )}
+        >
+          Agent Config
+        </button>
         <AgentScopeTree
           projects={projects}
-          scope={scope}
+          scope={isAgentConfig ? { type: "all" } : scope}
           onSelectScope={setScope}
           showAgentsSection={false}
         />
       </div>
-      {loading ? (
+      {isAgentConfig ? (
+        <AgentConfigHubPage />
+      ) : loading ? (
         <div className="flex flex-1 items-center justify-center text-muted-foreground text-sm">
           Loading...
         </div>
