@@ -26,9 +26,18 @@ interface AgentConfigTemplateState {
     description: string;
     tag: string;
   }) => Promise<void>;
+  createTemplate: (args: {
+    sourceProjectPath: string;
+    sourceProjectName: string;
+    name: string;
+    description: string;
+    tag: string;
+    content: string;
+  }) => Promise<void>;
+  updateContent: (id: string, content: string) => Promise<void>;
   updateTag: (id: string, tag: string) => Promise<void>;
   deleteTemplate: (id: string) => Promise<void>;
-  syncToProject: (id: string, projectPath: string, targetAgent: string, force: boolean) => Promise<string | null>;
+  syncToProject: (id: string, projectPath: string, targetAgent: string, force: boolean, relPath?: string) => Promise<string | null>;
 }
 
 export const useAgentConfigTemplateStore = create<AgentConfigTemplateState>((set, get) => ({
@@ -103,6 +112,21 @@ export const useAgentConfigTemplateStore = create<AgentConfigTemplateState>((set
     set({ selectedId: template.id });
   },
 
+  async createTemplate(args) {
+    const template = await api.createAgentConfigTemplate(args);
+    toast.success("Agent config created");
+    await get().fetch();
+    set({ selectedId: template.id });
+  },
+
+  async updateContent(id, content) {
+    const template = await api.updateAgentConfigTemplateContent(id, content);
+    const next = new Map(get().contentCache);
+    next.set(id, content);
+    set({ contentCache: next, selectedId: template.id });
+    get().contentErrors.delete(id);
+  },
+
   async updateTag(id, tag) {
     const template = await api.updateAgentConfigTemplateTag(id, tag);
     toast.success("Tag updated");
@@ -117,9 +141,9 @@ export const useAgentConfigTemplateStore = create<AgentConfigTemplateState>((set
     await get().fetch();
   },
 
-  async syncToProject(id, projectPath, targetAgent, force) {
+  async syncToProject(id, projectPath, targetAgent, force, relPath) {
     try {
-      const targetPath = await api.syncAgentConfigTemplateToProject(id, projectPath, targetAgent, force);
+      const targetPath = await api.syncAgentConfigTemplateToProject(id, projectPath, targetAgent, force, relPath);
       toast.success("Agent config synced");
       return targetPath;
     } catch (error) {

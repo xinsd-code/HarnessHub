@@ -136,6 +136,144 @@ pub fn read_config_file_preview(
     Ok(preview)
 }
 
+#[tauri::command]
+pub fn read_config_file_content(state: State<AppState>, path: String) -> Result<String, HkError> {
+    let file_path = std::path::Path::new(&path);
+    if !file_path.exists() {
+        return Err(HkError::NotFound("File not found".into()));
+    }
+
+    if !is_path_within_allowed_dirs(file_path, &state)? {
+        return Err(HkError::PathNotAllowed(
+            "Path is not within a known agent or project directory".into(),
+        ));
+    }
+
+    if file_path.is_dir() {
+        return Err(HkError::Validation(
+            "Cannot edit a directory as a config file".into(),
+        ));
+    }
+
+    Ok(std::fs::read_to_string(file_path)?)
+}
+
+fn resolve_and_validate_writable_config_path(
+    state: &AppState,
+    path: &str,
+) -> Result<std::path::PathBuf, HkError> {
+    let resolved = if path.starts_with("~/") {
+        dirs::home_dir()
+            .map(|h| h.join(&path[2..]).to_string_lossy().to_string())
+            .unwrap_or_else(|| path.to_string())
+    } else {
+        path.to_string()
+    };
+    if resolved.contains("..") {
+        return Err(HkError::PathNotAllowed(
+            "Config paths cannot contain '..' components".into(),
+        ));
+    }
+
+    let resolved_path = super::normalize(std::path::Path::new(&resolved));
+    if resolved_path.is_dir() {
+        return Err(HkError::Validation(
+            "Cannot write config content to a directory".into(),
+        ));
+    }
+
+    let home = dirs::home_dir()
+        .ok_or_else(|| HkError::Internal("Cannot determine home directory".into()))?;
+    let home = super::normalize(&home);
+    let allowed = resolved_path.starts_with(&home)
+        || state
+            .store
+            .lock()
+            .list_projects()?
+            .into_iter()
+            .map(|project| super::normalize(std::path::Path::new(&project.path)))
+            .any(|project_path| resolved_path.starts_with(&project_path));
+    if !allowed {
+        return Err(HkError::PathNotAllowed(
+            "Config paths must be within your home directory or a registered project".into(),
+        ));
+    }
+    if resolved_path == home {
+        return Err(HkError::Validation(
+            "Cannot use home directory itself as a config path".into(),
+        ));
+    }
+
+    Ok(resolved_path)
+}
+
+#[tauri::command]
+pub fn write_config_file_content(
+    state: State<AppState>,
+    path: String,
+    content: String,
+) -> Result<(), HkError> {
+    write_config_file_content_impl(&state, &path, &content)
+}
+
+fn write_config_file_content_impl(
+    state: &AppState,
+    path: &str,
+    content: &str,
+) -> Result<(), HkError> {
+    let resolved_path = resolve_and_validate_writable_config_path(state, path)?;
+    if let Some(parent) = resolved_path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::write(&resolved_path, content)?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn create_project_agent_rules_file(
+    state: State<AppState>,
+    agent: String,
+    target_scope: ConfigScope,
+    content: String,
+) -> Result<String, HkError> {
+    create_project_agent_rules_file_impl(&state, &agent, &target_scope, &content)
+}
+
+fn create_project_agent_rules_file_impl(
+    state: &AppState,
+    agent: &str,
+    target_scope: &ConfigScope,
+    content: &str,
+) -> Result<String, HkError> {
+    let ConfigScope::Project { path, .. } = target_scope else {
+        return Err(HkError::Validation(
+            "Project agent configs can only be created inside a project".into(),
+        ));
+    };
+
+    let adapter = state
+        .runtime_adapters()
+        .into_iter()
+        .find(|candidate| candidate.name() == agent)
+        .ok_or_else(|| HkError::NotFound(format!("Unsupported agent: {agent}")))?;
+    let relpath = adapter.project_rules_target_relpath().ok_or_else(|| {
+        HkError::Validation(format!(
+            "{agent} does not expose a writable project rules target"
+        ))
+    })?;
+    let target_path = std::path::Path::new(path).join(relpath);
+    let target_path =
+        resolve_and_validate_writable_config_path(state, &target_path.to_string_lossy())?;
+    if target_path.exists() {
+        return Err(HkError::Conflict("Agent config already exists in this project".into()));
+    }
+    if let Some(parent) = target_path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::write(&target_path, content)?;
+    Ok(target_path.to_string_lossy().to_string())
+}
+
 fn render_dir_tree(dir: &std::path::Path) -> String {
     let tree = format_dir_tree(
         dir,
@@ -226,34 +364,7 @@ pub fn add_custom_config_path(
     category: String,
     target_scope: ConfigScope,
 ) -> Result<i64, HkError> {
-    // Resolve ~ to home directory
-    let resolved = if path.starts_with("~/") {
-        dirs::home_dir()
-            .map(|h| h.join(&path[2..]).to_string_lossy().to_string())
-            .unwrap_or(path.clone())
-    } else {
-        path
-    };
-    // Reject paths with ".." to prevent traversal bypass (e.g., ~/../../etc/passwd)
-    if resolved.contains("..") {
-        return Err(HkError::PathNotAllowed(
-            "Config paths cannot contain '..' components".into(),
-        ));
-    }
-    let resolved_path = super::normalize(std::path::Path::new(&resolved));
-    let home = dirs::home_dir()
-        .ok_or_else(|| HkError::Internal("Cannot determine home directory".into()))?;
-    let home = super::normalize(&home);
-    if !resolved_path.starts_with(&home) {
-        return Err(HkError::PathNotAllowed(
-            "Custom config paths must be within your home directory".into(),
-        ));
-    }
-    if resolved_path == home {
-        return Err(HkError::Validation(
-            "Cannot use home directory itself as a config path".into(),
-        ));
-    }
+    let resolved_path = resolve_and_validate_writable_config_path(&state, &path)?;
     let scope_json = serde_json::to_string(&target_scope).ok();
     let resolved = resolved_path.to_string_lossy().to_string();
     let store = state.store.lock();
@@ -268,32 +379,7 @@ pub fn update_custom_config_path(
     label: String,
     category: String,
 ) -> Result<(), HkError> {
-    let resolved = if path.starts_with("~/") {
-        dirs::home_dir()
-            .map(|h| h.join(&path[2..]).to_string_lossy().to_string())
-            .unwrap_or(path.clone())
-    } else {
-        path
-    };
-    if resolved.contains("..") {
-        return Err(HkError::PathNotAllowed(
-            "Config paths cannot contain '..' components".into(),
-        ));
-    }
-    let resolved_path = super::normalize(std::path::Path::new(&resolved));
-    let home = dirs::home_dir()
-        .ok_or_else(|| HkError::Internal("Cannot determine home directory".into()))?;
-    let home = super::normalize(&home);
-    if !resolved_path.starts_with(&home) {
-        return Err(HkError::PathNotAllowed(
-            "Custom config paths must be within your home directory".into(),
-        ));
-    }
-    if resolved_path == home {
-        return Err(HkError::Validation(
-            "Cannot use home directory itself as a config path".into(),
-        ));
-    }
+    let resolved_path = resolve_and_validate_writable_config_path(&state, &path)?;
     let resolved = resolved_path.to_string_lossy().to_string();
     let store = state.store.lock();
     store.update_custom_config_path(id, &resolved, &label, &category)
@@ -309,6 +395,7 @@ pub fn remove_custom_config_path(state: State<AppState>, id: i64) -> Result<(), 
 mod tests {
     use super::super::AppState;
     use super::*;
+    use chrono::Utc;
     use hk_core::store::Store;
     use parking_lot::Mutex;
     use std::collections::HashMap;
@@ -341,6 +428,71 @@ mod tests {
             .unwrap();
 
         assert!(is_path_within_allowed_dirs(&custom_dir, &state).unwrap());
+    }
+
+    #[test]
+    fn test_write_config_file_content_allows_registered_project_paths() {
+        let (state, dir) = test_state();
+        let project_dir = dir.path().join("workspace");
+        std::fs::create_dir_all(project_dir.join(".codex")).unwrap();
+        state
+            .store
+            .lock()
+            .insert_project(&Project {
+                id: "proj-1".into(),
+                name: "workspace".into(),
+                path: project_dir.to_string_lossy().to_string(),
+                created_at: Utc::now(),
+                exists: true,
+            })
+            .unwrap();
+
+        write_config_file_content_impl(
+            &state,
+            &project_dir.join(".codex/AGENTS.md").to_string_lossy(),
+            "# project rules",
+        )
+        .unwrap();
+
+        assert_eq!(
+            std::fs::read_to_string(project_dir.join(".codex/AGENTS.md")).unwrap(),
+            "# project rules"
+        );
+    }
+
+    #[test]
+    fn test_create_project_agent_rules_file_uses_canonical_target() {
+        let (state, dir) = test_state();
+        let project_dir = dir.path().join("workspace");
+        std::fs::create_dir_all(&project_dir).unwrap();
+        state
+            .store
+            .lock()
+            .insert_project(&Project {
+                id: "proj-1".into(),
+                name: "workspace".into(),
+                path: project_dir.to_string_lossy().to_string(),
+                created_at: Utc::now(),
+                exists: true,
+            })
+            .unwrap();
+
+        let created = create_project_agent_rules_file_impl(
+            &state,
+            "codex",
+            &ConfigScope::Project {
+                name: "workspace".into(),
+                path: project_dir.to_string_lossy().to_string(),
+            },
+            "# codex rules",
+        )
+        .unwrap();
+
+        assert!(created.ends_with(".codex/AGENTS.md"));
+        assert_eq!(
+            std::fs::read_to_string(project_dir.join(".codex/AGENTS.md")).unwrap(),
+            "# codex rules"
+        );
     }
 
     #[test]

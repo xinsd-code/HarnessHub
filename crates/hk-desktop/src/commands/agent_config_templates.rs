@@ -42,6 +42,34 @@ pub fn update_agent_config_template_tag(
 }
 
 #[tauri::command]
+pub fn create_agent_config_template(
+    source_project_path: String,
+    source_project_name: String,
+    name: String,
+    description: String,
+    tag: String,
+    content: String,
+) -> Result<agent_config_templates::AgentConfigTemplate, HkError> {
+    agent_config_templates::create_template(
+        &agent_config_templates::default_hub_dir(),
+        &PathBuf::from(source_project_path),
+        &source_project_name,
+        &name,
+        &description,
+        &tag,
+        &content,
+    )
+}
+
+#[tauri::command]
+pub fn update_agent_config_template_content(
+    id: String,
+    content: String,
+) -> Result<agent_config_templates::AgentConfigTemplate, HkError> {
+    agent_config_templates::update_template_content(&agent_config_templates::default_hub_dir(), &id, &content)
+}
+
+#[tauri::command]
 pub fn delete_agent_config_template(id: String) -> Result<(), HkError> {
     agent_config_templates::delete_template(&agent_config_templates::default_hub_dir(), &id)
 }
@@ -53,12 +81,18 @@ pub fn sync_agent_config_template_to_project(
     project_path: String,
     target_agent: String,
     force: bool,
+    rel_path: Option<String>,
 ) -> Result<String, HkError> {
     let adapters = state.runtime_adapters();
-    let target_relpath = adapters
-        .iter()
-        .find(|adapter| adapter.name() == target_agent)
-        .and_then(|adapter| adapter.project_rules_target_relpath());
+    let target_relpath = rel_path
+        .filter(|p| !p.trim().is_empty())
+        .or_else(|| {
+            adapters
+                .iter()
+                .find(|adapter| adapter.name() == target_agent)
+                .and_then(|adapter| adapter.project_rules_target_relpath())
+                .map(|s| s.to_string())
+        });
     let target = agent_config_templates::sync_template_to_project(
         &agent_config_templates::default_hub_dir(),
         &id,

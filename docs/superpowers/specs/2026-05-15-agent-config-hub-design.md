@@ -54,6 +54,14 @@ Projects 页面内部左侧栏新增 `Agent Config` 虚拟 scope，放在 `All P
 
 详情抽屉关闭后回到纯列表视图。删除确认和覆盖确认都使用页面内弹窗，不使用浏览器原生弹窗。
 
+`Import from Project` 弹窗采用两段式选择：
+
+- 先选择 agent。
+- 再展示该 agent 在 Projects 视图中可见且属于 `Rules` 分类的配置文件，来源与 Projects 中该 agent 的配置文件列表保持一致。
+- 文件列表最多显示三项高度，超过三项时在弹窗内纵向滚动，不拉长弹窗整体高度。
+
+`Sync to Project` 弹窗中的目标 agent 选择不展示 agent 名字文本，只展示可点击图标；agent 名称只保留在 hover title 或辅助无障碍标签中。
+
 ## 数据模型
 
 新增独立模型 `AgentConfigTemplate`，不复用 `Extension`。
@@ -143,11 +151,13 @@ sync_agent_config_template_to_project(
 
 1. 用户进入 `Projects > Agent Config`。
 2. 点击 `Import from Project`。
-3. 弹窗列出已注册 Project 中扫描到的 `Rules` 类配置文件。
-4. 用户选择源文件，填写模板名、描述、标签。
-5. 标签为空时使用 `default`。
-6. 保存后系统复制源文件到 `~/.harnesskit/agent-configs/<tag>/<name>/prompt.md`，写入 `metadata.json`。
-7. 列表刷新并选中新模板。
+3. 弹窗先列出已注册 Project 中存在 `Rules` 类配置文件的 agents。
+4. 用户选择一个 agent 后，弹窗展示与 Projects 视图中该 agent 一致的 `Rules` 配置文件列表。
+5. 文件列表最多展示三项高度，超过三项时在弹窗内部滚动。
+6. 用户选择源文件，填写模板名、描述、标签。
+7. 标签为空时使用 `default`。
+8. 保存后系统复制源文件到 `~/.harnesskit/agent-configs/<tag>/<name>/prompt.md`，写入 `metadata.json`。
+9. 列表刷新并选中新模板。
 
 如果源文件不存在或不可读，显示错误且不创建半成品。如果同 tag 下同名模板已存在，阻止导入并提示换名或换标签。
 
@@ -155,7 +165,7 @@ sync_agent_config_template_to_project(
 
 1. 用户点击模板打开右侧详情抽屉。
 2. 点击 `Sync to Project`。
-3. 弹窗选择目标 Project 和目标 agent。
+3. 弹窗选择目标 Project，并通过图标选择目标 agent。
 4. 系统展示即将写入的目标路径。
 5. 如果目标文件不存在，创建父目录并写入。
 6. 如果目标文件已存在，默认阻止，并展示覆盖确认。
@@ -216,10 +226,12 @@ Adapter/同步测试：
 - 列表展示模板名、描述、标签、来源项目、更新时间。
 - 标签筛选能按单标签过滤模板。
 - 导入弹窗默认 tag 为 `default`。
+- 导入弹窗先选 agent，再显示与 Projects 视图一致的 `Rules` 配置文件列表。
+- 导入弹窗文件列表超过三项时在弹窗内部滚动。
 - 点击模板打开右侧详情抽屉。
 - 详情抽屉能显示标签并触发标签修改。
 - 修改标签后列表刷新，模板进入新标签。
-- 同步弹窗展示目标路径。
+- 同步弹窗通过无文案 agent 图标选择目标 agent，并展示目标路径。
 - 目标存在时默认显示冲突，不静默覆盖。
 - 删除模板使用页面内确认弹窗。
 
@@ -231,4 +243,3 @@ Adapter/同步测试：
 - 修改模板 tag 到自定义标签，确认目录被移动。
 - 同步到另一个 Project 的 Codex、Claude Code、Gemini 目标路径，确认目录和文件名正确。
 - 重复同步同一目标时确认默认阻止覆盖。
-

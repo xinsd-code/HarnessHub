@@ -216,6 +216,56 @@ pub fn delete_template(hub_dir: &Path, id: &str) -> Result<(), HkError> {
     Ok(())
 }
 
+pub fn create_template(
+    hub_dir: &Path,
+    source_project_path: &Path,
+    source_project_name: &str,
+    name: &str,
+    description: &str,
+    tag: &str,
+    content: &str,
+) -> Result<AgentConfigTemplate, HkError> {
+    if name.trim().is_empty() {
+        return Err(HkError::Validation("Template name cannot be empty".into()));
+    }
+    let tag = normalize_tag(tag);
+    let dir = template_dir(hub_dir, &tag, name)?;
+    if dir.exists() {
+        return Err(HkError::Conflict("Template already exists in this tag".into()));
+    }
+    fs::create_dir_all(&dir)?;
+    let content_path = dir.join(PROMPT_FILE);
+    fs::write(&content_path, content)?;
+    let timestamp = now();
+    let safe_name = name.trim().to_string();
+    let meta = AgentConfigTemplateMetadata {
+        name: safe_name,
+        description: description.trim().into(),
+        tag,
+        source_project_name: source_project_name.into(),
+        source_project_path: source_project_path.to_string_lossy().to_string(),
+        source_path: String::new(),
+        original_file_name: String::new(),
+        created_at: timestamp,
+        updated_at: timestamp,
+    };
+    fs::write(dir.join(METADATA_FILE), serde_json::to_string_pretty(&meta)?)?;
+    metadata_to_template(&dir, meta)
+}
+
+pub fn update_template_content(hub_dir: &Path, id: &str, content: &str) -> Result<AgentConfigTemplate, HkError> {
+    let template = get_template(hub_dir, id)?;
+    let dir = Path::new(&template.content_path)
+        .parent()
+        .ok_or_else(|| HkError::Internal("Template content path has no parent".into()))?;
+    fs::write(&template.content_path, content)?;
+    let mut meta: AgentConfigTemplateMetadata =
+        serde_json::from_str(&fs::read_to_string(dir.join(METADATA_FILE))?)?;
+    meta.updated_at = now();
+    fs::write(dir.join(METADATA_FILE), serde_json::to_string_pretty(&meta)?)?;
+    metadata_to_template(&dir, meta)
+}
+
 pub fn sync_template_to_project(
     hub_dir: &Path,
     id: &str,

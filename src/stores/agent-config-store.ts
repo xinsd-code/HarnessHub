@@ -25,6 +25,13 @@ interface AgentConfigState {
   toggleFile: (path: string) => void;
   setPendingFocusFile: (path: string | null) => void;
   fetchPreview: (path: string) => Promise<string>;
+  readFileContent: (path: string) => Promise<string>;
+  writeFileContent: (path: string, content: string) => Promise<void>;
+  createProjectRulesFile: (
+    agent: string,
+    targetScope: ConfigScope,
+    content: string,
+  ) => Promise<string>;
   openInEditor: (path: string) => Promise<void>;
   revealInFinder: (path: string) => Promise<void>;
   copyPath: (path: string) => Promise<void>;
@@ -142,6 +149,45 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => ({
       const nextLoading = new Set(get().previewLoading);
       nextLoading.delete(path);
       set({ previewLoading: nextLoading });
+    }
+  },
+
+  async readFileContent(path: string) {
+    try {
+      return await api.readConfigFileContent(path);
+    } catch (error) {
+      toast.error(humanizeError(error as string));
+      throw error;
+    }
+  },
+
+  async writeFileContent(path: string, content: string) {
+    try {
+      await api.writeConfigFileContent(path, content);
+      const cache = new Map(get().previewCache);
+      cache.delete(path);
+      set({ previewCache: cache });
+      await get().fetch();
+      toast.success("Config file updated");
+    } catch (error) {
+      toast.error(humanizeError(error as string));
+      throw error;
+    }
+  },
+
+  async createProjectRulesFile(agent, targetScope, content) {
+    try {
+      const path = await api.createProjectAgentRulesFile(
+        agent,
+        targetScope,
+        content,
+      );
+      await get().fetch();
+      toast.success("Agent config created");
+      return path;
+    } catch (error) {
+      toast.error(humanizeError(error as string));
+      throw error;
     }
   },
 

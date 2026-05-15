@@ -6,7 +6,7 @@ import {
   Folder,
   FolderOpen,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { Project } from "@/lib/types";
 import { pathSegments, pathsEqual } from "@/lib/types";
 import type { ScopeValue } from "@/stores/scope-store";
@@ -47,11 +47,13 @@ export function AgentScopeTree({
   scope,
   onSelectScope,
   showAgentsSection = true,
+  children,
 }: {
   projects: Project[];
   scope: ScopeValue;
   onSelectScope: (scope: ScopeValue) => void;
   showAgentsSection?: boolean;
+  children?: ReactNode;
 }) {
   const groups = useMemo(() => groupProjects(projects), [projects]);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
@@ -92,6 +94,8 @@ export function AgentScopeTree({
           </button>
         </section>
       )}
+
+      {children}
 
       <section>
         <div className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">

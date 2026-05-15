@@ -19,6 +19,19 @@ pub struct ImportReq {
 }
 
 #[derive(Deserialize)]
+pub struct CreateReq {
+    source_project_path: String,
+    source_project_name: String,
+    name: String,
+    description: String,
+    tag: String,
+    content: String,
+}
+
+#[derive(Deserialize)]
+pub struct UpdateContentReq { id: String, content: String }
+
+#[derive(Deserialize)]
 pub struct UpdateTagReq { id: String, tag: String }
 
 #[derive(Deserialize)]
@@ -27,6 +40,7 @@ pub struct SyncReq {
     project_path: String,
     target_agent: String,
     force: bool,
+    rel_path: Option<String>,
 }
 
 pub async fn list_agent_config_templates() -> Result<Json<Vec<agent_config_templates::AgentConfigTemplate>>, ApiError> {
@@ -55,6 +69,24 @@ pub async fn update_agent_config_template_tag(Json(req): Json<UpdateTagReq>) -> 
     blocking(move || agent_config_templates::update_template_tag(&agent_config_templates::default_hub_dir(), &req.id, &req.tag)).await
 }
 
+pub async fn create_agent_config_template(Json(req): Json<CreateReq>) -> Result<Json<agent_config_templates::AgentConfigTemplate>, ApiError> {
+    blocking(move || {
+        agent_config_templates::create_template(
+            &agent_config_templates::default_hub_dir(),
+            &PathBuf::from(req.source_project_path),
+            &req.source_project_name,
+            &req.name,
+            &req.description,
+            &req.tag,
+            &req.content,
+        )
+    }).await
+}
+
+pub async fn update_agent_config_template_content(Json(req): Json<UpdateContentReq>) -> Result<Json<agent_config_templates::AgentConfigTemplate>, ApiError> {
+    blocking(move || agent_config_templates::update_template_content(&agent_config_templates::default_hub_dir(), &req.id, &req.content)).await
+}
+
 pub async fn delete_agent_config_template(Json(req): Json<ContentReq>) -> Result<Json<()>, ApiError> {
     blocking(move || agent_config_templates::delete_template(&agent_config_templates::default_hub_dir(), &req.id)).await
 }
@@ -66,10 +98,15 @@ pub async fn sync_agent_config_template_to_project(
     blocking(move || {
         let settings = state.store.lock().list_agent_settings()?;
         let adapters = hk_core::adapter::runtime_adapters_for_settings(&settings);
-        let target_relpath = adapters
-            .iter()
-            .find(|adapter| adapter.name() == req.target_agent)
-            .and_then(|adapter| adapter.project_rules_target_relpath());
+        let target_relpath = req.rel_path
+            .filter(|p| !p.trim().is_empty())
+            .or_else(|| {
+                adapters
+                    .iter()
+                    .find(|adapter| adapter.name() == req.target_agent)
+                    .and_then(|adapter| adapter.project_rules_target_relpath())
+                    .map(|s| s.to_string())
+            });
         let target = agent_config_templates::sync_template_to_project(
             &agent_config_templates::default_hub_dir(),
             &req.id,

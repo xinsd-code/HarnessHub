@@ -39,7 +39,8 @@ describe("TemplateDetailDrawer", () => {
     expect(screen.getByText("# rules")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /sync to project/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /delete/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /edit tag/i })).toBeInTheDocument();
+    expect(screen.getByText("default")).toBeInTheDocument();
+    expect(screen.getByTitle("Double-click to edit tag")).toBeInTheDocument();
   });
 
   it("closes drawer", () => {

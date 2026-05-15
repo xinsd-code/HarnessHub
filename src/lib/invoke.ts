@@ -317,6 +317,26 @@ export const api = {
     return transport("read_config_file_preview", { path, maxLines });
   },
 
+  readConfigFileContent(path: string): Promise<string> {
+    return transport("read_config_file_content", { path });
+  },
+
+  writeConfigFileContent(path: string, content: string): Promise<void> {
+    return transport("write_config_file_content", { path, content });
+  },
+
+  createProjectAgentRulesFile(
+    agent: string,
+    targetScope: ConfigScope,
+    content: string,
+  ): Promise<string> {
+    return transport("create_project_agent_rules_file", {
+      agent,
+      targetScope,
+      content,
+    });
+  },
+
   addCustomConfigPath(
     agent: string,
     path: string,
@@ -470,6 +490,23 @@ export const api = {
     return transport("update_agent_config_template_tag", { id, tag });
   },
 
+  createAgentConfigTemplate(params: {
+    sourceProjectPath: string;
+    sourceProjectName: string;
+    name: string;
+    description: string;
+    tag: string;
+    content: string;
+  }): Promise<AgentConfigTemplate> {
+    validateNonEmpty(params.name, "Template name");
+    return transport("create_agent_config_template", params);
+  },
+
+  updateAgentConfigTemplateContent(id: string, content: string): Promise<AgentConfigTemplate> {
+    validateNonEmpty(id, "Template ID");
+    return transport("update_agent_config_template_content", { id, content });
+  },
+
   deleteAgentConfigTemplate(id: string): Promise<void> {
     validateNonEmpty(id, "Template ID");
     return transport("delete_agent_config_template", { id });
@@ -480,6 +517,7 @@ export const api = {
     projectPath: string,
     targetAgent: string,
     force: boolean,
+    relPath?: string,
   ): Promise<string> {
     validateNonEmpty(id, "Template ID");
     validateNonEmpty(projectPath, "Project path");
@@ -489,6 +527,7 @@ export const api = {
       projectPath,
       targetAgent,
       force,
+      relPath,
     });
   },
 };

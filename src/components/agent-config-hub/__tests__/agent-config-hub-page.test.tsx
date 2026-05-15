@@ -52,17 +52,17 @@ vi.mock("@/stores/agent-config-template-store", () => ({
 }));
 
 describe("AgentConfigHubPage", () => {
-  it("shows tag filter options and no agent labels", () => {
+  it("shows tag filter buttons and no agent labels", () => {
     render(<AgentConfigHubPage />);
-    expect(screen.getByRole("option", { name: "default" })).toBeInTheDocument();
-    expect(screen.getByRole("option", { name: "review" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "default" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "review" })).toBeInTheDocument();
     expect(screen.queryByText("codex")).not.toBeInTheDocument();
     expect(screen.queryByText("claude")).not.toBeInTheDocument();
   });
 
-  it("updates tag filter when selected", () => {
+  it("updates tag filter when button clicked", () => {
     render(<AgentConfigHubPage />);
-    fireEvent.change(screen.getByRole("combobox"), { target: { value: "review" } });
+    fireEvent.click(screen.getByRole("button", { name: "review" }));
     expect(state.setTagFilter).toHaveBeenCalledWith("review");
   });
 });
