@@ -9,6 +9,7 @@ pub mod models;
 pub mod sanitize;
 pub mod scanner;
 pub mod service;
+pub mod agent_config_templates;
 pub mod store;
 
 pub use error::HkError;
