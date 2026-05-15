@@ -158,6 +158,10 @@ impl AgentAdapter for GeminiAdapter {
         ]
     }
 
+    fn project_rules_target_relpath(&self) -> Option<String> {
+        Some(".gemini/GEMINI.md".into())
+    }
+
     fn project_settings_patterns(&self) -> Vec<String> {
         vec![".gemini/settings.json".into()]
     }

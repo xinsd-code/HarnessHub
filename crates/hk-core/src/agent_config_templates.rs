@@ -216,6 +216,36 @@ pub fn delete_template(hub_dir: &Path, id: &str) -> Result<(), HkError> {
     Ok(())
 }
 
+pub fn sync_template_to_project(
+    hub_dir: &Path,
+    id: &str,
+    project_path: &Path,
+    target_agent: &str,
+    target_relpath: Option<&str>,
+    force: bool,
+) -> Result<PathBuf, HkError> {
+    if !project_path.is_dir() {
+        return Err(HkError::NotFound(format!("Project directory not found: {}", project_path.display())));
+    }
+    let relpath = target_relpath
+        .filter(|value| !value.trim().is_empty())
+        .ok_or_else(|| HkError::Validation(format!("Agent does not support project rules sync: {target_agent}")))?;
+    let rel = Path::new(relpath);
+    if rel.is_absolute() || rel.components().any(|c| matches!(c, std::path::Component::ParentDir)) {
+        return Err(HkError::PathNotAllowed("Target rules path must stay inside the project".into()));
+    }
+    let template = get_template(hub_dir, id)?;
+    let target = project_path.join(rel);
+    if target.exists() && !force {
+        return Err(HkError::Conflict(format!("Target file already exists: {}", target.display())));
+    }
+    if let Some(parent) = target.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::copy(template.content_path, &target)?;
+    Ok(target)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -302,5 +332,58 @@ mod tests {
 
         let err = update_template_tag(&hub, &template.id, "review").unwrap_err();
         assert!(matches!(err, HkError::Conflict(_)));
+    }
+}
+
+#[cfg(test)]
+mod sync_tests {
+    use super::*;
+    use crate::adapter::{claude::ClaudeAdapter, codex::CodexAdapter, gemini::GeminiAdapter, AgentAdapter};
+    use std::fs;
+
+    fn source_template(tmp: &tempfile::TempDir) -> (PathBuf, AgentConfigTemplate) {
+        let hub = tmp.path().join("hub");
+        let project = tmp.path().join("source-project");
+        let source = project.join("AGENTS.md");
+        fs::create_dir_all(&project).unwrap();
+        fs::write(&source, "shared prompt").unwrap();
+        let template = import_template(&hub, &source, &project, "Source", "Shared", "", "default").unwrap();
+        (hub, template)
+    }
+
+    #[test]
+    fn canonical_rules_targets_are_explicit_for_primary_agents() {
+        assert_eq!(CodexAdapter::new().project_rules_target_relpath().as_deref(), Some(".codex/AGENTS.md"));
+        assert_eq!(ClaudeAdapter::new().project_rules_target_relpath().as_deref(), Some(".claude/CLAUDE.md"));
+        assert_eq!(GeminiAdapter::new().project_rules_target_relpath().as_deref(), Some(".gemini/GEMINI.md"));
+    }
+
+    #[test]
+    fn sync_writes_target_and_blocks_existing_without_force() {
+        let tmp = tempfile::tempdir().unwrap();
+        let (hub, template) = source_template(&tmp);
+        let target_project = tmp.path().join("target");
+        fs::create_dir_all(&target_project).unwrap();
+        let adapter = CodexAdapter::new();
+
+        let target = sync_template_to_project(&hub, &template.id, &target_project, adapter.name(), adapter.project_rules_target_relpath().as_deref(), false).unwrap();
+        assert_eq!(target, target_project.join(".codex/AGENTS.md"));
+        assert_eq!(fs::read_to_string(&target).unwrap(), "shared prompt");
+
+        let err = sync_template_to_project(&hub, &template.id, &target_project, adapter.name(), adapter.project_rules_target_relpath().as_deref(), false).unwrap_err();
+        assert!(matches!(err, HkError::Conflict(_)));
+
+        sync_template_to_project(&hub, &template.id, &target_project, adapter.name(), adapter.project_rules_target_relpath().as_deref(), true).unwrap();
+    }
+
+    #[test]
+    fn sync_rejects_unsupported_agent_target() {
+        let tmp = tempfile::tempdir().unwrap();
+        let (hub, template) = source_template(&tmp);
+        let target_project = tmp.path().join("target");
+        fs::create_dir_all(&target_project).unwrap();
+
+        let err = sync_template_to_project(&hub, &template.id, &target_project, "unknown", None, false).unwrap_err();
+        assert!(matches!(err, HkError::Validation(_)));
     }
 }

@@ -256,6 +256,10 @@ impl AgentAdapter for ClaudeAdapter {
         ]
     }
 
+    fn project_rules_target_relpath(&self) -> Option<String> {
+        Some(".claude/CLAUDE.md".into())
+    }
+
     fn project_settings_patterns(&self) -> Vec<String> {
         vec![
             ".claude/settings.json".into(),
