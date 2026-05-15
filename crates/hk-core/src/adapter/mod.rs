@@ -153,6 +153,29 @@ pub trait AgentAdapter: Send + Sync {
         vec![]
     }
 
+    /// Canonical relative file path where HarnessKit should write a project
+    /// rules prompt for this agent. Defaults to the only non-glob file pattern
+    /// when exactly one exists; adapters with multiple conventions should
+    /// override this to avoid ambiguous writes.
+    fn project_rules_target_relpath(&self) -> Option<String> {
+        let candidates: Vec<String> = self
+            .project_rules_patterns()
+            .into_iter()
+            .filter(|pattern| {
+                !pattern.contains('*')
+                    && !pattern.ends_with('/')
+                    && std::path::Path::new(pattern)
+                        .file_name()
+                        .is_some_and(|name| name.to_string_lossy().contains('.'))
+            })
+            .collect();
+        if candidates.len() == 1 {
+            candidates.into_iter().next()
+        } else {
+            None
+        }
+    }
+
     /// Relative paths/globs for memory within a project dir
     fn project_memory_patterns(&self) -> Vec<String> {
         vec![]

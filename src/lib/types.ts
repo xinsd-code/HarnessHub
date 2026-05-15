@@ -518,3 +518,22 @@ export function formatRelativeTime(iso: string): string {
   if (diffMin > 0) return `${diffMin}m ago`;
   return "Just now";
 }
+
+export interface AgentConfigTemplate {
+  id: string;
+  name: string;
+  description: string;
+  tag: string;
+  source_project_name: string;
+  source_project_path: string;
+  source_path: string;
+  original_file_name: string;
+  content_path: string;
+  size_bytes: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AgentConfigSyncResult {
+  target_path: string;
+}

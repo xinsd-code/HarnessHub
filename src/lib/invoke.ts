@@ -1,5 +1,6 @@
 import { transport } from "./transport";
 import type {
+  AgentConfigTemplate,
   AgentDetail,
   AgentInfo,
   AuditResult,
@@ -430,5 +431,64 @@ export const api = {
 
   syncExtensionsToHub(extensionIds: string[]): Promise<string[]> {
     return transport("sync_extensions_to_hub", { extensionIds });
+  },
+
+  // Agent Config Template API
+  listAgentConfigTemplates(): Promise<AgentConfigTemplate[]> {
+    return transport("list_agent_config_templates");
+  },
+
+  getAgentConfigTemplateContent(id: string): Promise<string> {
+    validateNonEmpty(id, "Template ID");
+    return transport("get_agent_config_template_content", { id });
+  },
+
+  importAgentConfigTemplate(
+    sourcePath: string,
+    sourceProjectPath: string,
+    sourceProjectName: string,
+    name: string,
+    description: string,
+    tag: string,
+  ): Promise<AgentConfigTemplate> {
+    validateNonEmpty(sourcePath, "Source path");
+    validateNonEmpty(sourceProjectPath, "Source project path");
+    validateNonEmpty(sourceProjectName, "Source project name");
+    validateNonEmpty(name, "Template name");
+    return transport("import_agent_config_template", {
+      sourcePath,
+      sourceProjectPath,
+      sourceProjectName,
+      name,
+      description,
+      tag,
+    });
+  },
+
+  updateAgentConfigTemplateTag(id: string, tag: string): Promise<AgentConfigTemplate> {
+    validateNonEmpty(id, "Template ID");
+    return transport("update_agent_config_template_tag", { id, tag });
+  },
+
+  deleteAgentConfigTemplate(id: string): Promise<void> {
+    validateNonEmpty(id, "Template ID");
+    return transport("delete_agent_config_template", { id });
+  },
+
+  syncAgentConfigTemplateToProject(
+    id: string,
+    projectPath: string,
+    targetAgent: string,
+    force: boolean,
+  ): Promise<string> {
+    validateNonEmpty(id, "Template ID");
+    validateNonEmpty(projectPath, "Project path");
+    validateNonEmpty(targetAgent, "Target agent");
+    return transport("sync_agent_config_template_to_project", {
+      id,
+      projectPath,
+      targetAgent,
+      force,
+    });
   },
 };

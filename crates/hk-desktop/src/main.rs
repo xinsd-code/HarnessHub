@@ -97,6 +97,12 @@ fn main() {
             commands::get_hub_extension_content,
             commands::preview_sync_to_hub,
             commands::sync_extensions_to_hub,
+            commands::list_agent_config_templates,
+            commands::get_agent_config_template_content,
+            commands::import_agent_config_template,
+            commands::update_agent_config_template_tag,
+            commands::delete_agent_config_template,
+            commands::sync_agent_config_template_to_project,
             icon::set_app_icon,
         ])
         .on_window_event(|window, event| {
