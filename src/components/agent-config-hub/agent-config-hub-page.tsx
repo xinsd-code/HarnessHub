@@ -1,6 +1,7 @@
 import { FileText, Plus, Search } from "lucide-react";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAgentConfigTemplateStore } from "@/stores/agent-config-template-store";
+import { ImportTemplateDialog } from "./import-template-dialog";
 import { TemplateDetailDrawer } from "./template-detail-drawer";
 
 export function AgentConfigHubPage() {
@@ -13,6 +14,7 @@ export function AgentConfigHubPage() {
   const setSearchQuery = useAgentConfigTemplateStore((s) => s.setSearchQuery);
   const tagFilter = useAgentConfigTemplateStore((s) => s.tagFilter);
   const setTagFilter = useAgentConfigTemplateStore((s) => s.setTagFilter);
+  const [showImport, setShowImport] = useState(false);
 
   useEffect(() => {
     void fetch();
@@ -44,8 +46,7 @@ export function AgentConfigHubPage() {
             <p className="mt-1 text-sm text-muted-foreground">Prompt templates stored in ~/.harnesskit/agent-configs</p>
           </div>
           <button
-            disabled
-            title="Import action is enabled in Task 6"
+            onClick={() => setShowImport(true)}
             className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium shadow-sm transition-colors hover:bg-accent"
           >
             <Plus size={13} />
@@ -107,6 +108,7 @@ export function AgentConfigHubPage() {
       </div>
 
       {selectedId && <TemplateDetailDrawer />}
+      {showImport && <ImportTemplateDialog onClose={() => setShowImport(false)} />}
     </div>
   );
 }
