@@ -7,7 +7,7 @@ use crate::models::*;
 use crate::sanitize::strip_windows_extended_path_prefix;
 
 /// Latest schema version supported by this binary.
-const LATEST_SCHEMA_VERSION: i64 = 5;
+const LATEST_SCHEMA_VERSION: i64 = 6;
 
 /// One row of `custom_config_paths`: (id, path, label, category, scope_json).
 /// `scope_json` is `None` for legacy rows that predate v4 schema migration.
@@ -143,6 +143,7 @@ impl Store {
         if current_version < 3 { self.migrate_v3()?; }
         if current_version < 4 { self.migrate_v4()?; }
         if current_version < 5 { self.migrate_v5()?; }
+        if current_version < 6 { self.migrate_v6()?; }
 
         // Update schema version to latest
         if current_version < LATEST_SCHEMA_VERSION {
@@ -267,6 +268,33 @@ impl Store {
     /// Schema v5: icon_path column on agent_settings for custom agent logos.
     fn migrate_v5(&self) -> Result<(), HkError> {
         self.migrate_add_column("ALTER TABLE agent_settings ADD COLUMN icon_path TEXT");
+        Ok(())
+    }
+
+    /// Schema v6: saved HarnessKit Kit checklists.
+    fn migrate_v6(&self) -> Result<(), HkError> {
+        self.conn.execute_batch(
+            "
+            CREATE TABLE IF NOT EXISTS kits (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                description TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS kit_assets (
+                kit_id TEXT NOT NULL REFERENCES kits(id) ON DELETE CASCADE,
+                hub_extension_id TEXT NOT NULL,
+                kind TEXT NOT NULL,
+                asset_name TEXT NOT NULL,
+                position INTEGER NOT NULL,
+                PRIMARY KEY (kit_id, hub_extension_id)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_kit_assets_kit_id ON kit_assets(kit_id);
+            ",
+        )?;
         Ok(())
     }
 
@@ -1306,6 +1334,117 @@ impl Store {
             install_meta,
             scope,
         })
+    }
+
+    // --- Kit CRUD ---
+
+    pub fn create_kit(
+        &self,
+        name: &str,
+        description: &str,
+        assets: &[NewKitAsset],
+    ) -> Result<KitSummary, HkError> {
+        let trimmed_name = name.trim();
+        if trimmed_name.is_empty() {
+            return Err(HkError::Validation("Kit name cannot be empty".into()));
+        }
+        if assets.is_empty() {
+            return Err(HkError::Validation("Select at least one asset".into()));
+        }
+
+        let now = Utc::now();
+        let id = uuid::Uuid::new_v4().to_string();
+        let tx = self.conn.unchecked_transaction()?;
+        tx.execute(
+            "INSERT INTO kits (id, name, description, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![
+                id,
+                trimmed_name,
+                description.trim(),
+                now.to_rfc3339(),
+                now.to_rfc3339()
+            ],
+        )?;
+
+        for (position, asset) in assets.iter().enumerate() {
+            tx.execute(
+                "INSERT INTO kit_assets (kit_id, hub_extension_id, kind, asset_name, position)
+                 VALUES (?1, ?2, ?3, ?4, ?5)",
+                params![
+                    id,
+                    asset.hub_extension_id,
+                    asset.kind.as_str(),
+                    asset.asset_name,
+                    position as i64,
+                ],
+            )?;
+        }
+        tx.commit()?;
+
+        self.get_kit_summary(&id)?
+            .ok_or_else(|| HkError::Internal("Created Kit was not found".into()))
+    }
+
+    pub fn list_kits(&self) -> Result<Vec<KitSummary>, HkError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT
+                k.id,
+                k.name,
+                k.description,
+                k.created_at,
+                k.updated_at,
+                SUM(CASE WHEN ka.kind = 'skill' THEN 1 ELSE 0 END) AS skills_count,
+                SUM(CASE WHEN ka.kind = 'mcp' THEN 1 ELSE 0 END) AS mcp_count,
+                SUM(CASE WHEN ka.kind = 'cli' THEN 1 ELSE 0 END) AS cli_count
+             FROM kits k
+             LEFT JOIN kit_assets ka ON ka.kit_id = k.id
+             GROUP BY k.id
+             ORDER BY k.updated_at DESC, k.name ASC",
+        )?;
+
+        let rows = stmt.query_map([], |row| {
+            let created_at: String = row.get(3)?;
+            let updated_at: String = row.get(4)?;
+            Ok(KitSummary {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                description: row.get(2)?,
+                created_at: DateTime::parse_from_rfc3339(&created_at)
+                    .map(|dt| dt.with_timezone(&Utc))
+                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(
+                        3,
+                        rusqlite::types::Type::Text,
+                        Box::new(e),
+                    ))?,
+                updated_at: DateTime::parse_from_rfc3339(&updated_at)
+                    .map(|dt| dt.with_timezone(&Utc))
+                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(
+                        4,
+                        rusqlite::types::Type::Text,
+                        Box::new(e),
+                    ))?,
+                skills_count: row.get::<_, i64>(5)?.max(0) as usize,
+                mcp_count: row.get::<_, i64>(6)?.max(0) as usize,
+                cli_count: row.get::<_, i64>(7)?.max(0) as usize,
+            })
+        })?;
+
+        rows.collect::<std::result::Result<Vec<_>, _>>().map_err(Into::into)
+    }
+
+    fn get_kit_summary(&self, id: &str) -> Result<Option<KitSummary>, HkError> {
+        Ok(self.list_kits()?.into_iter().find(|kit| kit.id == id))
+    }
+
+    pub fn delete_kit(&self, id: &str) -> Result<(), HkError> {
+        let affected = self
+            .conn
+            .execute("DELETE FROM kits WHERE id = ?1", params![id])?;
+        if affected == 0 {
+            return Err(HkError::NotFound("Kit not found".into()));
+        }
+        Ok(())
     }
 }
 
@@ -2509,5 +2648,114 @@ mod tests {
         // Only the latest audit (with 0 findings) should be counted
         let counts = store.count_latest_findings_by_severity().unwrap();
         assert_eq!(counts.get("critical").copied().unwrap_or(0), 0);
+    }
+
+    // --- Kit tests ---
+
+    #[test]
+    fn test_kit_schema_v6_is_created() {
+        let (store, _dir) = test_store();
+
+        let kits_count: i64 = store
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'kits'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let kit_assets_count: i64 = store
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'kit_assets'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+
+        assert_eq!(kits_count, 1);
+        assert_eq!(kit_assets_count, 1);
+        assert_eq!(store.schema_version().unwrap(), 6);
+    }
+
+    #[test]
+    fn test_create_and_list_kit_counts_assets_by_kind() {
+        let (store, _dir) = test_store();
+        let kit = store
+            .create_kit(
+                "Data Analyst Kit",
+                "SQL and data analysis assets",
+                &[
+                    NewKitAsset {
+                        hub_extension_id: "hub-skill".into(),
+                        kind: ExtensionKind::Skill,
+                        asset_name: "nl2sql".into(),
+                    },
+                    NewKitAsset {
+                        hub_extension_id: "hub-mcp".into(),
+                        kind: ExtensionKind::Mcp,
+                        asset_name: "postgres".into(),
+                    },
+                    NewKitAsset {
+                        hub_extension_id: "hub-cli".into(),
+                        kind: ExtensionKind::Cli,
+                        asset_name: "psql".into(),
+                    },
+                ],
+            )
+            .unwrap();
+
+        let kits = store.list_kits().unwrap();
+        assert_eq!(kits.len(), 1);
+        assert_eq!(kits[0].id, kit.id);
+        assert_eq!(kits[0].name, "Data Analyst Kit");
+        assert_eq!(kits[0].description, "SQL and data analysis assets");
+        assert_eq!(kits[0].skills_count, 1);
+        assert_eq!(kits[0].mcp_count, 1);
+        assert_eq!(kits[0].cli_count, 1);
+    }
+
+    #[test]
+    fn test_delete_kit_removes_only_kit_rows() {
+        let (store, _dir) = test_store();
+        let kit = store
+            .create_kit(
+                "Frontend Kit",
+                "UI assets",
+                &[NewKitAsset {
+                    hub_extension_id: "hub-skill".into(),
+                    kind: ExtensionKind::Skill,
+                    asset_name: "frontend-design".into(),
+                }],
+            )
+            .unwrap();
+
+        store.delete_kit(&kit.id).unwrap();
+
+        assert!(store.list_kits().unwrap().is_empty());
+        let orphan_asset_rows: i64 = store
+            .conn
+            .query_row("SELECT COUNT(*) FROM kit_assets", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(orphan_asset_rows, 0);
+    }
+
+    #[test]
+    fn test_create_kit_rejects_empty_name_and_empty_assets() {
+        let (store, _dir) = test_store();
+
+        let empty_name = store.create_kit(
+            "   ",
+            "desc",
+            &[NewKitAsset {
+                hub_extension_id: "hub-skill".into(),
+                kind: ExtensionKind::Skill,
+                asset_name: "frontend-design".into(),
+            }],
+        );
+        assert!(empty_name.is_err());
+
+        let empty_assets = store.create_kit("Frontend Kit", "desc", &[]);
+        assert!(empty_assets.is_err());
     }
 }

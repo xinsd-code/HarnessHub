@@ -195,6 +195,52 @@ pub struct InstallMeta {
     pub check_error: Option<String>,
 }
 
+// --- Kits ---
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct KitSummary {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub skills_count: usize,
+    pub mcp_count: usize,
+    pub cli_count: usize,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NewKitAsset {
+    pub hub_extension_id: String,
+    pub kind: ExtensionKind,
+    pub asset_name: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct KitAssetCandidate {
+    pub id: String,
+    pub kind: ExtensionKind,
+    pub name: String,
+    pub description: String,
+    pub source_status: KitAssetSourceStatus,
+    pub hub_extension_id: Option<String>,
+    pub extension_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum KitAssetSourceStatus {
+    InLocalHub,
+    WillSyncToLocalHub,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateKitRequest {
+    pub name: String,
+    pub description: String,
+    pub candidate_ids: Vec<String>,
+}
+
 // --- Audit ---
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
