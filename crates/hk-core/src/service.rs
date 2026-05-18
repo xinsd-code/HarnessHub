@@ -1620,6 +1620,134 @@ pub fn sync_extensions_to_hub(
     Ok(synced)
 }
 
+// --- Kit Service Functions ---
+
+fn kit_asset_key(ext: &Extension) -> Option<String> {
+    match ext.kind {
+        ExtensionKind::Skill | ExtensionKind::Mcp | ExtensionKind::Cli => {
+            Some(format!("{}\0{}", ext.kind.as_str(), ext.name))
+        }
+        ExtensionKind::Plugin | ExtensionKind::Hook => None,
+    }
+}
+
+pub fn build_kit_asset_candidates(
+    scanned_extensions: Vec<Extension>,
+    hub_extensions: Vec<Extension>,
+) -> Vec<KitAssetCandidate> {
+    let mut by_key: std::collections::BTreeMap<String, KitAssetCandidate> =
+        std::collections::BTreeMap::new();
+
+    for ext in scanned_extensions {
+        let Some(key) = kit_asset_key(&ext) else {
+            continue;
+        };
+        by_key.entry(key).or_insert_with(|| KitAssetCandidate {
+            id: format!("extension:{}", ext.id),
+            kind: ext.kind,
+            name: ext.name,
+            description: ext.description,
+            source_status: KitAssetSourceStatus::WillSyncToLocalHub,
+            hub_extension_id: None,
+            extension_id: Some(ext.id),
+        });
+    }
+
+    for ext in hub_extensions {
+        let Some(key) = kit_asset_key(&ext) else {
+            continue;
+        };
+        by_key.insert(
+            key,
+            KitAssetCandidate {
+                id: format!("hub:{}", ext.id),
+                kind: ext.kind,
+                name: ext.name,
+                description: ext.description,
+                source_status: KitAssetSourceStatus::InLocalHub,
+                hub_extension_id: Some(ext.id),
+                extension_id: None,
+            },
+        );
+    }
+
+    by_key.into_values().collect()
+}
+
+pub fn list_kit_asset_candidates(store: &Mutex<Store>) -> Result<Vec<KitAssetCandidate>, HkError> {
+    let scanned = store.lock().list_extensions(None, None)?;
+    let hub = scanner::scan_local_hub();
+    Ok(build_kit_asset_candidates(scanned, hub))
+}
+
+fn resolve_candidate_id<'a>(
+    candidate_id: &str,
+    candidates: &'a [KitAssetCandidate],
+) -> Result<&'a KitAssetCandidate, HkError> {
+    candidates
+        .iter()
+        .find(|candidate| candidate.id == candidate_id)
+        .ok_or_else(|| HkError::Validation(format!("Unknown Kit asset candidate: {candidate_id}")))
+}
+
+fn find_hub_asset_after_sync(name: &str, kind: ExtensionKind) -> Result<Extension, HkError> {
+    scanner::scan_local_hub()
+        .into_iter()
+        .find(|ext| ext.name == name && ext.kind == kind)
+        .ok_or_else(|| HkError::Internal(format!("Asset '{name}' was synced but not found in Local Hub")))
+}
+
+pub fn create_kit(
+    store: &Mutex<Store>,
+    adapters: &[Box<dyn AgentAdapter>],
+    projects: &[(String, String)],
+    request: CreateKitRequest,
+) -> Result<KitSummary, HkError> {
+    if request.name.trim().is_empty() {
+        return Err(HkError::Validation("Kit name cannot be empty".into()));
+    }
+    if request.candidate_ids.is_empty() {
+        return Err(HkError::Validation("Select at least one asset".into()));
+    }
+
+    let candidates = list_kit_asset_candidates(store)?;
+    let mut assets = Vec::new();
+
+    for candidate_id in &request.candidate_ids {
+        let candidate = resolve_candidate_id(candidate_id, &candidates)?;
+        let hub_asset = match (&candidate.hub_extension_id, &candidate.extension_id) {
+            (Some(hub_id), _) => scanner::scan_local_hub()
+                .into_iter()
+                .find(|ext| ext.id == *hub_id)
+                .ok_or_else(|| HkError::NotFound(format!("Local Hub asset not found: {hub_id}")))?,
+            (None, Some(extension_id)) => {
+                backup_to_hub(store, adapters, projects, extension_id)?;
+                find_hub_asset_after_sync(&candidate.name, candidate.kind)?
+            }
+            (None, None) => {
+                return Err(HkError::Validation(format!(
+                    "Candidate '{}' has no resolvable asset",
+                    candidate.name
+                )));
+            }
+        };
+
+        assets.push(NewKitAsset {
+            hub_extension_id: hub_asset.id,
+            kind: hub_asset.kind,
+            asset_name: hub_asset.name,
+        });
+    }
+
+    store
+        .lock()
+        .create_kit(&request.name, &request.description, &assets)
+}
+
+pub fn delete_kit(store: &Mutex<Store>, id: &str) -> Result<(), HkError> {
+    store.lock().delete_kit(id)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2025,5 +2153,76 @@ mod tests {
                 "must not synthesize install_meta when source had none"
             );
         }
+    }
+
+    fn make_extension(id: &str, kind: ExtensionKind, name: &str, source_path: Option<&str>) -> Extension {
+        Extension {
+            id: id.into(),
+            kind,
+            name: name.into(),
+            description: format!("{name} description"),
+            source: Source {
+                origin: SourceOrigin::Local,
+                url: None,
+                version: None,
+                commit_hash: None,
+            },
+            agents: vec!["claude".into()],
+            tags: Vec::new(),
+            pack: None,
+            permissions: Vec::new(),
+            enabled: true,
+            trust_score: None,
+            installed_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+            source_path: source_path.map(str::to_string),
+            cli_parent_id: None,
+            cli_meta: None,
+            install_meta: None,
+            scope: ConfigScope::Global,
+        }
+    }
+
+    #[test]
+    fn test_build_kit_asset_candidates_dedupes_and_prefers_hub() {
+        let scanned = vec![
+            make_extension("ext-skill-a", ExtensionKind::Skill, "frontend-design", None),
+            make_extension("ext-skill-b", ExtensionKind::Skill, "frontend-design", None),
+            make_extension("ext-hook", ExtensionKind::Hook, "post:.*:notify", None),
+        ];
+        let hub = vec![
+            make_extension("hub-skill", ExtensionKind::Skill, "frontend-design", None),
+            make_extension("hub-cli", ExtensionKind::Cli, "gh", None),
+        ];
+
+        let candidates = build_kit_asset_candidates(scanned, hub);
+
+        assert_eq!(candidates.len(), 2);
+        let frontend = candidates
+            .iter()
+            .find(|candidate| candidate.name == "frontend-design")
+            .unwrap();
+        assert_eq!(frontend.source_status, KitAssetSourceStatus::InLocalHub);
+        assert_eq!(frontend.hub_extension_id.as_deref(), Some("hub-skill"));
+        assert_eq!(frontend.extension_id, None);
+    }
+
+    #[test]
+    fn test_create_kit_from_extension_sync_failure_does_not_save_partial_kit() {
+        let (store, _dir) = test_store();
+        let store = std::sync::Arc::new(parking_lot::Mutex::new(store));
+        let source_ext = make_extension("ext-missing-source", ExtensionKind::Skill, "missing-source", None);
+        store.lock().insert_extension(&source_ext).unwrap();
+
+        let request = CreateKitRequest {
+            name: "Broken Kit".into(),
+            description: "sync should fail".into(),
+            candidate_ids: vec!["extension:ext-missing-source".into()],
+        };
+
+        let result = create_kit(&store, &[], &[], request);
+
+        assert!(result.is_err());
+        assert!(store.lock().list_kits().unwrap().is_empty());
     }
 }
