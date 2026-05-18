@@ -105,6 +105,11 @@ fn main() {
             commands::update_agent_config_template_content,
             commands::delete_agent_config_template,
             commands::sync_agent_config_template_to_project,
+            // HarnessKit Kit commands
+            commands::list_kits,
+            commands::list_kit_asset_candidates,
+            commands::create_kit,
+            commands::delete_kit,
             icon::set_app_icon,
         ])
         .on_window_event(|window, event| {

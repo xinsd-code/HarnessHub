@@ -151,7 +151,12 @@ pub fn build_router(state: WebState) -> Router {
         .route("/api/update_agent_config_template_content", post(handlers::agent_config_templates::update_agent_config_template_content))
         .route("/api/update_agent_config_template_tag", post(handlers::agent_config_templates::update_agent_config_template_tag))
         .route("/api/delete_agent_config_template", post(handlers::agent_config_templates::delete_agent_config_template))
-        .route("/api/sync_agent_config_template_to_project", post(handlers::agent_config_templates::sync_agent_config_template_to_project));
+        .route("/api/sync_agent_config_template_to_project", post(handlers::agent_config_templates::sync_agent_config_template_to_project))
+        // HarnessKit Kits
+        .route("/api/list_kits", post(handlers::kits::list_kits))
+        .route("/api/list_kit_asset_candidates", post(handlers::kits::list_kit_asset_candidates))
+        .route("/api/create_kit", post(handlers::kits::create_kit))
+        .route("/api/delete_kit", post(handlers::kits::delete_kit));
 
     let cors = CorsLayer::new()
         .allow_origin(Any)
