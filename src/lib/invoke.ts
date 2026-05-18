@@ -528,7 +528,11 @@ export const api = {
     if (request.candidate_ids.length === 0) {
       throw new Error("Select at least one asset");
     }
-    return transport("create_kit", { ...request });
+    return transport("create_kit", {
+      name: request.name,
+      description: request.description,
+      candidateIds: request.candidate_ids,
+    });
   },
 
   deleteKit(id: string): Promise<void> {
