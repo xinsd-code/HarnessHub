@@ -6,12 +6,15 @@ import type {
   AuditResult,
   CheckUpdatesResult,
   ConfigScope,
+  CreateKitRequest,
   DashboardStats,
   DiscoveredProject,
   Extension,
   ExtensionContent,
   FileEntry,
   InstallResult,
+  KitAssetCandidate,
+  KitSummary,
   MarketplaceItem,
   Project,
   ScanResult,
@@ -509,5 +512,27 @@ export const api = {
       force,
       relPath,
     });
+  },
+
+  // Kit API
+  listKits(): Promise<KitSummary[]> {
+    return transport("list_kits");
+  },
+
+  listKitAssetCandidates(): Promise<KitAssetCandidate[]> {
+    return transport("list_kit_asset_candidates");
+  },
+
+  createKit(request: CreateKitRequest): Promise<KitSummary> {
+    validateNonEmpty(request.name, "Kit name");
+    if (request.candidate_ids.length === 0) {
+      throw new Error("Select at least one asset");
+    }
+    return transport("create_kit", { ...request });
+  },
+
+  deleteKit(id: string): Promise<void> {
+    validateNonEmpty(id, "Kit ID");
+    return transport("delete_kit", { id });
   },
 };

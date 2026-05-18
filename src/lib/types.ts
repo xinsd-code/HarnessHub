@@ -537,3 +537,34 @@ export interface AgentConfigTemplate {
 export interface AgentConfigSyncResult {
   target_path: string;
 }
+
+export interface KitSummary {
+  id: string;
+  name: string;
+  description: string;
+  skills_count: number;
+  mcp_count: number;
+  cli_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export type KitAssetSourceStatus =
+  | "in_local_hub"
+  | "will_sync_to_local_hub";
+
+export interface KitAssetCandidate {
+  id: string;
+  kind: "skill" | "mcp" | "cli";
+  name: string;
+  description: string;
+  source_status: KitAssetSourceStatus;
+  hub_extension_id: string | null;
+  extension_id: string | null;
+}
+
+export interface CreateKitRequest {
+  name: string;
+  description: string;
+  candidate_ids: string[];
+}
