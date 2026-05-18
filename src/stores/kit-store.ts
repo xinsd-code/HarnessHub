@@ -45,22 +45,35 @@ export const useKitStore = create<KitState>((set, get) => ({
   },
 
   async createKit(request) {
-    const kit = await api.createKit(request);
-    toast.success("Kit created");
-    await get().fetch();
-    await useHubStore.getState().fetch();
-    set((state) => ({
-      kits: state.kits.some((existing) => existing.id === kit.id)
-        ? state.kits
-        : [kit, ...state.kits],
-    }));
+    try {
+      const kit = await api.createKit(request);
+      toast.success("Kit created");
+      await get().fetch();
+      // Kits may trigger asset sync which updates hub statuses
+      await useHubStore.getState().fetch();
+      set((state) => ({
+        kits: state.kits.some((existing) => existing.id === kit.id)
+          ? state.kits
+          : [kit, ...state.kits],
+      }));
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      toast.error(`Failed to create kit: ${msg}`);
+      throw e;
+    }
   },
 
   async deleteKit(id) {
-    await api.deleteKit(id);
-    toast.success("Kit deleted");
-    set((state) => ({
-      kits: state.kits.filter((kit) => kit.id !== id),
-    }));
+    try {
+      await api.deleteKit(id);
+      toast.success("Kit deleted");
+      set((state) => ({
+        kits: state.kits.filter((kit) => kit.id !== id),
+      }));
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      toast.error(`Failed to delete kit: ${msg}`);
+      throw e;
+    }
   },
 }));
