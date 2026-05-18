@@ -101,11 +101,11 @@ export default function HarnessKitPage() {
         </header>
 
         {loading && kits.length === 0 ? (
-          <div className="rounded-lg border border-border bg-card p-8 text-sm text-muted-foreground">
+          <div role="status" aria-live="polite" className="rounded-lg border border-border bg-card p-8 text-sm text-muted-foreground">
             Loading Kits...
           </div>
         ) : kits.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-border bg-card p-8 text-sm text-muted-foreground">
+          <div role="status" aria-live="polite" className="rounded-lg border border-dashed border-border bg-card p-8 text-sm text-muted-foreground">
             No Kits yet.
           </div>
         ) : (
@@ -142,7 +142,7 @@ export default function HarnessKitPage() {
       </main>
 
       {showCreate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/70 p-6 backdrop-blur-sm">
+        <div role="dialog" aria-modal="true" aria-label="New Kit" className="fixed inset-0 z-50 flex items-center justify-center bg-background/70 p-6 backdrop-blur-sm">
           <div className="w-full max-w-3xl rounded-xl border border-border bg-card p-5 shadow-xl">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-lg font-semibold">New Kit</h3>
