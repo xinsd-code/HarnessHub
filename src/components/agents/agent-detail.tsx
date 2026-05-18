@@ -1,11 +1,4 @@
-import {
-  FileSearch,
-  FolderPlus,
-  FolderSearch,
-  Package,
-  Settings2,
-  X,
-} from "lucide-react";
+import { FileSearch, FolderPlus, FolderSearch, Package, Settings2, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useScope } from "@/hooks/use-scope";
 import { openDirectoryPicker, openFilePicker } from "@/lib/dialog";
@@ -96,12 +89,9 @@ function AgentDetailContent({
   scope: ConfigScope | { type: "all" };
 }) {
   const addCustomPath = useAgentConfigStore((s) => s.addCustomPath);
-  const createProjectRulesFile = useAgentConfigStore((s) => s.createProjectRulesFile);
   const groupedExtensions = useExtensionStore((s) => s.grouped);
   const [showAddForm, setShowAddForm] = useState(false);
   const [customPath, setCustomPath] = useState("");
-  const [showCreateConfigForm, setShowCreateConfigForm] = useState(false);
-  const [createContent, setCreateContent] = useState("");
   const [activeTab, setActiveTab] = useState<AgentTab>("config");
 
   const matchesScope = (s: ConfigScope) => {
@@ -154,9 +144,6 @@ function AgentDetailContent({
     ),
   );
   const visibleConfigFiles = nonCustomFiles;
-  const projectRuleFiles = [...visibleConfigFiles, ...customFiles].filter(
-    (file) => file.category === "rules",
-  );
   const byCategory = new Map<ConfigCategory, typeof agent.config_files>();
   for (const cat of CATEGORY_ORDER) byCategory.set(cat, []);
   for (const file of visibleConfigFiles) {
@@ -169,9 +156,6 @@ function AgentDetailContent({
   // a stack of empty section headers.
   const totalVisible = visibleConfigFiles.length + customFiles.length;
   const isProjectScopeEmpty = scope.type === "project" && totalVisible === 0;
-  const canCreateProjectRules =
-    scope.type === "project" && projectRuleFiles.length === 0;
-
   const totalConfigFiles = visibleConfigFiles.length + customFiles.length;
   const tabs: {
     id: AgentTab;
@@ -260,71 +244,7 @@ function AgentDetailContent({
               <FolderPlus size={11} />
               Add Custom Path
             </button>
-            {canCreateProjectRules && (
-              <button
-                onClick={() => setShowCreateConfigForm(true)}
-                className="flex items-center gap-1 rounded-md border border-dashed border-border px-2.5 py-1.5 text-[11px] text-muted-foreground transition-colors hover:bg-muted/50"
-              >
-                <FileSearch size={11} />
-                New Agent Config
-              </button>
-            )}
           </div>
-
-          {showCreateConfigForm && scope.type === "project" && (
-            <div className="mb-5 rounded-lg border border-border p-3 space-y-2.5">
-              <div className="flex items-center justify-between">
-                <span className="text-[12px] font-medium text-foreground">
-                  New Agent Config
-                </span>
-                <button
-                  onClick={() => {
-                    setShowCreateConfigForm(false);
-                    setCreateContent("");
-                  }}
-                  className="text-muted-foreground hover:text-foreground"
-                >
-                  <X size={14} />
-                </button>
-              </div>
-              <p className="text-[12px] text-muted-foreground">
-                This creates the canonical project rules file for{" "}
-                {agentDisplayName(agent.name)}.
-              </p>
-              <textarea
-                value={createContent}
-                onChange={(e) => setCreateContent(e.target.value)}
-                placeholder="# Agent rules"
-                className="min-h-[220px] w-full rounded-xl border border-border/60 bg-card/40 p-3 text-[12px] leading-relaxed font-mono outline-none resize-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
-              />
-              <div className="flex justify-end gap-2">
-                <button
-                  onClick={() => {
-                    setShowCreateConfigForm(false);
-                    setCreateContent("");
-                  }}
-                  className="rounded-lg border border-border px-3 py-1.5 text-sm"
-                >
-                  Cancel
-                </button>
-                <button
-                  disabled={!createContent.trim()}
-                  onClick={async () => {
-                    await createProjectRulesFile(
-                      agent.name,
-                      scope,
-                      createContent,
-                    );
-                    setShowCreateConfigForm(false);
-                    setCreateContent("");
-                  }}
-                  className="rounded-lg bg-primary px-3 py-1.5 text-sm text-primary-foreground disabled:opacity-40"
-                >
-                  Create
-                </button>
-              </div>
-            </div>
-          )}
 
           {showAddForm && (
             <div className="mb-5 rounded-lg border border-border p-3 space-y-2.5">
@@ -422,15 +342,6 @@ function AgentDetailContent({
                 {agentDisplayName(agent.name)} has no configuration in{" "}
                 {scopeLabel(scope as ConfigScope)}
               </p>
-              {canCreateProjectRules && !showCreateConfigForm && (
-                <button
-                  onClick={() => setShowCreateConfigForm(true)}
-                  className="mt-4 inline-flex items-center gap-1 rounded-md border border-dashed border-border px-2.5 py-1.5 text-[11px] text-muted-foreground transition-colors hover:bg-muted/50"
-                >
-                  <FileSearch size={11} />
-                  New Agent Config
-                </button>
-              )}
             </div>
           ) : (
             <>

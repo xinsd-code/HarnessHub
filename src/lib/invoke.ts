@@ -317,26 +317,6 @@ export const api = {
     return transport("read_config_file_preview", { path, maxLines });
   },
 
-  readConfigFileContent(path: string): Promise<string> {
-    return transport("read_config_file_content", { path });
-  },
-
-  writeConfigFileContent(path: string, content: string): Promise<void> {
-    return transport("write_config_file_content", { path, content });
-  },
-
-  createProjectAgentRulesFile(
-    agent: string,
-    targetScope: ConfigScope,
-    content: string,
-  ): Promise<string> {
-    return transport("create_project_agent_rules_file", {
-      agent,
-      targetScope,
-      content,
-    });
-  },
-
   addCustomConfigPath(
     agent: string,
     path: string,

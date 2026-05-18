@@ -1,6 +1,7 @@
 import { FileText, Plus, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useAgentConfigTemplateStore } from "@/stores/agent-config-template-store";
+import { CreateTemplateDialog } from "./create-template-dialog";
 import { ImportTemplateDialog } from "./import-template-dialog";
 import { TemplateDetailDrawer } from "./template-detail-drawer";
 
@@ -14,6 +15,7 @@ export function AgentConfigHubPage() {
   const setSearchQuery = useAgentConfigTemplateStore((s) => s.setSearchQuery);
   const tagFilter = useAgentConfigTemplateStore((s) => s.tagFilter);
   const setTagFilter = useAgentConfigTemplateStore((s) => s.setTagFilter);
+  const [showCreate, setShowCreate] = useState(false);
   const [showImport, setShowImport] = useState(false);
 
   useEffect(() => {
@@ -45,13 +47,22 @@ export function AgentConfigHubPage() {
             <h2 className="text-3xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">Agent Config</h2>
             <p className="mt-1.5 text-[14px] text-muted-foreground/80">Prompt templates stored in ~/.harnesskit/agent-configs</p>
           </div>
-          <button
-            onClick={() => setShowImport(true)}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 bg-card/60 px-3 py-1.5 text-[12px] font-semibold shadow-sm backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:bg-card/90 hover:shadow-md"
-          >
-            <Plus size={14} className="text-primary" />
-            Import from Project
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowCreate(true)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 bg-card/60 px-3 py-1.5 text-[12px] font-semibold shadow-sm backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:bg-card/90 hover:shadow-md"
+            >
+              <Plus size={14} className="text-primary" />
+              New Agent Config
+            </button>
+            <button
+              onClick={() => setShowImport(true)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 bg-card/60 px-3 py-1.5 text-[12px] font-semibold shadow-sm backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:bg-card/90 hover:shadow-md"
+            >
+              <Plus size={14} className="text-primary" />
+              Import from Project
+            </button>
+          </div>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative min-w-64 flex-1 group">
@@ -128,6 +139,7 @@ export function AgentConfigHubPage() {
       </div>
 
       {selectedId && <TemplateDetailDrawer />}
+      {showCreate && <CreateTemplateDialog onClose={() => setShowCreate(false)} />}
       {showImport && <ImportTemplateDialog onClose={() => setShowImport(false)} />}
     </div>
   );

@@ -6,25 +6,17 @@ import { useAgentConfigTemplateStore } from "@/stores/agent-config-template-stor
 import { useProjectStore } from "@/stores/project-store";
 import { pathsEqual } from "@/lib/types";
 
-type Mode = "import" | "create";
-
 export function ImportTemplateDialog({ onClose }: { onClose: () => void }) {
   const projects = useProjectStore((s) => s.projects).filter((p) => p.exists);
   const agentDetails = useAgentConfigStore((s) => s.agentDetails);
   const importTemplate = useAgentConfigTemplateStore((s) => s.importTemplate);
-  const createTemplate = useAgentConfigTemplateStore((s) => s.createTemplate);
 
-  const [mode, setMode] = useState<Mode>("import");
   const [projectPath, setProjectPath] = useState(projects[0]?.path ?? "");
   const [targetAgent, setTargetAgent] = useState("");
   const [sourcePath, setSourcePath] = useState("");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [tag, setTag] = useState("default");
-  const [content, setContent] = useState("");
-
-  const project = projects.find((p) => p.path === projectPath);
-  const projectName = project?.name ?? "";
 
   const projectAgents = useMemo(() => {
     return agentDetails.filter((agent) =>
@@ -58,32 +50,19 @@ export function ImportTemplateDialog({ onClose }: { onClose: () => void }) {
       }));
   }, [agentDetails, projectPath, targetAgent]);
 
-  const selected = mode === "import" ? agentFiles.find((file) => file.path === sourcePath) : null;
-  const canSubmit = mode === "import"
-    ? !!(selected && name.trim())
-    : !!(name.trim() && content.trim());
+  const selected = agentFiles.find((file) => file.path === sourcePath) ?? null;
+  const canSubmit = !!(selected && name.trim());
 
   const handleSubmit = async () => {
-    if (mode === "import") {
-      if (!selected || selected.scope.type !== "project") return;
-      await importTemplate({
-        sourcePath: selected.path,
-        sourceProjectPath: selected.scope.path,
-        sourceProjectName: selected.scope.name,
-        name,
-        description,
-        tag,
-      });
-    } else {
-      await createTemplate({
-        sourceProjectPath: projectPath,
-        sourceProjectName: projectName,
-        name,
-        description,
-        tag,
-        content,
-      });
-    }
+    if (!selected || selected.scope.type !== "project") return;
+    await importTemplate({
+      sourcePath: selected.path,
+      sourceProjectPath: selected.scope.path,
+      sourceProjectName: selected.scope.name,
+      name,
+      description,
+      tag,
+    });
     onClose();
   };
 
@@ -92,26 +71,6 @@ export function ImportTemplateDialog({ onClose }: { onClose: () => void }) {
       <div className="w-[640px] rounded-2xl border border-border/50 bg-card shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden">
         <div className="border-b border-border/50 bg-muted/20 px-6 py-4 flex items-center justify-between">
           <h3 className="text-lg font-semibold">Import from Project</h3>
-          <div className="flex rounded-lg border border-border/60 bg-card/40 p-0.5">
-            <button
-              onClick={() => setMode("import")}
-              className={clsx(
-                "rounded-md px-3 py-1 text-xs font-medium transition-colors",
-                mode === "import" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              Import file
-            </button>
-            <button
-              onClick={() => setMode("create")}
-              className={clsx(
-                "rounded-md px-3 py-1 text-xs font-medium transition-colors",
-                mode === "create" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              Write manually
-            </button>
-          </div>
         </div>
         <div className="p-6 flex gap-6">
           <div className="w-[280px] shrink-0 space-y-4">
@@ -154,14 +113,17 @@ export function ImportTemplateDialog({ onClose }: { onClose: () => void }) {
               </div>
             )}
 
-            {mode === "import" && agentFiles.length > 0 && (
+            {agentFiles.length > 0 && (
               <div className="space-y-1.5">
                 <label className="text-[11px] font-bold text-muted-foreground/80 uppercase tracking-widest pl-1">Configuration File</label>
                 <div className="max-h-[132px] overflow-y-auto rounded-xl border border-border/60 bg-card/30 shadow-inner p-1">
                   {agentFiles.map((file) => (
                     <button
                       key={file.path}
-                      onClick={() => { setSourcePath(file.path); setName(file.file_name); }}
+                      onClick={() => {
+                        setSourcePath(file.path);
+                        setName(file.file_name);
+                      }}
                       className={clsx(
                         "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[12px] font-medium leading-tight transition-all",
                         sourcePath === file.path ? "bg-primary/10 text-primary font-semibold" : "text-muted-foreground/90 hover:bg-accent/50 hover:text-foreground",
@@ -173,33 +135,23 @@ export function ImportTemplateDialog({ onClose }: { onClose: () => void }) {
                 </div>
               </div>
             )}
-
-            {mode === "create" && (
-              <div className="space-y-1.5 flex-1 flex flex-col min-h-0">
-                <label className="text-[11px] font-bold text-muted-foreground/80 uppercase tracking-widest pl-1">Content</label>
-                <textarea
-                  value={content}
-                  onChange={(event) => setContent(event.target.value)}
-                  placeholder="# Agent rules&#10;&#10;Write your agent configuration content here..."
-                  className="flex-1 min-h-[160px] w-full rounded-xl border border-border/60 bg-card/40 px-3.5 py-2.5 text-sm shadow-sm outline-none backdrop-blur-sm transition-all focus:border-primary/50 focus:bg-card focus:ring-2 focus:ring-primary/20 resize-none font-mono leading-relaxed"
-                />
-              </div>
-            )}
           </div>
 
           <div className="min-w-0 flex-1 space-y-4 py-1">
             <div className="space-y-1.5">
-              <label className="block text-[11px] font-bold text-muted-foreground/80 uppercase tracking-widest pl-1">Template name</label>
+              <label htmlFor="agent-config-file-name" className="block text-[11px] font-bold text-muted-foreground/80 uppercase tracking-widest pl-1">File name</label>
               <input
+                id="agent-config-file-name"
                 value={name}
                 onChange={(event) => setName(event.target.value)}
-                placeholder="e.g. my-rules"
+                placeholder="e.g. AGENTS.md"
                 className="h-10 w-full rounded-xl border border-border/60 bg-card/40 px-3.5 text-sm shadow-sm outline-none backdrop-blur-sm transition-all focus:border-primary/50 focus:bg-card focus:ring-2 focus:ring-primary/20"
               />
             </div>
             <div className="space-y-1.5">
-              <label className="block text-[11px] font-bold text-muted-foreground/80 uppercase tracking-widest pl-1">Description</label>
+              <label htmlFor="agent-config-description" className="block text-[11px] font-bold text-muted-foreground/80 uppercase tracking-widest pl-1">Description</label>
               <input
+                id="agent-config-description"
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
                 placeholder="Short description"
@@ -207,8 +159,9 @@ export function ImportTemplateDialog({ onClose }: { onClose: () => void }) {
               />
             </div>
             <div className="space-y-1.5">
-              <label className="block text-[11px] font-bold text-muted-foreground/80 uppercase tracking-widest pl-1">Tag</label>
+              <label htmlFor="agent-config-tag" className="block text-[11px] font-bold text-muted-foreground/80 uppercase tracking-widest pl-1">Tag</label>
               <input
+                id="agent-config-tag"
                 value={tag}
                 onChange={(event) => setTag(event.target.value)}
                 placeholder="default"
@@ -224,7 +177,7 @@ export function ImportTemplateDialog({ onClose }: { onClose: () => void }) {
             onClick={handleSubmit}
             className="rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/90 disabled:opacity-50 disabled:hover:bg-primary"
           >
-            {mode === "import" ? "Import Template" : "Create Template"}
+            Import Template
           </button>
         </div>
       </div>

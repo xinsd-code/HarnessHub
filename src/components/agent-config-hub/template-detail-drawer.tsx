@@ -1,4 +1,4 @@
-import { RefreshCw, Trash2, X } from "lucide-react";
+import { Maximize2, RefreshCw, Trash2, X } from "lucide-react";
 import { useState } from "react";
 import { useAgentConfigTemplateStore } from "@/stores/agent-config-template-store";
 import { SyncTemplateDialog } from "./sync-template-dialog";
@@ -17,7 +17,7 @@ export function TemplateDetailDrawer() {
 
   const [editingTag, setEditingTag] = useState(false);
   const [tagValue, setTagValue] = useState("");
-  const [editingContent, setEditingContent] = useState(false);
+  const [showEditor, setShowEditor] = useState(false);
   const [contentValue, setContentValue] = useState("");
   const [showSync, setShowSync] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -103,51 +103,27 @@ export function TemplateDetailDrawer() {
               </button>
             </div>
             
-            <div className="relative group/code mt-5">
-              <div className="flex items-center justify-between mb-1.5">
+            <div className="mt-5 overflow-hidden rounded-xl border border-border/50 bg-muted/30 shadow-inner">
+              <div className="flex items-center justify-between border-b border-border/50 bg-background/60 px-3.5 py-2.5">
                 <span className="text-[11px] font-bold text-muted-foreground/80 uppercase tracking-widest">Content</span>
-                {!editingContent && (
-                  <button
-                    onClick={() => { setContentValue(content); setEditingContent(true); }}
-                    className="rounded-md px-2 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-                  >
-                    Edit
-                  </button>
-                )}
+                <button
+                  onClick={() => {
+                    setContentValue(content);
+                    setShowEditor(true);
+                  }}
+                  className="rounded-lg border border-border/50 bg-card/70 p-1.5 text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-foreground"
+                  title="Expand editor"
+                  aria-label="Expand editor"
+                >
+                  <Maximize2 size={14} />
+                </button>
               </div>
-              {editingContent ? (
-                <div className="space-y-2">
-                  <textarea
-                    value={contentValue}
-                    onChange={(event) => setContentValue(event.target.value)}
-                    className="min-h-[200px] w-full rounded-xl border border-border/60 bg-card/40 p-3 text-[12px] leading-relaxed font-mono outline-none resize-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
-                  />
-                  <div className="flex justify-end gap-2">
-                    <button
-                      onClick={() => setEditingContent(false)}
-                      className="rounded-lg border border-border px-2.5 py-1 text-xs"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={async () => {
-                        await updateContent(template.id, contentValue);
-                        setEditingContent(false);
-                      }}
-                      className="rounded-lg bg-primary px-2.5 py-1 text-xs text-primary-foreground"
-                    >
-                      Save
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-transparent opacity-0 transition-opacity duration-300 group-hover/code:opacity-100 rounded-xl pointer-events-none" />
-                  <pre className="max-h-[360px] overflow-y-auto rounded-xl border border-border/50 bg-muted/40 dark:bg-black/40 p-4 text-[12px] leading-relaxed text-foreground dark:text-[#D4D4D4] font-mono shadow-inner scrollbar-thin scrollbar-thumb-foreground/10 hover:scrollbar-thumb-foreground/20">
-                    {isLoading ? "Loading..." : errorMsg ? <span className="text-destructive/90">{errorMsg}</span> : content || "(empty file)"}
-                  </pre>
-                </>
-              )}
+              <div className="relative group/code">
+                <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-transparent opacity-0 transition-opacity duration-300 group-hover/code:opacity-100 pointer-events-none" />
+                <pre className="max-h-[360px] overflow-y-auto bg-muted/40 dark:bg-black/40 p-4 text-[12px] leading-relaxed text-foreground dark:text-[#D4D4D4] font-mono scrollbar-thin scrollbar-thumb-foreground/10 hover:scrollbar-thumb-foreground/20">
+                  {isLoading ? "Loading..." : errorMsg ? <span className="text-destructive/90">{errorMsg}</span> : content || "(empty file)"}
+                </pre>
+              </div>
             </div>
           </div>
         </div>
@@ -163,6 +139,58 @@ export function TemplateDetailDrawer() {
       </aside>
       {showSync && template.id && (
         <SyncTemplateDialog templateId={template.id} onClose={() => setShowSync(false)} />
+      )}
+      {showEditor && (
+        <div className="fixed inset-0 z-20">
+          <button
+            type="button"
+            aria-label="Close content editor"
+            onClick={() => setShowEditor(false)}
+            className="absolute inset-0 bg-background/80 backdrop-blur-sm"
+          />
+          <div role="dialog" aria-label="Edit agent config content" className="absolute inset-x-6 top-1/2 z-10 flex -translate-y-1/2 justify-center">
+            <div className="w-[min(900px,calc(100vw-48px))] rounded-2xl border border-border/50 bg-card shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between border-b border-border/50 px-5 py-4">
+              <div>
+                <h4 className="text-sm font-semibold">{template.name}</h4>
+                <p className="mt-1 text-xs text-muted-foreground">Edit and save this agent config template.</p>
+              </div>
+              <button
+                onClick={() => setShowEditor(false)}
+                className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                title="Close editor"
+                aria-label="Close editor"
+              >
+                <X size={15} />
+              </button>
+            </div>
+            <div className="p-5">
+              <textarea
+                value={contentValue}
+                onChange={(event) => setContentValue(event.target.value)}
+                className="min-h-[420px] w-full rounded-xl border border-border/60 bg-card/40 p-4 text-[12px] leading-relaxed font-mono outline-none resize-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
+            <div className="flex justify-end gap-2 border-t border-border/50 bg-muted/10 px-5 py-4">
+              <button
+                onClick={() => setShowEditor(false)}
+                className="rounded-lg border border-border px-3 py-1.5 text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  await updateContent(template.id, contentValue);
+                  setShowEditor(false);
+                }}
+                className="rounded-lg bg-primary px-3 py-1.5 text-sm text-primary-foreground"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+          </div>
+        </div>
       )}
     </>
   );

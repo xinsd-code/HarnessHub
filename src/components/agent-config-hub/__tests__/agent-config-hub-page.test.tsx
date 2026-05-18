@@ -54,6 +54,8 @@ vi.mock("@/stores/agent-config-template-store", () => ({
 describe("AgentConfigHubPage", () => {
   it("shows tag filter buttons and no agent labels", () => {
     render(<AgentConfigHubPage />);
+    expect(screen.getByRole("button", { name: "New Agent Config" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Import from Project" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "default" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "review" })).toBeInTheDocument();
     expect(screen.queryByText("codex")).not.toBeInTheDocument();

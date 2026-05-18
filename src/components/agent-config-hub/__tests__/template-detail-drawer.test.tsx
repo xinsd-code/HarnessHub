@@ -24,6 +24,7 @@ const state = {
   contentLoading: new Set(),
   select: vi.fn(),
   updateTag: vi.fn(),
+  updateContent: vi.fn(),
   deleteTemplate: vi.fn(),
   syncToProject: vi.fn(),
 };
@@ -39,6 +40,7 @@ describe("TemplateDetailDrawer", () => {
     expect(screen.getByText("# rules")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /sync to project/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /delete/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /expand editor/i })).toBeInTheDocument();
     expect(screen.getByText("default")).toBeInTheDocument();
     expect(screen.getByTitle("Double-click to edit tag")).toBeInTheDocument();
   });
@@ -47,5 +49,16 @@ describe("TemplateDetailDrawer", () => {
     render(<TemplateDetailDrawer />);
     fireEvent.click(screen.getByTitle("Close"));
     expect(state.select).toHaveBeenCalledWith(null);
+  });
+
+  it("opens a large editor dialog and saves content", async () => {
+    render(<TemplateDetailDrawer />);
+    fireEvent.click(screen.getByRole("button", { name: /expand editor/i }));
+
+    expect(screen.getByRole("dialog", { name: /edit agent config content/i })).toBeInTheDocument();
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "# updated rules" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(state.updateContent).toHaveBeenCalledWith("default/rules", "# updated rules");
   });
 });

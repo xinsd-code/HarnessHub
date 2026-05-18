@@ -25,8 +25,6 @@ export function ConfigFileEntry({ file }: { file: AgentConfigFile }) {
   const openInEditor = useAgentConfigStore((s) => s.openInEditor);
   const revealInFinder = useAgentConfigStore((s) => s.revealInFinder);
   const copyPath = useAgentConfigStore((s) => s.copyPath);
-  const readFileContent = useAgentConfigStore((s) => s.readFileContent);
-  const writeFileContent = useAgentConfigStore((s) => s.writeFileContent);
   const updateCustomPath = useAgentConfigStore((s) => s.updateCustomPath);
   const removeCustomPath = useAgentConfigStore((s) => s.removeCustomPath);
   const previewCache = useAgentConfigStore((s) => s.previewCache);
@@ -43,9 +41,6 @@ export function ConfigFileEntry({ file }: { file: AgentConfigFile }) {
 
   const [editing, setEditing] = useState(false);
   const [editPath, setEditPath] = useState(file.path);
-  const [editingContent, setEditingContent] = useState(false);
-  const [contentValue, setContentValue] = useState("");
-  const [contentLoading, setContentLoading] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [highlight, setHighlight] = useState(false);
 
@@ -57,20 +52,7 @@ export function ConfigFileEntry({ file }: { file: AgentConfigFile }) {
       setEditing(false);
       setEditPath(file.path);
     }
-    if (!isExpanded && editingContent) {
-      setEditingContent(false);
-      setContentValue("");
-      setContentLoading(false);
-    }
-  }, [
-    isExpanded,
-    file.path,
-    fetchPreview,
-    preview,
-    editing,
-    editingContent,
-    file.exists,
-  ]);
+  }, [isExpanded, file.path, fetchPreview, preview, editing, file.exists]);
 
   // Focus handoff: when the user navigates here with this file targeted (e.g.
   // from the Overview's Agent Activity widget), the parent ConfigSection has
@@ -174,39 +156,6 @@ export function ConfigFileEntry({ file }: { file: AgentConfigFile }) {
             <div className="text-[12px] font-medium text-destructive/90 mb-4 bg-destructive/10 border border-destructive/20 rounded-lg p-3">
               Path does not exist. Use Edit to update or Remove to delete this entry.
             </div>
-          ) : editingContent ? (
-            <div className="mb-4 space-y-2">
-              <textarea
-                value={contentValue}
-                onChange={(e) => setContentValue(e.target.value)}
-                disabled={contentLoading}
-                className="min-h-[220px] w-full rounded-xl border border-border/60 bg-card/40 p-3 text-[12px] leading-relaxed font-mono outline-none resize-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
-              />
-              <div className="flex justify-end gap-2">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setEditingContent(false);
-                    setContentValue("");
-                  }}
-                  className="rounded-lg border border-border px-2.5 py-1 text-xs"
-                >
-                  Cancel
-                </button>
-                <button
-                  disabled={contentLoading}
-                  onClick={async (e) => {
-                    e.stopPropagation();
-                    await writeFileContent(file.path, contentValue);
-                    setEditingContent(false);
-                    setContentValue("");
-                  }}
-                  className="rounded-lg bg-primary px-2.5 py-1 text-xs text-primary-foreground disabled:opacity-50"
-                >
-                  Save
-                </button>
-              </div>
-            </div>
           ) : previewError !== null ? (
             <div className="mb-4 rounded-lg border border-destructive/20 bg-destructive/10 px-3.5 py-3 text-[12px] font-medium text-destructive/90 shadow-sm">
               {previewError}
@@ -301,24 +250,6 @@ export function ConfigFileEntry({ file }: { file: AgentConfigFile }) {
           <div className="flex flex-wrap gap-2.5">
             {file.exists && (
               <>
-                {!file.is_dir && (
-                  <button
-                    onClick={async (e) => {
-                      e.stopPropagation();
-                      setContentLoading(true);
-                      try {
-                        const nextContent = await readFileContent(file.path);
-                        setContentValue(nextContent);
-                        setEditingContent(true);
-                      } finally {
-                        setContentLoading(false);
-                      }
-                    }}
-                    className="inline-flex items-center gap-2 rounded-lg border border-border/60 bg-card/60 px-3.5 py-1.5 text-[12px] font-semibold shadow-sm transition-all hover:-translate-y-0.5 hover:bg-accent hover:border-primary/40 hover:text-foreground"
-                  >
-                    <Pencil size={14} className="text-primary/70" /> Edit Content
-                  </button>
-                )}
                 {isDesktop() && (
                   <button
                     onClick={(e) => {

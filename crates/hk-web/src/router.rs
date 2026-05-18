@@ -91,9 +91,6 @@ pub fn build_router(state: WebState) -> Router {
         .route("/api/get_all_packs", post(handlers::settings::get_all_packs))
         .route("/api/toggle_by_pack", post(handlers::settings::toggle_by_pack))
         .route("/api/read_config_file_preview", post(handlers::settings::read_config_file_preview))
-        .route("/api/read_config_file_content", post(handlers::settings::read_config_file_content))
-        .route("/api/write_config_file_content", post(handlers::settings::write_config_file_content))
-        .route("/api/create_project_agent_rules_file", post(handlers::settings::create_project_agent_rules_file))
         // Agents
         .route("/api/list_agents", post(handlers::agents::list_agents))
         .route("/api/set_agent_enabled", post(handlers::agents::set_agent_enabled))
