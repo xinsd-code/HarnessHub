@@ -241,6 +241,42 @@ pub struct CreateKitRequest {
     pub candidate_ids: Vec<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateKitRequest {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub candidate_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SyncKitToProjectRequest {
+    pub kit_id: String,
+    pub project_path: String,
+    pub target_agent: String,
+    #[serde(default)]
+    pub force_hub_extension_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct KitSyncResult {
+    pub installed_count: usize,
+    pub skipped_conflict_count: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct KitSyncConflict {
+    pub hub_extension_id: String,
+    pub kind: ExtensionKind,
+    pub asset_name: String,
+    pub existing_extension_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct KitSyncPreview {
+    pub conflicts: Vec<KitSyncConflict>,
+}
+
 // --- Audit ---
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

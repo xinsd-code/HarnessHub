@@ -5,7 +5,6 @@ import { useSearchParams } from "react-router-dom";
 import { AgentDetail } from "@/components/agents/agent-detail";
 import { AgentList } from "@/components/agents/agent-list";
 import { AgentScopeTree } from "@/components/agents/agent-scope-tree";
-import { AgentConfigHubPage } from "@/components/agent-config-hub/agent-config-hub-page";
 import { useScope } from "@/hooks/use-scope";
 import type { AgentDetail as AgentDetailType, Project } from "@/lib/types";
 import { pathSegments, pathsEqual } from "@/lib/types";
@@ -68,6 +67,10 @@ export default function ProjectsPage() {
 
   useEffect(() => {
     if (!hydrated) return;
+    if ((scope as { type: string }).type === "agent-config") {
+      setScope(projects.length > 0 ? { type: "all" } : { type: "global" });
+      return;
+    }
     if (scope.type === "global") {
       setScope(projects.length > 0 ? { type: "all" } : { type: "global" });
     }
@@ -147,38 +150,17 @@ export default function ProjectsPage() {
     return <div className="p-4 text-sm text-muted-foreground">Loading...</div>;
   }
 
-  const isAgentConfig = (scope as { type: string }).type === "agent-config";
-
   return (
     <div className="flex h-full">
       <div className="w-[240px] shrink-0 overflow-y-auto overscroll-contain border-r border-border">
         <AgentScopeTree
           projects={projects}
-          scope={isAgentConfig ? { type: "all" } : scope}
+          scope={scope}
           onSelectScope={setScope}
           showAgentsSection={false}
-        >
-          <section>
-            <div className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-              Setting
-            </div>
-            <button
-              onClick={() => setScope({ type: "agent-config" } as never)}
-              className={clsx(
-                "flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm transition-colors",
-                isAgentConfig ? "bg-accent text-accent-foreground" : "text-foreground/75 hover:bg-accent/50",
-              )}
-            >
-              Agent Config
-            </button>
-          </section>
-        </AgentScopeTree>
+        />
       </div>
-      {isAgentConfig ? (
-        <div className="relative flex-1 min-h-0">
-          <AgentConfigHubPage />
-        </div>
-      ) : loading ? (
+      {loading ? (
         <div className="flex flex-1 items-center justify-center text-muted-foreground text-sm">
           Loading...
         </div>
@@ -189,7 +171,8 @@ export default function ProjectsPage() {
               All Projects
             </h2>
             <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground/90">
-              Explore your registered workspaces. Click any project to inspect its connected agents, configurations, and isolated assets.
+              Explore your registered workspaces. Click any project to inspect
+              its connected agents, configurations, and isolated assets.
             </p>
           </div>
           {projects.length === 0 ? (
@@ -200,7 +183,10 @@ export default function ProjectsPage() {
           ) : (
             <div className="space-y-8 max-w-6xl">
               {groupedProjects.map((group) => (
-                <section key={group.label} className="animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
+                <section
+                  key={group.label}
+                  className="animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out"
+                >
                   <div className="mb-4 flex items-center gap-3">
                     <div className="h-[1px] flex-1 bg-border/40" />
                     <span className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground/70 bg-background/50 px-2 rounded-full">
@@ -223,7 +209,14 @@ export default function ProjectsPage() {
                       >
                         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
                         <div className="flex w-full items-start justify-between">
-                          <div className={clsx("flex h-10 w-10 items-center justify-center rounded-xl shadow-sm transition-colors", project.exists ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground/50")}>
+                          <div
+                            className={clsx(
+                              "flex h-10 w-10 items-center justify-center rounded-xl shadow-sm transition-colors",
+                              project.exists
+                                ? "bg-primary/10 text-primary"
+                                : "bg-muted text-muted-foreground/50",
+                            )}
+                          >
                             <FolderOpen size={20} />
                           </div>
                           {!project.exists && (
@@ -245,7 +238,9 @@ export default function ProjectsPage() {
                             {project.name}
                           </span>
                           <div className="mt-1.5 flex items-center text-xs text-muted-foreground/80 font-mono">
-                            <span className="truncate" title={project.path}>{project.path}</span>
+                            <span className="truncate" title={project.path}>
+                              {project.path}
+                            </span>
                           </div>
                         </div>
                       </button>

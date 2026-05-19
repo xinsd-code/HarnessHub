@@ -384,7 +384,7 @@ describe("buildGroups", () => {
     expect(groups.map((g) => g.name).sort()).toEqual(["my-cli", "my-skill"]);
   });
 
-  it("marks cli child skills as hidden from the Skills tab", () => {
+  it("keeps CLI-associated skills in the Skills tab", () => {
     const parent = {
       ...baseExt,
       id: "parent",
@@ -419,10 +419,10 @@ describe("buildGroups", () => {
       filterSkillTabGroups(groups)
         .map((g) => g.name)
         .sort(),
-    ).toEqual(["my-cli", "standalone-skill"]);
+    ).toEqual(["my-skill", "standalone-skill"]);
   });
 
-  it("hides lark cli companion skills when lark cli is installed", () => {
+  it("keeps lark cli companion skills in the Skills tab", () => {
     const larkCli = {
       ...baseExt,
       id: "lark-cli",
@@ -452,7 +452,7 @@ describe("buildGroups", () => {
       filterSkillTabGroups(groups)
         .map((g) => g.name)
         .sort(),
-    ).toEqual(["Lark / Feishu CLI", "frontend-design"]);
+    ).toEqual(["frontend-design", "lark-shared"]);
   });
 
   it("merges tags from all instances (deduped)", () => {
@@ -768,7 +768,7 @@ describe("getCachedFiltered with scope", () => {
     expect(result.length).toBe(2);
   });
 
-  it("excludes CLI child skills from the skill filter", () => {
+  it("includes CLI-associated skills in the skill filter", () => {
     const cli: Extension = {
       ...baseExt,
       id: "cli",
@@ -800,6 +800,9 @@ describe("getCachedFiltered with scope", () => {
       { type: "all" },
     );
 
-    expect(result.map((g) => g.name)).toEqual(["other-skill"]);
+    expect(result.map((g) => g.name).sort()).toEqual([
+      "other-skill",
+      "tool-skill",
+    ]);
   });
 });

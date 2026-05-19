@@ -16,7 +16,6 @@ const tabOrder: Array<{ key: "all" | ExtensionKind; label: string }> = [
   { key: "skill", label: "Skills" },
   { key: "mcp", label: "MCP" },
   { key: "plugin", label: "Plugins" },
-  { key: "cli", label: "CLIs" },
 ];
 const MAX_VISIBLE_SYNC_ROWS = 10;
 
@@ -100,7 +99,6 @@ export function SyncDialog({ open, onClose }: SyncDialogProps) {
     counts.set("skill", toSync.filter((ext) => ext.kind === "skill").length);
     counts.set("mcp", toSync.filter((ext) => ext.kind === "mcp").length);
     counts.set("plugin", toSync.filter((ext) => ext.kind === "plugin").length);
-    counts.set("cli", toSync.filter((ext) => ext.kind === "cli").length);
     return counts;
   }, [toSync]);
 

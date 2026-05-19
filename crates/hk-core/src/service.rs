@@ -1057,6 +1057,31 @@ fn copy_asset_into_dir(
     Ok(())
 }
 
+fn skill_root_for_existing_source(source_path: &str) -> Option<std::path::PathBuf> {
+    let path = std::path::Path::new(source_path);
+    let file_name = path.file_name()?.to_string_lossy();
+    if file_name == "SKILL.md" || file_name == "SKILL.md.disabled" {
+        return path.parent()?.parent().map(std::path::Path::to_path_buf);
+    }
+    path.parent().map(std::path::Path::to_path_buf)
+}
+
+fn skill_dir_for_hub_install(
+    target_adapter: &dyn AgentAdapter,
+    scope: &ConfigScope,
+    conflict: Option<&Extension>,
+) -> Option<std::path::PathBuf> {
+    if matches!(scope, ConfigScope::Global) {
+        if let Some(existing_dir) = conflict
+            .and_then(|ext| ext.source_path.as_deref())
+            .and_then(skill_root_for_existing_source)
+        {
+            return Some(existing_dir);
+        }
+    }
+    target_adapter.skill_dir_for(scope)
+}
+
 fn find_mcp_entry_for_extension(
     adapters: &[Box<dyn AgentAdapter>],
     ext: &Extension,
@@ -1115,35 +1140,8 @@ fn can_sync_extension(
             .is_some(),
         ExtensionKind::Mcp => find_mcp_entry_for_extension(adapters, ext).is_some(),
         ExtensionKind::Plugin => ext.source_path.is_some(),
-        ExtensionKind::Cli => ext.source_path.is_some(),
+        ExtensionKind::Cli => false,
     }
-}
-
-fn is_lark_cli_skill(ext: &Extension) -> bool {
-    if ext.kind != ExtensionKind::Skill {
-        return false;
-    }
-    let name = ext.name.to_lowercase();
-    if name.contains("lark shared") || name.starts_with("lark-") {
-        return true;
-    }
-    matches!(ext.pack.as_deref(), Some("larksuite/cli"))
-        || ext
-            .source
-            .url
-            .as_deref()
-            .is_some_and(|url| url.contains("larksuite/cli"))
-}
-
-fn is_cli_child_skill(
-    ext: &Extension,
-    cli_ids: &std::collections::HashSet<String>,
-    cli_packs: &std::collections::HashSet<String>,
-) -> bool {
-    ext.kind == ExtensionKind::Skill
-        && ((ext.cli_parent_id.as_ref().is_some_and(|id| cli_ids.contains(id)))
-            || ext.pack.as_ref().is_some_and(|pack| cli_packs.contains(pack))
-            || is_lark_cli_skill(ext))
 }
 
 /// List all extensions in the Local Hub
@@ -1176,10 +1174,11 @@ pub fn backup_to_hub(
                 );
                 loc.map(|l| l.entry_path)
             }
-            ExtensionKind::Mcp | ExtensionKind::Plugin | ExtensionKind::Cli => {
+            ExtensionKind::Mcp | ExtensionKind::Plugin => {
                 // For non-skill types, use source_path if available
                 ext.source_path.as_ref().map(|p| std::path::PathBuf::from(p))
             }
+            ExtensionKind::Cli => None,
             ExtensionKind::Hook => None,
         };
         let mcp_entry = if ext.kind == ExtensionKind::Mcp {
@@ -1204,7 +1203,7 @@ pub fn backup_to_hub(
         ExtensionKind::Skill => "skills",
         ExtensionKind::Mcp => "mcp",
         ExtensionKind::Plugin => "plugins",
-        ExtensionKind::Cli => "clis",
+        ExtensionKind::Cli => return Err(HkError::Validation("CLIs cannot be backed up".into())),
         ExtensionKind::Hook => return Err(HkError::Validation("Hooks cannot be backed up".into())),
     };
     let subdir_path = hub_path.join(subdir);
@@ -1220,19 +1219,11 @@ pub fn backup_to_hub(
             })?;
             write_hub_mcp_entry(&target_dir, &entry)?;
         }
-        ExtensionKind::Skill | ExtensionKind::Plugin | ExtensionKind::Cli => {
+        ExtensionKind::Skill | ExtensionKind::Plugin => {
             if let Some(src_path) = source_path {
                 let src = std::path::Path::new(&src_path);
                 if src.exists() {
                     copy_asset_into_dir(src, &target_dir)?;
-                    if ext.kind == ExtensionKind::Cli
-                        && let Some(cli_meta) = &ext.cli_meta
-                    {
-                        std::fs::write(
-                            target_dir.join("cli_meta.json"),
-                            serde_json::to_string_pretty(cli_meta)?,
-                        )?;
-                    }
                 } else {
                     return Err(HkError::NotFound(format!(
                         "Source path does not exist: {}",
@@ -1245,6 +1236,9 @@ pub fn backup_to_hub(
                     ext.name
                 )));
             }
+        }
+        ExtensionKind::Cli => {
+            return Err(HkError::Validation("CLIs cannot be backed up".into()));
         }
         ExtensionKind::Hook => {
             return Err(HkError::Validation("Hooks cannot be backed up".into()));
@@ -1298,19 +1292,24 @@ pub fn install_from_hub(
         ExtensionKind::Skill => hub_path.join("skills").join(&hub_ext.name),
         ExtensionKind::Mcp => hub_path.join("mcp").join(&hub_ext.name),
         ExtensionKind::Plugin => hub_path.join("plugins").join(&hub_ext.name),
-        ExtensionKind::Cli => hub_path.join("clis").join(&hub_ext.name),
+        ExtensionKind::Cli => {
+            return Err(HkError::Validation(
+                "CLIs cannot be installed from Hub".into(),
+            ));
+        }
         ExtensionKind::Hook => return Err(HkError::Validation("Hooks cannot be installed from Hub".into())),
     };
 
     // Deploy to target
     match hub_ext.kind {
         ExtensionKind::Skill => {
-            let skill_dir = target_adapter.skill_dir_for(scope).ok_or_else(|| {
-                HkError::Internal(format!(
-                    "No skill directory for agent '{}' in scope {:?}",
-                    target_agent, scope
-                ))
-            })?;
+            let skill_dir = skill_dir_for_hub_install(target_adapter.as_ref(), scope, conflict)
+                .ok_or_else(|| {
+                    HkError::Internal(format!(
+                        "No skill directory for agent '{}' in scope {:?}",
+                        target_agent, scope
+                    ))
+                })?;
             std::fs::create_dir_all(&skill_dir)?;
             // deploy_skill handles creating a subdirectory named after the source
             // inside skill_dir, so we pass skill_dir directly (NOT skill_dir/<name>).
@@ -1383,33 +1382,7 @@ pub fn install_from_hub(
             }
         }
         ExtensionKind::Cli => {
-            // Deploy CLI skills to the agent's skill dir
-            let skill_dir = target_adapter.skill_dir_for(scope).ok_or_else(|| {
-                HkError::Internal(format!(
-                    "No skill directory for agent '{}' in scope {:?}",
-                    target_agent, scope
-                ))
-            })?;
-            std::fs::create_dir_all(&skill_dir)?;
-            // Read cli_meta.json to get binary name for skill discovery
-            let _binary_name = if let Ok(meta_content) = std::fs::read_to_string(source_path.join("cli_meta.json")) {
-                if let Ok(meta) = serde_json::from_str::<crate::models::CliMeta>(&meta_content) {
-                    meta.binary_name
-                } else {
-                    hub_ext.name.to_lowercase()
-                }
-            } else {
-                hub_ext.name.to_lowercase()
-            };
-            // Copy CLI-associated skills from the hub backup
-            if source_path.is_dir() {
-                for entry in std::fs::read_dir(&source_path)?.flatten() {
-                    let path = entry.path();
-                    if path.is_dir() && path.file_name().is_some_and(|n| n != "cli_meta.json") {
-                        deployer::deploy_skill(&path, &skill_dir)?;
-                    }
-                }
-            }
+            return Err(HkError::Validation("CLIs cannot be installed from Hub".into()));
         }
         ExtensionKind::Hook => {}
     }
@@ -1486,7 +1459,7 @@ pub fn import_to_hub(
         ExtensionKind::Skill => "skills",
         ExtensionKind::Mcp => "mcp",
         ExtensionKind::Plugin => "plugins",
-        ExtensionKind::Cli => "clis",
+        ExtensionKind::Cli => return Err(HkError::Validation("CLIs cannot be imported".into())),
         ExtensionKind::Hook => return Err(HkError::Validation("Hooks cannot be imported".into())),
     };
     let target_dir = hub_path.join(subdir).join(&name);
@@ -1547,37 +1520,11 @@ pub fn preview_sync_to_hub(
         .iter()
         .map(|e| (e.name.clone(), e.kind))
         .collect();
-    let cli_ids: std::collections::HashSet<String> = all_extensions
-        .iter()
-        .filter(|ext| ext.kind == ExtensionKind::Cli)
-        .map(|ext| ext.id.clone())
-        .collect();
-    let cli_packs: std::collections::HashSet<String> = all_extensions
-        .iter()
-        .filter(|ext| ext.kind == ExtensionKind::Cli)
-        .filter_map(|ext| ext.pack.clone())
-        .collect();
-    let has_lark_cli = all_extensions.iter().any(|ext| {
-        ext.kind == ExtensionKind::Cli
-            && (ext.name == "Lark / Feishu CLI"
-                || ext.pack.as_deref() == Some("larksuite/cli")
-                || ext
-                    .source
-                    .url
-                    .as_deref()
-                    .is_some_and(|url| url.contains("larksuite/cli")))
-    });
-
     let mut to_sync: Vec<Extension> = Vec::new();
     let mut seen: std::collections::HashSet<(String, ExtensionKind)> = std::collections::HashSet::new();
 
     for ext in all_extensions {
         if !can_sync_extension(&ext, adapters, projects) {
-            continue;
-        }
-        if is_cli_child_skill(&ext, &cli_ids, &cli_packs)
-            || (has_lark_cli && is_lark_cli_skill(&ext))
-        {
             continue;
         }
 
@@ -1624,11 +1571,15 @@ pub fn sync_extensions_to_hub(
 
 fn kit_asset_key(ext: &Extension) -> Option<String> {
     match ext.kind {
-        ExtensionKind::Skill | ExtensionKind::Mcp | ExtensionKind::Cli => {
+        ExtensionKind::Skill | ExtensionKind::Mcp => {
             Some(format!("{}\0{}", ext.kind.as_str(), ext.name))
         }
-        ExtensionKind::Plugin | ExtensionKind::Hook => None,
+        ExtensionKind::Plugin | ExtensionKind::Hook | ExtensionKind::Cli => None,
     }
+}
+
+fn kit_asset_candidate_id(kind: ExtensionKind, name: &str) -> String {
+    format!("asset:{}:{name}", kind.as_str())
 }
 
 pub fn build_kit_asset_candidates(
@@ -1643,7 +1594,7 @@ pub fn build_kit_asset_candidates(
             continue;
         };
         by_key.entry(key).or_insert_with(|| KitAssetCandidate {
-            id: format!("extension:{}", ext.id),
+            id: kit_asset_candidate_id(ext.kind, &ext.name),
             kind: ext.kind,
             name: ext.name,
             description: ext.description,
@@ -1660,7 +1611,7 @@ pub fn build_kit_asset_candidates(
         by_key.insert(
             key,
             KitAssetCandidate {
-                id: format!("hub:{}", ext.id),
+                id: kit_asset_candidate_id(ext.kind, &ext.name),
                 kind: ext.kind,
                 name: ext.name,
                 description: ext.description,
@@ -1690,6 +1641,61 @@ fn resolve_candidate_id<'a>(
         .ok_or_else(|| HkError::Validation(format!("Unknown Kit asset candidate: {candidate_id}")))
 }
 
+fn resolve_legacy_candidate_id(
+    store: &Mutex<Store>,
+    candidate_id: &str,
+) -> Result<Option<KitAssetCandidate>, HkError> {
+    if let Some(extension_id) = candidate_id.strip_prefix("extension:") {
+        let Some(ext) = store.lock().get_extension(extension_id)? else {
+            return Ok(None);
+        };
+        let Some(key) = kit_asset_key(&ext) else {
+            return Ok(None);
+        };
+        if let Some(hub_ext) = scanner::scan_local_hub()
+            .into_iter()
+            .find(|hub_ext| kit_asset_key(hub_ext).as_deref() == Some(key.as_str()))
+        {
+            return Ok(Some(KitAssetCandidate {
+                id: kit_asset_candidate_id(hub_ext.kind, &hub_ext.name),
+                kind: hub_ext.kind,
+                name: hub_ext.name,
+                description: hub_ext.description,
+                source_status: KitAssetSourceStatus::InLocalHub,
+                hub_extension_id: Some(hub_ext.id),
+                extension_id: None,
+            }));
+        }
+        return Ok(Some(KitAssetCandidate {
+            id: kit_asset_candidate_id(ext.kind, &ext.name),
+            kind: ext.kind,
+            name: ext.name,
+            description: ext.description,
+            source_status: KitAssetSourceStatus::WillSyncToLocalHub,
+            hub_extension_id: None,
+            extension_id: Some(ext.id),
+        }));
+    }
+
+    if let Some(hub_id) = candidate_id.strip_prefix("hub:")
+        && let Some(hub_ext) = scanner::scan_local_hub()
+            .into_iter()
+            .find(|hub_ext| hub_ext.id == hub_id)
+    {
+        return Ok(Some(KitAssetCandidate {
+            id: kit_asset_candidate_id(hub_ext.kind, &hub_ext.name),
+            kind: hub_ext.kind,
+            name: hub_ext.name,
+            description: hub_ext.description,
+            source_status: KitAssetSourceStatus::InLocalHub,
+            hub_extension_id: Some(hub_ext.id),
+            extension_id: None,
+        }));
+    }
+
+    Ok(None)
+}
+
 fn find_hub_asset_after_sync(name: &str, kind: ExtensionKind) -> Result<Extension, HkError> {
     scanner::scan_local_hub()
         .into_iter()
@@ -1697,24 +1703,19 @@ fn find_hub_asset_after_sync(name: &str, kind: ExtensionKind) -> Result<Extensio
         .ok_or_else(|| HkError::Internal(format!("Asset '{name}' was synced but not found in Local Hub")))
 }
 
-pub fn create_kit(
+fn resolve_kit_assets(
     store: &Mutex<Store>,
     adapters: &[Box<dyn AgentAdapter>],
     projects: &[(String, String)],
-    request: CreateKitRequest,
-) -> Result<KitSummary, HkError> {
-    if request.name.trim().is_empty() {
-        return Err(HkError::Validation("Kit name cannot be empty".into()));
-    }
-    if request.candidate_ids.is_empty() {
-        return Err(HkError::Validation("Select at least one asset".into()));
-    }
-
+    candidate_ids: &[String],
+) -> Result<Vec<NewKitAsset>, HkError> {
     let candidates = list_kit_asset_candidates(store)?;
     let mut assets = Vec::new();
 
-    for candidate_id in &request.candidate_ids {
-        let candidate = resolve_candidate_id(candidate_id, &candidates)?;
+    for candidate_id in candidate_ids {
+        let candidate = resolve_candidate_id(candidate_id, &candidates)
+            .cloned()
+            .or_else(|e| resolve_legacy_candidate_id(store, candidate_id)?.ok_or(e))?;
         let hub_asset = match (&candidate.hub_extension_id, &candidate.extension_id) {
             (Some(hub_id), _) => scanner::scan_local_hub()
                 .into_iter()
@@ -1739,13 +1740,209 @@ pub fn create_kit(
         });
     }
 
+    Ok(assets)
+}
+
+pub fn create_kit(
+    store: &Mutex<Store>,
+    adapters: &[Box<dyn AgentAdapter>],
+    projects: &[(String, String)],
+    request: CreateKitRequest,
+) -> Result<KitSummary, HkError> {
+    if request.name.trim().is_empty() {
+        return Err(HkError::Validation("Kit name cannot be empty".into()));
+    }
+    if request.candidate_ids.is_empty() {
+        return Err(HkError::Validation("Select at least one asset".into()));
+    }
+
+    let assets = resolve_kit_assets(store, adapters, projects, &request.candidate_ids)?;
+
     store
         .lock()
         .create_kit(&request.name, &request.description, &assets)
 }
 
+pub fn update_kit(
+    store: &Mutex<Store>,
+    adapters: &[Box<dyn AgentAdapter>],
+    projects: &[(String, String)],
+    request: UpdateKitRequest,
+) -> Result<KitSummary, HkError> {
+    if request.name.trim().is_empty() {
+        return Err(HkError::Validation("Kit name cannot be empty".into()));
+    }
+    if request.candidate_ids.is_empty() {
+        return Err(HkError::Validation("Select at least one asset".into()));
+    }
+
+    let assets = resolve_kit_assets(store, adapters, projects, &request.candidate_ids)?;
+    store
+        .lock()
+        .update_kit(&request.id, &request.name, &request.description, &assets)
+}
+
 pub fn delete_kit(store: &Mutex<Store>, id: &str) -> Result<(), HkError> {
     store.lock().delete_kit(id)
+}
+
+pub fn sync_kit_to_project(
+    store: &Mutex<Store>,
+    adapters: &[Box<dyn AgentAdapter>],
+    request: SyncKitToProjectRequest,
+) -> Result<KitSyncResult, HkError> {
+    let target_scope = {
+        let store_guard = store.lock();
+        let project = store_guard
+            .list_projects()?
+            .into_iter()
+            .find(|project| project.path == request.project_path)
+            .ok_or_else(|| HkError::NotFound("Project not found".into()))?;
+        ConfigScope::Project {
+            name: project.name,
+            path: project.path,
+        }
+    };
+
+    let assets = {
+        let store_guard = store.lock();
+        store_guard.list_kit_assets(&request.kit_id)?
+    };
+    if assets.is_empty() {
+        return Err(HkError::Validation("Kit has no assets".into()));
+    }
+
+    let force_ids: std::collections::HashSet<&str> = request
+        .force_hub_extension_ids
+        .iter()
+        .map(String::as_str)
+        .collect();
+    let mut installed_count = 0;
+    let mut skipped_conflict_count = 0;
+
+    for asset in &assets {
+        let has_conflict = check_hub_install_conflict(
+            store,
+            &asset.hub_extension_id,
+            &request.target_agent,
+            &target_scope,
+        )
+        .is_some();
+        if has_conflict && !force_ids.contains(asset.hub_extension_id.as_str()) {
+            skipped_conflict_count += 1;
+            continue;
+        }
+
+        install_from_hub(
+            store,
+            adapters,
+            &asset.hub_extension_id,
+            &request.target_agent,
+            &target_scope,
+            has_conflict,
+        )?;
+        installed_count += 1;
+    }
+
+    Ok(KitSyncResult {
+        installed_count,
+        skipped_conflict_count,
+    })
+}
+
+pub fn preview_kit_project_conflicts(
+    store: &Mutex<Store>,
+    request: SyncKitToProjectRequest,
+) -> Result<KitSyncPreview, HkError> {
+    let target_scope = {
+        let store_guard = store.lock();
+        let project = store_guard
+            .list_projects()?
+            .into_iter()
+            .find(|project| project.path == request.project_path)
+            .ok_or_else(|| HkError::NotFound("Project not found".into()))?;
+        ConfigScope::Project {
+            name: project.name,
+            path: project.path,
+        }
+    };
+
+    let assets = {
+        let store_guard = store.lock();
+        store_guard.list_kit_assets(&request.kit_id)?
+    };
+    let conflicts = assets
+        .into_iter()
+        .filter_map(|asset| {
+            check_hub_install_conflict(
+                store,
+                &asset.hub_extension_id,
+                &request.target_agent,
+                &target_scope,
+            )
+            .map(|existing| KitSyncConflict {
+                hub_extension_id: asset.hub_extension_id,
+                kind: asset.kind,
+                asset_name: asset.asset_name,
+                existing_extension_id: existing.id,
+            })
+        })
+        .collect();
+
+    Ok(KitSyncPreview { conflicts })
+}
+
+pub fn unsync_kit_from_project(
+    store: &Mutex<Store>,
+    adapters: &[Box<dyn AgentAdapter>],
+    request: SyncKitToProjectRequest,
+) -> Result<KitSyncResult, HkError> {
+    let target_scope = {
+        let store_guard = store.lock();
+        let project = store_guard
+            .list_projects()?
+            .into_iter()
+            .find(|project| project.path == request.project_path)
+            .ok_or_else(|| HkError::NotFound("Project not found".into()))?;
+        ConfigScope::Project {
+            name: project.name,
+            path: project.path,
+        }
+    };
+
+    let assets = {
+        let store_guard = store.lock();
+        store_guard.list_kit_assets(&request.kit_id)?
+    };
+    if assets.is_empty() {
+        return Err(HkError::Validation("Kit has no assets".into()));
+    }
+
+    let extension_ids = {
+        let store_guard = store.lock();
+        let mut ids = Vec::new();
+        for asset in &assets {
+            let extensions =
+                store_guard.list_extensions(Some(asset.kind), Some(&request.target_agent))?;
+            ids.extend(
+                extensions
+                    .into_iter()
+                    .filter(|ext| ext.name == asset.asset_name && same_scope(&ext.scope, &target_scope))
+                    .map(|ext| ext.id),
+            );
+        }
+        ids
+    };
+
+    let removed_count = extension_ids.len();
+    for extension_id in extension_ids {
+        delete_extension(store, adapters, &extension_id)?;
+    }
+
+    Ok(KitSyncResult {
+        installed_count: removed_count,
+        skipped_conflict_count: 0,
+    })
 }
 
 #[cfg(test)]
@@ -1854,6 +2051,52 @@ mod tests {
         assert!(same_scope(&p1, &p1_alias));
         assert!(!same_scope(&g, &p1));
         assert!(!same_scope(&p1, &p2));
+    }
+
+    #[test]
+    fn test_skill_dir_for_hub_install_reuses_existing_global_skill_root() {
+        use crate::adapter;
+
+        let dir = TempDir::new().unwrap();
+        let home = dir.path();
+        let adapter = adapter::gemini::GeminiAdapter::with_home(home.to_path_buf());
+        let existing = Extension {
+            id: scanner::stable_id_for("foo", "skill", "gemini"),
+            kind: ExtensionKind::Skill,
+            name: "foo".into(),
+            description: String::new(),
+            source: Source {
+                origin: SourceOrigin::Agent,
+                url: None,
+                version: None,
+                commit_hash: None,
+            },
+            agents: vec!["gemini".into()],
+            tags: vec![],
+            pack: None,
+            permissions: vec![],
+            enabled: true,
+            trust_score: None,
+            installed_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+            source_path: Some(
+                home.join(".agents")
+                    .join("skills")
+                    .join("foo")
+                    .join("SKILL.md")
+                    .to_string_lossy()
+                    .to_string(),
+            ),
+            cli_parent_id: None,
+            cli_meta: None,
+            install_meta: None,
+            scope: ConfigScope::Global,
+        };
+
+        let target = skill_dir_for_hub_install(&adapter, &ConfigScope::Global, Some(&existing))
+            .expect("global skill target should resolve");
+
+        assert_eq!(target, home.join(".agents").join("skills"));
     }
 
     #[test]
@@ -2189,6 +2432,7 @@ mod tests {
             make_extension("ext-skill-a", ExtensionKind::Skill, "frontend-design", None),
             make_extension("ext-skill-b", ExtensionKind::Skill, "frontend-design", None),
             make_extension("ext-hook", ExtensionKind::Hook, "post:.*:notify", None),
+            make_extension("ext-cli", ExtensionKind::Cli, "gh", None),
         ];
         let hub = vec![
             make_extension("hub-skill", ExtensionKind::Skill, "frontend-design", None),
@@ -2197,11 +2441,12 @@ mod tests {
 
         let candidates = build_kit_asset_candidates(scanned, hub);
 
-        assert_eq!(candidates.len(), 2);
+        assert_eq!(candidates.len(), 1);
         let frontend = candidates
             .iter()
             .find(|candidate| candidate.name == "frontend-design")
             .unwrap();
+        assert_eq!(frontend.id, "asset:skill:frontend-design");
         assert_eq!(frontend.source_status, KitAssetSourceStatus::InLocalHub);
         assert_eq!(frontend.hub_extension_id.as_deref(), Some("hub-skill"));
         assert_eq!(frontend.extension_id, None);

@@ -23,7 +23,12 @@ export function AgentConfigHubPage() {
   }, [fetch]);
 
   const tags = useMemo(() => {
-    return ["all", ...Array.from(new Set(templates.map((template) => template.tag || "default"))).sort()];
+    return [
+      "all",
+      ...Array.from(
+        new Set(templates.map((template) => template.tag || "default")),
+      ).sort(),
+    ];
   }, [templates]);
 
   const filtered = useMemo(() => {
@@ -40,15 +45,20 @@ export function AgentConfigHubPage() {
   }, [templates, tagFilter, searchQuery]);
 
   return (
-    <div className="absolute inset-0 flex flex-col bg-gradient-to-br from-background via-background/95 to-accent/5">
-      <div className="shrink-0 space-y-5 p-6 pb-4">
-        <div className="flex items-center justify-between">
+    <div className="flex h-full min-h-0 flex-col bg-gradient-to-br from-background via-background/95 to-accent/5">
+      <div className="shrink-0 space-y-5 px-6 pt-6 pb-4">
+        <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-3xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">Agent Config</h2>
-            <p className="mt-1.5 text-[14px] text-muted-foreground/80">Prompt templates stored in ~/.harnesskit/agent-configs</p>
+            <h2 className="text-3xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
+              Agent Config
+            </h2>
+            <p className="mt-1.5 text-[14px] text-muted-foreground/80">
+              Prompt templates stored in ~/.harnesskit/agent-configs
+            </p>
           </div>
           <div className="flex items-center gap-2">
             <button
+              type="button"
               onClick={() => setShowCreate(true)}
               className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 bg-card/60 px-3 py-1.5 text-[12px] font-semibold shadow-sm backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:bg-card/90 hover:shadow-md"
             >
@@ -56,6 +66,7 @@ export function AgentConfigHubPage() {
               New Agent Config
             </button>
             <button
+              type="button"
               onClick={() => setShowImport(true)}
               className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 bg-card/60 px-3 py-1.5 text-[12px] font-semibold shadow-sm backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:bg-card/90 hover:shadow-md"
             >
@@ -66,7 +77,10 @@ export function AgentConfigHubPage() {
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative min-w-64 flex-1 group">
-            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/60 transition-colors group-focus-within:text-primary" />
+            <Search
+              size={16}
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/60 transition-colors group-focus-within:text-primary"
+            />
             <input
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
@@ -89,7 +103,7 @@ export function AgentConfigHubPage() {
               </button>
             ))}
             <span className="ml-auto pl-4 text-sm font-medium text-muted-foreground/80 shrink-0">
-              {filtered.length} {filtered.length === 1 ? 'result' : 'results'}
+              {filtered.length} {filtered.length === 1 ? "result" : "results"}
             </span>
           </div>
         </div>
@@ -124,13 +138,29 @@ export function AgentConfigHubPage() {
                   className="group grid w-full grid-cols-[1.2fr_1.5fr_140px_1fr_120px] gap-4 px-5 py-4 text-left text-sm transition-all hover:bg-accent/40"
                 >
                   <span className="font-semibold text-foreground/90 group-hover:text-primary transition-colors flex items-center gap-2">
-                    <FileText size={14} className="text-muted-foreground/50 group-hover:text-primary/70 transition-colors" />
+                    <FileText
+                      size={14}
+                      className="text-muted-foreground/50 group-hover:text-primary/70 transition-colors"
+                    />
                     {template.name}
                   </span>
-                  <span className="truncate text-muted-foreground/80">{template.description || "No description"}</span>
-                  <span><span className="inline-flex rounded-full border border-border/60 bg-muted/50 px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground/90 shadow-sm">{template.tag || "default"}</span></span>
-                  <span className="truncate text-muted-foreground/80 font-mono text-xs mt-0.5">{template.source_project_name}</span>
-                  <span className="text-muted-foreground/70 text-xs mt-0.5">{new Date(template.updated_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}</span>
+                  <span className="truncate text-muted-foreground/80">
+                    {template.description || "No description"}
+                  </span>
+                  <span>
+                    <span className="inline-flex rounded-full border border-border/60 bg-muted/50 px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground/90 shadow-sm">
+                      {template.tag || "default"}
+                    </span>
+                  </span>
+                  <span className="truncate text-muted-foreground/80 font-mono text-xs mt-0.5">
+                    {template.source_project_name}
+                  </span>
+                  <span className="text-muted-foreground/70 text-xs mt-0.5">
+                    {new Date(template.updated_at).toLocaleDateString(
+                      undefined,
+                      { year: "numeric", month: "short", day: "numeric" },
+                    )}
+                  </span>
                 </button>
               ))}
             </div>
@@ -139,8 +169,12 @@ export function AgentConfigHubPage() {
       </div>
 
       {selectedId && <TemplateDetailDrawer />}
-      {showCreate && <CreateTemplateDialog onClose={() => setShowCreate(false)} />}
-      {showImport && <ImportTemplateDialog onClose={() => setShowImport(false)} />}
+      {showCreate && (
+        <CreateTemplateDialog onClose={() => setShowCreate(false)} />
+      )}
+      {showImport && (
+        <ImportTemplateDialog onClose={() => setShowImport(false)} />
+      )}
     </div>
   );
 }

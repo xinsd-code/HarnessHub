@@ -8,6 +8,8 @@ Modern AI coding agents (Claude Code, Cursor, Windsurf, Antigravity, etc.) scatt
 
 ### Key Features
 
+- **Kits (Extension Bundles)**: Compose Skills, MCP Servers, and CLIs into versioned, traceable Kit bundles. Sync Kits to projects with conflict resolution — unregistered assets are automatically pushed to Local Hub before saving.
+- **Agent Config Templates**: Capture, tag, and version agent configuration files (e.g., CLAUDE.md, .codex/rules.md) as reusable templates. Sync templates to any project and target agent with customizable paths.
 - **Multi-Agent Management**: Supports 16+ agents including Claude Code, Codex, Cursor, Windsurf, Antigravity, and GitHub Copilot.
 - **Full Suite Extensions**: Manage Skills, MCP Servers, Plugins, Hooks, and Agent-first CLIs across all your agents.
 - **Scope Awareness**: Smartly distinguish between **Global** extensions and **Project-specific** extensions. Global assets are clearly tagged and grouped when viewing project environments.

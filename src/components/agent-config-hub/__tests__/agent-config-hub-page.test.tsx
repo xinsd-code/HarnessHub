@@ -43,19 +43,28 @@ const state = {
   tagFilter: "all",
   fetch: vi.fn(),
   select: vi.fn(),
-  setSearchQuery: vi.fn((value: string) => { state.searchQuery = value; }),
-  setTagFilter: vi.fn((value: string) => { state.tagFilter = value; }),
+  setSearchQuery: vi.fn((value: string) => {
+    state.searchQuery = value;
+  }),
+  setTagFilter: vi.fn((value: string) => {
+    state.tagFilter = value;
+  }),
 };
 
 vi.mock("@/stores/agent-config-template-store", () => ({
-  useAgentConfigTemplateStore: (selector: (s: typeof state) => unknown) => selector(state),
+  useAgentConfigTemplateStore: (selector: (s: typeof state) => unknown) =>
+    selector(state),
 }));
 
 describe("AgentConfigHubPage", () => {
   it("shows tag filter buttons and no agent labels", () => {
     render(<AgentConfigHubPage />);
-    expect(screen.getByRole("button", { name: "New Agent Config" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Import from Project" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "New Agent Config" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Import from Project" }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "default" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "review" })).toBeInTheDocument();
     expect(screen.queryByText("codex")).not.toBeInTheDocument();

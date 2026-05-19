@@ -13,12 +13,17 @@ import type {
   ExtensionContent,
   FileEntry,
   InstallResult,
+  KitSyncResult,
+  KitSyncPreview,
   KitAssetCandidate,
   KitSummary,
+  NewKitAsset,
   MarketplaceItem,
   Project,
   ScanResult,
   SkillAuditInfo,
+  SyncKitToProjectRequest,
+  UpdateKitRequest,
   UpdateStatus,
 } from "./types";
 
@@ -535,8 +540,61 @@ export const api = {
     });
   },
 
+  updateKit(request: UpdateKitRequest): Promise<KitSummary> {
+    validateNonEmpty(request.id, "Kit ID");
+    validateNonEmpty(request.name, "Kit name");
+    if (request.candidate_ids.length === 0) {
+      throw new Error("Select at least one asset");
+    }
+    return transport("update_kit", {
+      id: request.id,
+      name: request.name,
+      description: request.description,
+      candidateIds: request.candidate_ids,
+    });
+  },
+
   deleteKit(id: string): Promise<void> {
     validateNonEmpty(id, "Kit ID");
     return transport("delete_kit", { id });
+  },
+
+  listKitAssets(kitId: string): Promise<NewKitAsset[]> {
+    validateNonEmpty(kitId, "Kit ID");
+    return transport("list_kit_assets", { kitId });
+  },
+
+  syncKitToProject(request: SyncKitToProjectRequest): Promise<KitSyncResult> {
+    validateNonEmpty(request.kit_id, "Kit ID");
+    validateNonEmpty(request.project_path, "Project path");
+    validateNonEmpty(request.target_agent, "Target agent");
+    return transport("sync_kit_to_project", {
+      kitId: request.kit_id,
+      projectPath: request.project_path,
+      targetAgent: request.target_agent,
+      forceHubExtensionIds: request.force_hub_extension_ids ?? [],
+    });
+  },
+
+  previewKitProjectConflicts(request: SyncKitToProjectRequest): Promise<KitSyncPreview> {
+    validateNonEmpty(request.kit_id, "Kit ID");
+    validateNonEmpty(request.project_path, "Project path");
+    validateNonEmpty(request.target_agent, "Target agent");
+    return transport("preview_kit_project_conflicts", {
+      kitId: request.kit_id,
+      projectPath: request.project_path,
+      targetAgent: request.target_agent,
+    });
+  },
+
+  unsyncKitFromProject(request: SyncKitToProjectRequest): Promise<KitSyncResult> {
+    validateNonEmpty(request.kit_id, "Kit ID");
+    validateNonEmpty(request.project_path, "Project path");
+    validateNonEmpty(request.target_agent, "Target agent");
+    return transport("unsync_kit_from_project", {
+      kitId: request.kit_id,
+      projectPath: request.project_path,
+      targetAgent: request.target_agent,
+    });
   },
 };

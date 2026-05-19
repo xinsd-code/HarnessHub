@@ -156,7 +156,12 @@ pub fn build_router(state: WebState) -> Router {
         .route("/api/list_kits", post(handlers::kits::list_kits))
         .route("/api/list_kit_asset_candidates", post(handlers::kits::list_kit_asset_candidates))
         .route("/api/create_kit", post(handlers::kits::create_kit))
-        .route("/api/delete_kit", post(handlers::kits::delete_kit));
+        .route("/api/update_kit", post(handlers::kits::update_kit))
+        .route("/api/delete_kit", post(handlers::kits::delete_kit))
+        .route("/api/list_kit_assets", post(handlers::kits::list_kit_assets))
+        .route("/api/sync_kit_to_project", post(handlers::kits::sync_kit_to_project))
+        .route("/api/preview_kit_project_conflicts", post(handlers::kits::preview_kit_project_conflicts))
+        .route("/api/unsync_kit_from_project", post(handlers::kits::unsync_kit_from_project));
 
     let cors = CorsLayer::new()
         .allow_origin(Any)

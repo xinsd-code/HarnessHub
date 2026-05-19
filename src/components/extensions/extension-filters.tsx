@@ -27,7 +27,6 @@ const kinds: (ExtensionKind | null)[] = [
   "mcp",
   "plugin",
   "hook",
-  "cli",
 ];
 const kindLabel: Record<ExtensionKind, string> = {
   skill: "skill",

@@ -2222,7 +2222,6 @@ pub fn scan_local_hub() -> Vec<Extension> {
     extensions.extend(scan_hub_skills(&hub_path));
     extensions.extend(scan_hub_mcp(&hub_path));
     extensions.extend(scan_hub_plugins(&hub_path));
-    extensions.extend(scan_hub_clis(&hub_path));
     extensions
 }
 
@@ -2448,70 +2447,6 @@ fn scan_hub_plugins(hub_path: &Path) -> Vec<Extension> {
     extensions
 }
 
-/// Scan CLIs from ~/.harnesskit/clis/
-fn scan_hub_clis(hub_path: &Path) -> Vec<Extension> {
-    let clis_dir = hub_path.join("clis");
-    if !clis_dir.exists() {
-        return Vec::new();
-    }
-
-    let mut extensions = Vec::new();
-    let Ok(entries) = std::fs::read_dir(&clis_dir) else {
-        return extensions;
-    };
-
-    for entry in entries.flatten() {
-        let path = entry.path();
-        if !path.is_dir() {
-            continue;
-        }
-
-        let name = path
-            .file_name()
-            .unwrap_or_default()
-            .to_string_lossy()
-            .to_string();
-
-        // Check for cli_meta.json
-        let meta_path = path.join("cli_meta.json");
-        let cli_meta = if meta_path.exists() {
-            std::fs::read_to_string(&meta_path)
-                .ok()
-                .and_then(|content| serde_json::from_str(&content).ok())
-        } else {
-            None
-        };
-
-        extensions.push(Extension {
-            id: hub_stable_id(&name, "cli"),
-            kind: ExtensionKind::Cli,
-            name: name.clone(),
-            description: format!("CLI: {}", name),
-            source: Source {
-                origin: SourceOrigin::Agent,
-                url: None,
-                version: None,
-                commit_hash: None,
-            },
-            agents: vec!["hub".to_string()],
-            tags: vec![],
-            pack: None,
-            permissions: vec![],
-            enabled: true,
-            trust_score: None,
-            installed_at: file_created_time(&path),
-            updated_at: file_modified_time(&path),
-            source_path: Some(display_path(&path)),
-            cli_parent_id: None,
-            cli_meta,
-            install_meta: None,
-            scope: ConfigScope::Global,
-        });
-    }
-
-    extensions
-}
-
 /// Find a skill in the Local Hub by name
 pub fn find_hub_skill_by_name(name: &str) -> Option<PathBuf> {
     let hub_path = get_hub_path();
@@ -2529,11 +2464,10 @@ pub fn hub_extension_exists(name: &str, kind: ExtensionKind) -> bool {
         ExtensionKind::Skill => "skills",
         ExtensionKind::Mcp => "mcp",
         ExtensionKind::Plugin => "plugins",
-        ExtensionKind::Cli => "clis",
+        ExtensionKind::Cli => return false,
         ExtensionKind::Hook => return false, // Hooks are not backed up to hub
     };
-    let ext_path = hub_path.join(subdir).join(name);
-    ext_path.exists()
+    hub_path.join(subdir).join(name).exists()
 }
 
 #[cfg(test)]
@@ -2580,6 +2514,25 @@ mod tests {
         assert_eq!(extensions.len(), 1);
         assert_eq!(extensions[0].name, "github");
         assert_eq!(extensions[0].kind, ExtensionKind::Mcp);
+    }
+
+    #[test]
+    fn test_scan_local_hub_ignores_legacy_cli_directory() {
+        let dir = TempDir::new().unwrap();
+        let cli_dir = dir.path().join("clis").join("gh");
+        std::fs::create_dir_all(&cli_dir).unwrap();
+        std::fs::write(
+            cli_dir.join("cli_meta.json"),
+            r#"{"binary_name":"gh","binary_path":null,"install_method":null,"credentials_path":null,"version":null,"api_domains":[]}"#,
+        )
+        .unwrap();
+
+        let mut extensions = Vec::new();
+        extensions.extend(scan_hub_skills(dir.path()));
+        extensions.extend(scan_hub_mcp(dir.path()));
+        extensions.extend(scan_hub_plugins(dir.path()));
+
+        assert!(extensions.iter().all(|ext| ext.kind != ExtensionKind::Cli));
     }
 
     #[test]

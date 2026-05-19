@@ -549,6 +549,12 @@ export interface KitSummary {
   updated_at: string;
 }
 
+export interface NewKitAsset {
+  hub_extension_id: string;
+  kind: ExtensionKind;
+  asset_name: string;
+}
+
 export type KitAssetSourceStatus =
   | "in_local_hub"
   | "will_sync_to_local_hub";
@@ -567,4 +573,31 @@ export interface CreateKitRequest {
   name: string;
   description: string;
   candidate_ids: string[];
+}
+
+export interface UpdateKitRequest extends CreateKitRequest {
+  id: string;
+}
+
+export interface SyncKitToProjectRequest {
+  kit_id: string;
+  project_path: string;
+  target_agent: string;
+  force_hub_extension_ids?: string[];
+}
+
+export interface KitSyncResult {
+  installed_count: number;
+  skipped_conflict_count: number;
+}
+
+export interface KitSyncConflict {
+  hub_extension_id: string;
+  kind: ExtensionKind;
+  asset_name: string;
+  existing_extension_id: string;
+}
+
+export interface KitSyncPreview {
+  conflicts: KitSyncConflict[];
 }

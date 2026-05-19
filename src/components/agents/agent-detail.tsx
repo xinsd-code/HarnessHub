@@ -14,7 +14,7 @@ import {
   scopeLabel,
 } from "@/lib/types";
 import { useAgentConfigStore } from "@/stores/agent-config-store";
-import { isCliChildSkillGroup } from "@/stores/extension-helpers";
+import { isCliGroupBackedBySkillAssets } from "@/stores/extension-helpers";
 import { useExtensionStore } from "@/stores/extension-store";
 import { AgentExtensionsPanel } from "./agent-extensions-panel";
 import { ConfigSection } from "./config-section";
@@ -32,7 +32,6 @@ const EXTENSION_KIND_ORDER: ExtensionKind[] = [
   "mcp",
   "plugin",
   "hook",
-  "cli",
 ];
 
 const EXTENSION_KIND_LABELS: Record<ExtensionKind, string> = {
@@ -106,7 +105,7 @@ function AgentDetailContent({
     if (!agent) return c;
     const groups = groupedExtensions();
     for (const group of groups) {
-      if (group.kind === "skill" && isCliChildSkillGroup(group, groups)) {
+      if (isCliGroupBackedBySkillAssets(group, groups)) {
         continue;
       }
       const matches = group.instances.some((instance) => {

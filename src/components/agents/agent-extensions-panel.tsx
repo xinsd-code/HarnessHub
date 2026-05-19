@@ -20,7 +20,7 @@ import {
 } from "@/lib/types";
 import {
   findCliChildren,
-  isCliChildSkillGroup,
+  isCliGroupBackedBySkillAssets,
 } from "@/stores/extension-helpers";
 import { useExtensionStore } from "@/stores/extension-store";
 import { toast } from "@/stores/toast-store";
@@ -61,7 +61,7 @@ export function AgentExtensionsPanel({
     return grouped()
       .filter((group) => {
         if (group.kind !== kind) return false;
-        if (kind === "skill" && isCliChildSkillGroup(group, grouped())) {
+        if (isCliGroupBackedBySkillAssets(group, grouped())) {
           return false;
         }
         return true;

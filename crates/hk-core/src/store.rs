@@ -1386,6 +1386,53 @@ impl Store {
             .ok_or_else(|| HkError::Internal("Created Kit was not found".into()))
     }
 
+    pub fn update_kit(
+        &self,
+        id: &str,
+        name: &str,
+        description: &str,
+        assets: &[NewKitAsset],
+    ) -> Result<KitSummary, HkError> {
+        let trimmed_name = name.trim();
+        if trimmed_name.is_empty() {
+            return Err(HkError::Validation("Kit name cannot be empty".into()));
+        }
+        if assets.is_empty() {
+            return Err(HkError::Validation("Select at least one asset".into()));
+        }
+
+        let now = Utc::now();
+        let tx = self.conn.unchecked_transaction()?;
+        let updated = tx.execute(
+            "UPDATE kits
+             SET name = ?2, description = ?3, updated_at = ?4
+             WHERE id = ?1",
+            params![id, trimmed_name, description.trim(), now.to_rfc3339()],
+        )?;
+        if updated == 0 {
+            return Err(HkError::NotFound("Kit not found".into()));
+        }
+
+        tx.execute("DELETE FROM kit_assets WHERE kit_id = ?1", params![id])?;
+        for (position, asset) in assets.iter().enumerate() {
+            tx.execute(
+                "INSERT INTO kit_assets (kit_id, hub_extension_id, kind, asset_name, position)
+                 VALUES (?1, ?2, ?3, ?4, ?5)",
+                params![
+                    id,
+                    asset.hub_extension_id,
+                    asset.kind.as_str(),
+                    asset.asset_name,
+                    position as i64,
+                ],
+            )?;
+        }
+        tx.commit()?;
+
+        self.get_kit_summary(id)?
+            .ok_or_else(|| HkError::Internal("Updated Kit was not found".into()))
+    }
+
     pub fn list_kits(&self) -> Result<Vec<KitSummary>, HkError> {
         let mut stmt = self.conn.prepare(
             "SELECT
@@ -1445,6 +1492,28 @@ impl Store {
             return Err(HkError::NotFound("Kit not found".into()));
         }
         Ok(())
+    }
+
+    pub fn list_kit_assets(&self, kit_id: &str) -> Result<Vec<NewKitAsset>, HkError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT hub_extension_id, kind, asset_name FROM kit_assets WHERE kit_id = ?1 ORDER BY position"
+        )?;
+        let rows = stmt.query_map([kit_id], |row| {
+            let kind_str: String = row.get(1)?;
+            let kind = kind_str.parse().map_err(|e: anyhow::Error| {
+                rusqlite::Error::FromSqlConversionFailure(
+                    1,
+                    rusqlite::types::Type::Text,
+                    Box::new(std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string())),
+                )
+            })?;
+            Ok(NewKitAsset {
+                hub_extension_id: row.get(0)?,
+                kind,
+                asset_name: row.get(2)?,
+            })
+        })?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
     }
 }
 
@@ -2738,6 +2807,52 @@ mod tests {
             .query_row("SELECT COUNT(*) FROM kit_assets", [], |row| row.get(0))
             .unwrap();
         assert_eq!(orphan_asset_rows, 0);
+    }
+
+    #[test]
+    fn test_update_kit_replaces_metadata_and_assets() {
+        let (store, _dir) = test_store();
+        let kit = store
+            .create_kit(
+                "Data Analyst Kit",
+                "Original description",
+                &[NewKitAsset {
+                    hub_extension_id: "hub-skill".into(),
+                    kind: ExtensionKind::Skill,
+                    asset_name: "sql-skill".into(),
+                }],
+            )
+            .unwrap();
+
+        let updated = store
+            .update_kit(
+                &kit.id,
+                "Platform Kit",
+                "Updated description",
+                &[
+                    NewKitAsset {
+                        hub_extension_id: "hub-skill-2".into(),
+                        kind: ExtensionKind::Skill,
+                        asset_name: "frontend-design".into(),
+                    },
+                    NewKitAsset {
+                        hub_extension_id: "hub-mcp".into(),
+                        kind: ExtensionKind::Mcp,
+                        asset_name: "chrome-devtools".into(),
+                    },
+                ],
+            )
+            .unwrap();
+
+        assert_eq!(updated.name, "Platform Kit");
+        assert_eq!(updated.description, "Updated description");
+        assert_eq!(updated.skills_count, 1);
+        assert_eq!(updated.mcp_count, 1);
+
+        let assets = store.list_kit_assets(&kit.id).unwrap();
+        assert_eq!(assets.len(), 2);
+        assert_eq!(assets[0].asset_name, "frontend-design");
+        assert_eq!(assets[1].asset_name, "chrome-devtools");
     }
 
     #[test]
