@@ -209,7 +209,7 @@ pub struct KitSummary {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct NewKitAsset {
     pub hub_extension_id: String,
     pub kind: ExtensionKind,
@@ -275,6 +275,76 @@ pub struct KitSyncConflict {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KitSyncPreview {
     pub conflicts: Vec<KitSyncConflict>,
+}
+
+// --- Harness Kits ---
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HarnessKitSummary {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub agent_config_count: usize,
+    pub extensions_kit_count: usize,
+    pub skills_count: usize,
+    pub mcp_count: usize,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct NewHarnessKitAgentConfig {
+    pub template_id: String,
+    pub template_name: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct NewHarnessKitExtensionKit {
+    pub kit_id: String,
+    pub kit_name: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct HarnessKitAssets {
+    pub agent_configs: Vec<NewHarnessKitAgentConfig>,
+    pub extension_kits: Vec<NewHarnessKitExtensionKit>,
+    pub extra_assets: Vec<NewKitAsset>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HarnessKitAssetCandidates {
+    pub agent_configs: Vec<NewHarnessKitAgentConfig>,
+    pub extension_kits: Vec<HarnessKitExtensionKitCandidate>,
+    pub skills: Vec<KitAssetCandidate>,
+    pub mcps: Vec<KitAssetCandidate>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HarnessKitExtensionKitCandidate {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub skills_count: usize,
+    pub mcp_count: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateHarnessKitRequest {
+    pub name: String,
+    pub description: String,
+    pub agent_config_template_ids: Vec<String>,
+    pub extension_kit_ids: Vec<String>,
+    pub extra_candidate_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateHarnessKitRequest {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub agent_config_template_ids: Vec<String>,
+    pub extension_kit_ids: Vec<String>,
+    pub extra_candidate_ids: Vec<String>,
 }
 
 // --- Audit ---

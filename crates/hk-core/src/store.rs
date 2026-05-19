@@ -2873,4 +2873,110 @@ mod tests {
         let empty_assets = store.create_kit("Frontend Kit", "desc", &[]);
         assert!(empty_assets.is_err());
     }
+
+    #[test]
+    fn harness_kit_migration_creates_tables() {
+        let (store, _tmp) = test_store();
+
+        for table in [
+            "harness_kits",
+            "harness_kit_agent_configs",
+            "harness_kit_extension_kits",
+            "harness_kit_assets",
+        ] {
+            let count: i64 = store
+                .conn
+                .query_row(
+                    "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?1",
+                    [table],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            assert_eq!(count, 1, "missing table {table}");
+        }
+    }
+
+    #[test]
+    fn creates_lists_updates_and_deletes_harness_kits() {
+        let (store, _tmp) = test_store();
+        let first = store
+            .create_harness_kit(
+                "Data Workspace",
+                "Prompts plus data tools",
+                &[NewHarnessKitAgentConfig {
+                    template_id: "default/agent-rules".into(),
+                    template_name: "Agent Rules".into(),
+                }],
+                &[NewHarnessKitExtensionKit {
+                    kit_id: "kit-data".into(),
+                    kit_name: "Data Extensions".into(),
+                }],
+                &[
+                    NewKitAsset {
+                        hub_extension_id: "hub-skill-sql".into(),
+                        kind: ExtensionKind::Skill,
+                        asset_name: "sql-review".into(),
+                    },
+                    NewKitAsset {
+                        hub_extension_id: "hub-mcp-pg".into(),
+                        kind: ExtensionKind::Mcp,
+                        asset_name: "postgres".into(),
+                    },
+                ],
+            )
+            .unwrap();
+
+        assert_eq!(first.name, "Data Workspace");
+        assert_eq!(first.agent_config_count, 1);
+        assert_eq!(first.extensions_kit_count, 1);
+        assert_eq!(first.skills_count, 1);
+        assert_eq!(first.mcp_count, 1);
+
+        let listed = store.list_harness_kits().unwrap();
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].id, first.id);
+
+        let assets = store.list_harness_kit_assets(&first.id).unwrap();
+        assert_eq!(assets.agent_configs[0].template_name, "Agent Rules");
+        assert_eq!(assets.extension_kits[0].kit_name, "Data Extensions");
+        assert_eq!(assets.extra_assets[0].asset_name, "sql-review");
+        assert_eq!(assets.extra_assets[1].asset_name, "postgres");
+
+        let updated = store
+            .update_harness_kit(
+                &first.id,
+                "Review Workspace",
+                "Review prompts",
+                &[],
+                &[NewHarnessKitExtensionKit {
+                    kit_id: "kit-review".into(),
+                    kit_name: "Review Extensions".into(),
+                }],
+                &[NewKitAsset {
+                    hub_extension_id: "hub-skill-review".into(),
+                    kind: ExtensionKind::Skill,
+                    asset_name: "code-review".into(),
+                }],
+            )
+            .unwrap();
+        assert_eq!(updated.name, "Review Workspace");
+        assert_eq!(updated.agent_config_count, 0);
+        assert_eq!(updated.extensions_kit_count, 1);
+        assert_eq!(updated.skills_count, 1);
+        assert_eq!(updated.mcp_count, 0);
+
+        store.delete_harness_kit(&first.id).unwrap();
+        assert!(store.list_harness_kits().unwrap().is_empty());
+    }
+
+    #[test]
+    fn harness_kit_requires_name_and_at_least_one_asset() {
+        let (store, _tmp) = test_store();
+
+        let blank = store.create_harness_kit("  ", "", &[], &[], &[]);
+        assert!(blank.unwrap_err().to_string().contains("Harness Kit name cannot be empty"));
+
+        let empty = store.create_harness_kit("Empty", "", &[], &[], &[]);
+        assert!(empty.unwrap_err().to_string().contains("Select at least one Harness Kit asset"));
+    }
 }
