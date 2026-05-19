@@ -1631,6 +1631,59 @@ pub fn list_kit_asset_candidates(store: &Mutex<Store>) -> Result<Vec<KitAssetCan
     Ok(build_kit_asset_candidates(scanned, hub))
 }
 
+pub fn build_harness_kit_asset_candidates(
+    agent_configs: Vec<NewHarnessKitAgentConfig>,
+    extension_kits: Vec<HarnessKitExtensionKitCandidate>,
+    assets: Vec<KitAssetCandidate>,
+) -> HarnessKitAssetCandidates {
+    let mut skills = Vec::new();
+    let mut mcps = Vec::new();
+    for asset in assets {
+        match asset.kind {
+            ExtensionKind::Skill => skills.push(asset),
+            ExtensionKind::Mcp => mcps.push(asset),
+            _ => {}
+        }
+    }
+    HarnessKitAssetCandidates {
+        agent_configs,
+        extension_kits,
+        skills,
+        mcps,
+    }
+}
+
+pub fn list_harness_kit_asset_candidates(
+    store: &Mutex<Store>,
+    agent_config_hub_dir: &std::path::Path,
+) -> Result<HarnessKitAssetCandidates, HkError> {
+    let agent_configs = crate::agent_config_templates::list_templates(agent_config_hub_dir)?
+        .into_iter()
+        .map(|template| NewHarnessKitAgentConfig {
+            template_id: template.id,
+            template_name: template.name,
+        })
+        .collect();
+    let extension_kits = store
+        .lock()
+        .list_kits()?
+        .into_iter()
+        .map(|kit| HarnessKitExtensionKitCandidate {
+            id: kit.id,
+            name: kit.name,
+            description: kit.description,
+            skills_count: kit.skills_count,
+            mcp_count: kit.mcp_count,
+        })
+        .collect();
+    let asset_candidates = list_kit_asset_candidates(store)?;
+    Ok(build_harness_kit_asset_candidates(
+        agent_configs,
+        extension_kits,
+        asset_candidates,
+    ))
+}
+
 fn resolve_candidate_id<'a>(
     candidate_id: &str,
     candidates: &'a [KitAssetCandidate],
@@ -1741,6 +1794,114 @@ fn resolve_kit_assets(
     }
 
     Ok(assets)
+}
+
+// --- Harness Kit CRUD ---
+
+fn resolve_harness_agent_configs(
+    hub_dir: &std::path::Path,
+    template_ids: &[String],
+) -> Result<Vec<NewHarnessKitAgentConfig>, HkError> {
+    let templates = crate::agent_config_templates::list_templates(hub_dir)?;
+    template_ids
+        .iter()
+        .map(|id| {
+            templates
+                .iter()
+                .find(|template| template.id == *id)
+                .map(|template| NewHarnessKitAgentConfig {
+                    template_id: template.id.clone(),
+                    template_name: template.name.clone(),
+                })
+                .ok_or_else(|| HkError::Validation(format!("Unknown Agent Config template: {id}")))
+        })
+        .collect()
+}
+
+fn resolve_harness_extension_kits(
+    store: &Mutex<Store>,
+    kit_ids: &[String],
+) -> Result<Vec<NewHarnessKitExtensionKit>, HkError> {
+    let kits = store.lock().list_kits()?;
+    kit_ids
+        .iter()
+        .map(|id| {
+            kits.iter()
+                .find(|kit| kit.id == *id)
+                .map(|kit| NewHarnessKitExtensionKit {
+                    kit_id: kit.id.clone(),
+                    kit_name: kit.name.clone(),
+                })
+                .ok_or_else(|| HkError::Validation(format!("Unknown Extensions Kit: {id}")))
+        })
+        .collect()
+}
+
+fn validate_no_extra_asset_overlap(
+    store: &Mutex<Store>,
+    extension_kit_ids: &[String],
+    extra_assets: &[NewKitAsset],
+) -> Result<(), HkError> {
+    let mut covered = std::collections::HashSet::new();
+    for kit_id in extension_kit_ids {
+        for asset in store.lock().list_kit_assets(kit_id)? {
+            covered.insert((asset.kind.as_str().to_string(), asset.hub_extension_id));
+        }
+    }
+    for asset in extra_assets {
+        if covered.contains(&(asset.kind.as_str().to_string(), asset.hub_extension_id.clone())) {
+            return Err(HkError::Validation(format!(
+                "Asset '{}' is already included by a selected Extensions Kit",
+                asset.asset_name
+            )));
+        }
+    }
+    Ok(())
+}
+
+pub fn create_harness_kit(
+    store: &Mutex<Store>,
+    adapters: &[Box<dyn AgentAdapter>],
+    projects: &[(String, String)],
+    agent_config_hub_dir: &std::path::Path,
+    request: CreateHarnessKitRequest,
+) -> Result<HarnessKitSummary, HkError> {
+    let agent_configs = resolve_harness_agent_configs(agent_config_hub_dir, &request.agent_config_template_ids)?;
+    let extension_kits = resolve_harness_extension_kits(store, &request.extension_kit_ids)?;
+    let extra_assets = resolve_kit_assets(store, adapters, projects, &request.extra_candidate_ids)?;
+    validate_no_extra_asset_overlap(store, &request.extension_kit_ids, &extra_assets)?;
+    store.lock().create_harness_kit(
+        &request.name,
+        &request.description,
+        &agent_configs,
+        &extension_kits,
+        &extra_assets,
+    )
+}
+
+pub fn update_harness_kit(
+    store: &Mutex<Store>,
+    adapters: &[Box<dyn AgentAdapter>],
+    projects: &[(String, String)],
+    agent_config_hub_dir: &std::path::Path,
+    request: UpdateHarnessKitRequest,
+) -> Result<HarnessKitSummary, HkError> {
+    let agent_configs = resolve_harness_agent_configs(agent_config_hub_dir, &request.agent_config_template_ids)?;
+    let extension_kits = resolve_harness_extension_kits(store, &request.extension_kit_ids)?;
+    let extra_assets = resolve_kit_assets(store, adapters, projects, &request.extra_candidate_ids)?;
+    validate_no_extra_asset_overlap(store, &request.extension_kit_ids, &extra_assets)?;
+    store.lock().update_harness_kit(
+        &request.id,
+        &request.name,
+        &request.description,
+        &agent_configs,
+        &extension_kits,
+        &extra_assets,
+    )
+}
+
+pub fn delete_harness_kit(store: &Mutex<Store>, id: &str) -> Result<(), HkError> {
+    store.lock().delete_harness_kit(id)
 }
 
 pub fn create_kit(
@@ -2469,5 +2630,69 @@ mod tests {
 
         assert!(result.is_err());
         assert!(store.lock().list_kits().unwrap().is_empty());
+    }
+
+    #[test]
+    fn harness_kit_candidates_split_skill_and_mcp_assets() {
+        let scanned = vec![Extension {
+            id: "ext-skill".into(),
+            kind: ExtensionKind::Skill,
+            name: "frontend-design".into(),
+            description: "Build UI".into(),
+            source: Source { origin: SourceOrigin::Local, url: None, version: None, commit_hash: None },
+            agents: vec!["codex".into()],
+            tags: vec![],
+            pack: None,
+            permissions: vec![],
+            enabled: true,
+            trust_score: None,
+            installed_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+            source_path: None,
+            cli_parent_id: None,
+            cli_meta: None,
+            install_meta: None,
+            scope: ConfigScope::Global,
+        }];
+        let hub = vec![Extension {
+            id: "hub-mcp".into(),
+            kind: ExtensionKind::Mcp,
+            name: "chrome-devtools".into(),
+            description: "Browser".into(),
+            source: Source { origin: SourceOrigin::Local, url: None, version: None, commit_hash: None },
+            agents: vec![],
+            tags: vec![],
+            pack: None,
+            permissions: vec![],
+            enabled: true,
+            trust_score: None,
+            installed_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+            source_path: None,
+            cli_parent_id: None,
+            cli_meta: None,
+            install_meta: None,
+            scope: ConfigScope::Global,
+        }];
+
+        let candidates = build_harness_kit_asset_candidates(
+            vec![NewHarnessKitAgentConfig {
+                template_id: "default/rules".into(),
+                template_name: "Rules".into(),
+            }],
+            vec![HarnessKitExtensionKitCandidate {
+                id: "kit-1".into(),
+                name: "Browser Kit".into(),
+                description: "Browser assets".into(),
+                skills_count: 0,
+                mcp_count: 1,
+            }],
+            build_kit_asset_candidates(scanned, hub),
+        );
+
+        assert_eq!(candidates.agent_configs.len(), 1);
+        assert_eq!(candidates.extension_kits.len(), 1);
+        assert_eq!(candidates.skills[0].name, "frontend-design");
+        assert_eq!(candidates.mcps[0].name, "chrome-devtools");
     }
 }
