@@ -2875,8 +2875,8 @@ mod tests {
     }
 
     #[test]
-    fn harness_kit_migration_creates_tables() {
-        let (store, _tmp) = test_store();
+    fn test_harness_kit_migration_creates_tables() {
+        let (store, _dir) = test_store();
 
         for table in [
             "harness_kits",
@@ -2897,8 +2897,8 @@ mod tests {
     }
 
     #[test]
-    fn creates_lists_updates_and_deletes_harness_kits() {
-        let (store, _tmp) = test_store();
+    fn test_harness_kit_crud_lifecycle() {
+        let (store, _dir) = test_store();
         let first = store
             .create_harness_kit(
                 "Data Workspace",
@@ -2970,8 +2970,8 @@ mod tests {
     }
 
     #[test]
-    fn harness_kit_requires_name_and_at_least_one_asset() {
-        let (store, _tmp) = test_store();
+    fn test_harness_kit_rejects_empty_name_and_empty_assets() {
+        let (store, _dir) = test_store();
 
         let blank = store.create_harness_kit("  ", "", &[], &[], &[]);
         assert!(blank.unwrap_err().to_string().contains("Harness Kit name cannot be empty"));
