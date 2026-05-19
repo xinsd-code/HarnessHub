@@ -1843,8 +1843,9 @@ fn validate_no_extra_asset_overlap(
     extra_assets: &[NewKitAsset],
 ) -> Result<(), HkError> {
     let mut covered = std::collections::HashSet::new();
+    let guard = store.lock();
     for kit_id in extension_kit_ids {
-        for asset in store.lock().list_kit_assets(kit_id)? {
+        for asset in guard.list_kit_assets(kit_id)? {
             covered.insert((asset.kind.as_str().to_string(), asset.hub_extension_id));
         }
     }
@@ -1866,6 +1867,16 @@ pub fn create_harness_kit(
     agent_config_hub_dir: &std::path::Path,
     request: CreateHarnessKitRequest,
 ) -> Result<HarnessKitSummary, HkError> {
+    if request.name.trim().is_empty() {
+        return Err(HkError::Validation("Harness Kit name cannot be empty".into()));
+    }
+    if request.agent_config_template_ids.is_empty()
+        && request.extension_kit_ids.is_empty()
+        && request.extra_candidate_ids.is_empty()
+    {
+        return Err(HkError::Validation("Select at least one Harness Kit asset".into()));
+    }
+
     let agent_configs = resolve_harness_agent_configs(agent_config_hub_dir, &request.agent_config_template_ids)?;
     let extension_kits = resolve_harness_extension_kits(store, &request.extension_kit_ids)?;
     let extra_assets = resolve_kit_assets(store, adapters, projects, &request.extra_candidate_ids)?;
@@ -1886,6 +1897,16 @@ pub fn update_harness_kit(
     agent_config_hub_dir: &std::path::Path,
     request: UpdateHarnessKitRequest,
 ) -> Result<HarnessKitSummary, HkError> {
+    if request.name.trim().is_empty() {
+        return Err(HkError::Validation("Harness Kit name cannot be empty".into()));
+    }
+    if request.agent_config_template_ids.is_empty()
+        && request.extension_kit_ids.is_empty()
+        && request.extra_candidate_ids.is_empty()
+    {
+        return Err(HkError::Validation("Select at least one Harness Kit asset".into()));
+    }
+
     let agent_configs = resolve_harness_agent_configs(agent_config_hub_dir, &request.agent_config_template_ids)?;
     let extension_kits = resolve_harness_extension_kits(store, &request.extension_kit_ids)?;
     let extra_assets = resolve_kit_assets(store, adapters, projects, &request.extra_candidate_ids)?;
