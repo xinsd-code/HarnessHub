@@ -1,21 +1,36 @@
 import { Blocks, Layers3, Plus, Search, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { HarnessKitDetailDrawer } from "@/components/harness-kit/harness-kit-detail-drawer";
+import { HarnessKitInsertDialog } from "@/components/harness-kit/harness-kit-insert-dialog";
 import HarnessKitEditor from "@/components/harness-kit/harness-kit-editor";
+import type { AgentInstallIconItem } from "@/components/shared/agent-install-icon-row";
 import type {
   CreateHarnessKitRequest,
   HarnessKitAssets,
   HarnessKitSummary,
+  HarnessKitSyncPreview,
+  HarnessKitSyncStatus,
   UpdateHarnessKitRequest,
 } from "@/lib/types";
+import { useAgentStore } from "@/stores/agent-store";
 import { useHarnessKitStore } from "@/stores/harness-kit-store";
 import { useKitStore } from "@/stores/kit-store";
+import { useProjectStore } from "@/stores/project-store";
 
 type NavigateHarnessAsset = {
   kind: "agent-config" | "extensions-kit" | "skill" | "mcp";
   id: string;
   name: string;
 };
+
+function defaultProjectRelPath(agentName: string): string {
+  const map: Record<string, string> = {
+    codex: ".codex/AGENTS.md",
+    claude: ".claude/CLAUDE.md",
+    gemini: ".gemini/GEMINI.md",
+  };
+  return map[agentName] ?? "";
+}
 
 export function HarnessKitSection({
   onNavigateAsset,
@@ -34,6 +49,20 @@ export function HarnessKitSection({
   const fetchHarnessKitAssets = useHarnessKitStore(
     (s) => s.fetchHarnessKitAssets,
   );
+  const previewProjectConflicts = useHarnessKitStore(
+    (s) => s.previewProjectConflicts,
+  );
+  const fetchSyncStatuses = useHarnessKitStore((s) => s.fetchSyncStatuses);
+  const syncToProject = useHarnessKitStore((s) => s.syncToProject);
+  const unsyncFromProject = useHarnessKitStore((s) => s.unsyncFromProject);
+
+  const projects = useProjectStore((s) => s.projects);
+  const loadProjects = useProjectStore((s) => s.loadProjects);
+  const projectsLoaded = useProjectStore((s) => s.loaded);
+
+  const agents = useAgentStore((s) => s.agents);
+  const agentOrder = useAgentStore((s) => s.agentOrder);
+  const fetchAgents = useAgentStore((s) => s.fetch);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedKit, setSelectedKit] = useState<HarnessKitSummary | null>(
@@ -43,6 +72,15 @@ export function HarnessKitSection({
   const [loadingAssets, setLoadingAssets] = useState(false);
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [selectedProjectPath, setSelectedProjectPath] = useState("");
+  const [syncingAgent, setSyncingAgent] = useState<string | null>(null);
+  const [insertDialog, setInsertDialog] = useState<{
+    agentName: string;
+    harnessKitId: string;
+  } | null>(null);
+  const [insertPreview, setInsertPreview] =
+    useState<HarnessKitSyncPreview | null>(null);
+  const [syncStatuses, setSyncStatuses] = useState<HarnessKitSyncStatus[]>([]);
 
   useEffect(() => {
     void fetch();
@@ -51,6 +89,39 @@ export function HarnessKitSection({
   useEffect(() => {
     if (creating) void fetchCandidates();
   }, [creating, fetchCandidates]);
+
+  useEffect(() => {
+    if (agents.length === 0) {
+      void fetchAgents();
+    }
+  }, [agents.length, fetchAgents]);
+
+  useEffect(() => {
+    if (!projectsLoaded) {
+      void loadProjects();
+    }
+  }, [projectsLoaded, loadProjects]);
+
+  useEffect(() => {
+    if (!selectedKit || !selectedProjectPath) {
+      setSyncStatuses([]);
+      return;
+    }
+    let cancelled = false;
+    fetchSyncStatuses({
+      harness_kit_id: selectedKit.id,
+      project_path: selectedProjectPath,
+    })
+      .then((statuses) => {
+        if (!cancelled) setSyncStatuses(statuses);
+      })
+      .catch(() => {
+        if (!cancelled) setSyncStatuses([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedKit, selectedProjectPath, fetchSyncStatuses]);
 
   const filteredKits = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -65,6 +136,68 @@ export function HarnessKitSection({
     },
     [],
   );
+
+  const agentItems: AgentInstallIconItem[] = useMemo(() => {
+    if (!selectedProjectPath) return [];
+    const orderedAgents = [...agents].sort((a, b) => {
+      const idx = (name: string) => agentOrder.indexOf(name);
+      return (idx(a.name) ?? 99) - (idx(b.name) ?? 99);
+    });
+    return orderedAgents.map((agent) => {
+      const synced = syncStatuses.some(
+        (s) => s.target_agent === agent.name && s.synced,
+      );
+      return {
+        name: agent.name,
+        title: synced
+          ? `Remove ${agent.name} sync`
+          : `Sync to ${agent.name}`,
+        installed: synced,
+        pending: syncingAgent === agent.name,
+        disabled: !agent.detected,
+        onClick: synced
+          ? () => {
+              if (
+                window.confirm(
+                  `Remove Harness Kit from ${agent.name}?`,
+                )
+              ) {
+                setSyncingAgent(agent.name);
+                unsyncFromProject({
+                  harness_kit_id: selectedKit!.id,
+                  project_path: selectedProjectPath,
+                  target_agent: agent.name,
+                })
+                  .then(() => {
+                    setSyncingAgent(null);
+                    return fetchSyncStatuses({
+                      harness_kit_id: selectedKit!.id,
+                      project_path: selectedProjectPath,
+                    });
+                  })
+                  .then(setSyncStatuses)
+                  .catch(() => setSyncingAgent(null));
+              }
+            }
+          : () => {
+              setInsertDialog({
+                agentName: agent.name,
+                harnessKitId: selectedKit!.id,
+              });
+              setInsertPreview(null);
+            },
+      };
+    });
+  }, [
+    agents,
+    agentOrder,
+    selectedProjectPath,
+    syncStatuses,
+    syncingAgent,
+    selectedKit,
+    fetchSyncStatuses,
+    unsyncFromProject,
+  ]);
 
   const openKitDetails = async (kit: HarnessKitSummary) => {
     setSelectedKit(kit);
@@ -327,6 +460,10 @@ export function HarnessKitSection({
             onEdit={() => void startEditing()}
             onClose={closeDetails}
             onNavigateAsset={onNavigateAsset}
+            projects={projects}
+            selectedProjectPath={selectedProjectPath}
+            onProjectChange={setSelectedProjectPath}
+            agentItems={agentItems}
             editor={
               editing ? (
                 <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-4">
@@ -368,6 +505,68 @@ export function HarnessKitSection({
           />
         </>
       )}
+
+      {/* Insert dialog */}
+      {insertDialog && selectedKit && kitAssets &&
+        (() => {
+          const project = projects.find(
+            (p) => p.path === selectedProjectPath,
+          );
+          return (
+            <HarnessKitInsertDialog
+              projectName={project?.name ?? selectedProjectPath}
+              projectPath={selectedProjectPath}
+              targetAgent={insertDialog.agentName}
+              agentConfigs={kitAssets.agent_configs.map((c) => ({
+                template_id: c.template_id,
+                template_name: c.template_name,
+              }))}
+              preview={insertPreview}
+              defaultRelPath={defaultProjectRelPath(insertDialog.agentName)}
+              pending={syncingAgent === insertDialog.agentName}
+              onPreview={async (paths) => {
+                const preview = await previewProjectConflicts({
+                  harness_kit_id: insertDialog.harnessKitId,
+                  project_path: selectedProjectPath,
+                  target_agent: insertDialog.agentName,
+                  agent_config_paths: paths,
+                });
+                setInsertPreview(preview);
+              }}
+              onConfirm={async ({
+                paths,
+                forceHubExtensionIds,
+                forceAgentConfigTemplateIds,
+              }) => {
+                setSyncingAgent(insertDialog.agentName);
+                try {
+                  await syncToProject({
+                    harness_kit_id: insertDialog.harnessKitId,
+                    project_path: selectedProjectPath,
+                    target_agent: insertDialog.agentName,
+                    agent_config_paths: paths,
+                    force_hub_extension_ids: forceHubExtensionIds,
+                    force_agent_config_template_ids:
+                      forceAgentConfigTemplateIds,
+                  });
+                  setInsertDialog(null);
+                  setInsertPreview(null);
+                  const statuses = await fetchSyncStatuses({
+                    harness_kit_id: insertDialog.harnessKitId,
+                    project_path: selectedProjectPath,
+                  });
+                  setSyncStatuses(statuses);
+                } finally {
+                  setSyncingAgent(null);
+                }
+              }}
+              onCancel={() => {
+                setInsertDialog(null);
+                setInsertPreview(null);
+              }}
+            />
+          );
+        })()}
     </div>
   );
 }
