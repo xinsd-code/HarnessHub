@@ -355,7 +355,7 @@ pub struct HarnessKitAgentConfigPath {
     pub rel_path: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct HarnessKitSyncRequest {
     pub harness_kit_id: String,
     pub project_path: String,
@@ -796,6 +796,14 @@ mod tests {
             force_hub_extension_ids: vec!["hub-1".into()],
             force_agent_config_template_ids: vec!["tpl-1".into()],
         };
-        assert_eq!(request.agent_config_paths[0].rel_path, ".codex/AGENTS.md");
+
+        let json = serde_json::to_string(&request).unwrap();
+        assert!(json.contains("\"harness_kit_id\":"));
+        assert!(json.contains("\"agent_config_paths\":"));
+        assert!(json.contains("\"force_hub_extension_ids\":"));
+        assert!(json.contains("\"force_agent_config_template_ids\":"));
+
+        let round_trip: HarnessKitSyncRequest = serde_json::from_str(&json).unwrap();
+        assert_eq!(round_trip, request);
     }
 }
