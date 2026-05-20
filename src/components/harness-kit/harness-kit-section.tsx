@@ -20,7 +20,17 @@ import type {
 import { useHarnessKitStore } from "@/stores/harness-kit-store";
 import { useKitStore } from "@/stores/kit-store";
 
-export function HarnessKitSection() {
+type NavigateHarnessAsset = {
+  kind: "agent-config" | "extensions-kit" | "skill" | "mcp";
+  id: string;
+  name: string;
+};
+
+export function HarnessKitSection({
+  onNavigateAsset,
+}: {
+  onNavigateAsset?: (asset: NavigateHarnessAsset) => void;
+}) {
   const harnessKits = useHarnessKitStore((s) => s.harnessKits);
   const candidates = useHarnessKitStore((s) => s.candidates);
   const loading = useHarnessKitStore((s) => s.loading);
@@ -57,10 +67,13 @@ export function HarnessKitSection() {
     return harnessKits.filter((kit) => kit.name.toLowerCase().includes(q));
   }, [harnessKits, searchQuery]);
 
-  const loadExtensionKitAssets = useCallback(async (id: string): Promise<HarnessKitAssets> => {
-    const extra_assets = await useKitStore.getState().fetchKitAssets(id);
-    return { agent_configs: [], extension_kits: [], extra_assets };
-  }, []);
+  const loadExtensionKitAssets = useCallback(
+    async (id: string): Promise<HarnessKitAssets> => {
+      const extra_assets = await useKitStore.getState().fetchKitAssets(id);
+      return { agent_configs: [], extension_kits: [], extra_assets };
+    },
+    [],
+  );
 
   const openKitDetails = async (kit: HarnessKitSummary) => {
     setSelectedKit(kit);
@@ -104,9 +117,7 @@ export function HarnessKitSection() {
     setCreating(false);
   };
 
-  const handleUpdate = async (
-    request: Omit<UpdateHarnessKitRequest, "id">,
-  ) => {
+  const handleUpdate = async (request: Omit<UpdateHarnessKitRequest, "id">) => {
     if (!selectedKit) return;
     await updateHarnessKit({ ...request, id: selectedKit.id });
     // Refresh data after update
@@ -306,7 +317,7 @@ export function HarnessKitSection() {
           <button
             type="button"
             aria-label="Close Harness Kit details"
-            className="fixed inset-0 z-40 cursor-default bg-transparent"
+            className="absolute inset-0 z-40 cursor-default bg-transparent"
             onClick={closeDetails}
           />
           <HarnessKitDetailDrawer
@@ -316,6 +327,7 @@ export function HarnessKitSection() {
             editing={editing}
             onEdit={() => void startEditing()}
             onClose={closeDetails}
+            onNavigateAsset={onNavigateAsset}
             editor={
               editing ? (
                 <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-4">

@@ -67,51 +67,187 @@ type TestKitStoreState = {
   unsyncKitFromProject: ReturnType<typeof vi.fn>;
 };
 
-const { state, agentState, projectState, extensionState, harnessKitState, useKitStoreMock } =
-  vi.hoisted(() => {
-    const state: TestKitStoreState = {
-      kits: [
+const {
+  state,
+  agentState,
+  projectState,
+  extensionState,
+  harnessKitState,
+  agentConfigTemplateState,
+  hubState,
+  navigateMock,
+  useKitStoreMock,
+} = vi.hoisted(() => {
+  const state: TestKitStoreState = {
+    kits: [
+      {
+        id: "kit-1",
+        name: "Data Analyst Kit",
+        description: "SQL and data analysis assets",
+        skills_count: 2,
+        mcp_count: 1,
+        cli_count: 0,
+        created_at: "2026-05-18T00:00:00Z",
+        updated_at: "2026-05-18T00:00:00Z",
+      },
+    ],
+    candidates: [
+      {
+        id: "asset:skill:frontend-design",
+        kind: "skill",
+        name: "frontend-design",
+        description: "Build polished UI",
+        source_status: "in_local_hub",
+        hub_extension_id: "skill-1",
+        extension_id: null,
+      },
+      {
+        id: "asset:mcp:chrome-devtools",
+        kind: "mcp",
+        name: "chrome-devtools",
+        description: "Browser automation",
+        source_status: "will_sync_to_local_hub",
+        hub_extension_id: null,
+        extension_id: "mcp-1",
+      },
+    ],
+    loading: false,
+    candidateLoading: false,
+    error: null as string | null,
+    fetch: vi.fn(() => Promise.resolve()),
+    fetchCandidates: vi.fn(() => Promise.resolve()),
+    createKit: vi.fn(() => Promise.resolve()),
+    updateKit: vi.fn(() => Promise.resolve()),
+    deleteKit: vi.fn(() => Promise.resolve()),
+    fetchKitAssets: vi.fn(() =>
+      Promise.resolve([
+        {
+          hub_extension_id: "skill-1",
+          kind: "skill",
+          asset_name: "frontend-design",
+        },
+        {
+          hub_extension_id: "mcp-1",
+          kind: "mcp",
+          asset_name: "chrome-devtools",
+        },
+      ]),
+    ),
+    previewKitProjectConflicts: vi.fn(() => Promise.resolve({ conflicts: [] })),
+    syncKitToProject: vi.fn(() =>
+      Promise.resolve({ installed_count: 2, skipped_conflict_count: 0 }),
+    ),
+    unsyncKitFromProject: vi.fn(() => Promise.resolve()),
+  };
+
+  const agentState = {
+    agents: [
+      {
+        name: "codex",
+        detected: true,
+        extension_count: 0,
+        path: "/tmp/codex",
+        enabled: true,
+      },
+    ] satisfies AgentInfo[],
+    agentOrder: ["codex"] as const,
+    fetch: vi.fn(() => Promise.resolve()),
+  };
+
+  const projectState = {
+    projects: [
+      {
+        id: "project-1",
+        name: "Demo Project",
+        path: "/tmp/demo-project",
+        created_at: "2026-05-18T00:00:00Z",
+        exists: true,
+      },
+    ] satisfies Project[],
+    loaded: true,
+    loadProjects: vi.fn(() => Promise.resolve()),
+  };
+
+  const extensionState = {
+    extensions: [] as Extension[],
+    hasFetched: true,
+    fetch: vi.fn(() => Promise.resolve()),
+    setSelectedId: vi.fn(),
+  };
+
+  const agentConfigTemplateState = {
+    select: vi.fn(),
+  };
+
+  const hubState = {
+    setSelectedId: vi.fn(),
+  };
+
+  const navigateMock = vi.fn();
+
+  const harnessKitState = {
+    harnessKits: [
+      {
+        id: "hk-1",
+        name: "Data Workspace",
+        description: "Prompt and extension bundle",
+        agent_config_count: 2,
+        extensions_kit_count: 1,
+        skills_count: 3,
+        mcp_count: 2,
+        created_at: "2026-05-19T00:00:00Z",
+        updated_at: "2026-05-19T00:00:00Z",
+      },
+    ],
+    candidates: {
+      agent_configs: [{ template_id: "default/rules", template_name: "Rules" }],
+      extension_kits: [
         {
           id: "kit-1",
           name: "Data Analyst Kit",
           description: "SQL and data analysis assets",
           skills_count: 2,
           mcp_count: 1,
-          cli_count: 0,
-          created_at: "2026-05-18T00:00:00Z",
-          updated_at: "2026-05-18T00:00:00Z",
         },
       ],
-      candidates: [
+      skills: [
         {
           id: "asset:skill:frontend-design",
           kind: "skill",
           name: "frontend-design",
           description: "Build polished UI",
-          source_status: "in_local_hub",
+          source_status: "in_local_hub" as const,
           hub_extension_id: "skill-1",
           extension_id: null,
         },
+      ],
+      mcps: [
         {
           id: "asset:mcp:chrome-devtools",
           kind: "mcp",
           name: "chrome-devtools",
           description: "Browser automation",
-          source_status: "will_sync_to_local_hub",
+          source_status: "will_sync_to_local_hub" as const,
           hub_extension_id: null,
           extension_id: "mcp-1",
         },
       ],
-      loading: false,
-      candidateLoading: false,
-      error: null as string | null,
-      fetch: vi.fn(() => Promise.resolve()),
-      fetchCandidates: vi.fn(() => Promise.resolve()),
-      createKit: vi.fn(() => Promise.resolve()),
-      updateKit: vi.fn(() => Promise.resolve()),
-      deleteKit: vi.fn(() => Promise.resolve()),
-      fetchKitAssets: vi.fn(() =>
-        Promise.resolve([
+    },
+    loading: false,
+    candidateLoading: false,
+    error: null as string | null,
+    fetch: vi.fn(() => Promise.resolve()),
+    fetchCandidates: vi.fn(() => Promise.resolve()),
+    createHarnessKit: vi.fn(() => Promise.resolve()),
+    updateHarnessKit: vi.fn(() => Promise.resolve()),
+    deleteHarnessKit: vi.fn(() => Promise.resolve()),
+    fetchHarnessKitAssets: vi.fn(() =>
+      Promise.resolve({
+        agent_configs: [
+          { template_id: "default/rules", template_name: "Rules" },
+        ],
+        extension_kits: [{ kit_id: "kit-1", kit_name: "Data Analyst Kit" }],
+        extra_assets: [
           {
             hub_extension_id: "skill-1",
             kind: "skill",
@@ -122,142 +258,30 @@ const { state, agentState, projectState, extensionState, harnessKitState, useKit
             kind: "mcp",
             asset_name: "chrome-devtools",
           },
-        ]),
-      ),
-      previewKitProjectConflicts: vi.fn(() =>
-        Promise.resolve({ conflicts: [] }),
-      ),
-      syncKitToProject: vi.fn(() =>
-        Promise.resolve({ installed_count: 2, skipped_conflict_count: 0 }),
-      ),
-      unsyncKitFromProject: vi.fn(() => Promise.resolve()),
-    };
-
-    const agentState = {
-      agents: [
-        {
-          name: "codex",
-          detected: true,
-          extension_count: 0,
-          path: "/tmp/codex",
-          enabled: true,
-        },
-      ] satisfies AgentInfo[],
-      agentOrder: ["codex"] as const,
-      fetch: vi.fn(() => Promise.resolve()),
-    };
-
-    const projectState = {
-      projects: [
-        {
-          id: "project-1",
-          name: "Demo Project",
-          path: "/tmp/demo-project",
-          created_at: "2026-05-18T00:00:00Z",
-          exists: true,
-        },
-      ] satisfies Project[],
-      loaded: true,
-      loadProjects: vi.fn(() => Promise.resolve()),
-    };
-
-    const extensionState = {
-      extensions: [] as Extension[],
-      hasFetched: true,
-      fetch: vi.fn(() => Promise.resolve()),
-    };
-
-    const harnessKitState = {
-      harnessKits: [
-        {
-          id: "hk-1",
-          name: "Data Workspace",
-          description: "Prompt and extension bundle",
-          agent_config_count: 2,
-          extensions_kit_count: 1,
-          skills_count: 3,
-          mcp_count: 2,
-          created_at: "2026-05-19T00:00:00Z",
-          updated_at: "2026-05-19T00:00:00Z",
-        },
-      ],
-      candidates: {
-        agent_configs: [
-          { template_id: "default/rules", template_name: "Rules" },
         ],
-        extension_kits: [
-          {
-            id: "kit-1",
-            name: "Data Analyst Kit",
-            description: "SQL and data analysis assets",
-            skills_count: 2,
-            mcp_count: 1,
-          },
-        ],
-        skills: [
-          {
-            id: "asset:skill:frontend-design",
-            kind: "skill",
-            name: "frontend-design",
-            description: "Build polished UI",
-            source_status: "in_local_hub" as const,
-            hub_extension_id: "skill-1",
-            extension_id: null,
-          },
-        ],
-        mcps: [
-          {
-            id: "asset:mcp:chrome-devtools",
-            kind: "mcp",
-            name: "chrome-devtools",
-            description: "Browser automation",
-            source_status: "will_sync_to_local_hub" as const,
-            hub_extension_id: null,
-            extension_id: "mcp-1",
-          },
-        ],
-      },
-      loading: false,
-      candidateLoading: false,
-      error: null as string | null,
-      fetch: vi.fn(() => Promise.resolve()),
-      fetchCandidates: vi.fn(() => Promise.resolve()),
-      createHarnessKit: vi.fn(() => Promise.resolve()),
-      updateHarnessKit: vi.fn(() => Promise.resolve()),
-      deleteHarnessKit: vi.fn(() => Promise.resolve()),
-      fetchHarnessKitAssets: vi.fn(() =>
-        Promise.resolve({
-          agent_configs: [
-            { template_id: "default/rules", template_name: "Rules" },
-          ],
-          extension_kits: [
-            { kit_id: "kit-1", kit_name: "Data Analyst Kit" },
-          ],
-          extra_assets: [
-            {
-              hub_extension_id: "skill-1",
-              kind: "skill",
-              asset_name: "frontend-design",
-            },
-            {
-              hub_extension_id: "mcp-1",
-              kind: "mcp",
-              asset_name: "chrome-devtools",
-            },
-          ],
-        }),
-      ),
-    };
+      }),
+    ),
+  };
 
-    const useKitStoreMock = Object.assign(
-      (selector: (s: typeof state) => unknown) => selector(state),
-      {
-        getState: () => state,
-      },
-    );
+  const useKitStoreMock = Object.assign(
+    (selector: (s: typeof state) => unknown) => selector(state),
+    {
+      getState: () => state,
+    },
+  );
 
-    return { state, agentState, projectState, extensionState, harnessKitState, useKitStoreMock };
-  });
+  return {
+    state,
+    agentState,
+    projectState,
+    extensionState,
+    harnessKitState,
+    agentConfigTemplateState,
+    hubState,
+    navigateMock,
+    useKitStoreMock,
+  };
+});
 
 vi.mock("@/stores/kit-store", () => ({
   useKitStore: useKitStoreMock,
@@ -274,8 +298,32 @@ vi.mock("@/stores/project-store", () => ({
 }));
 
 vi.mock("@/stores/extension-store", () => ({
-  useExtensionStore: (selector: (s: typeof extensionState) => unknown) =>
-    selector(extensionState),
+  useExtensionStore: Object.assign(
+    (selector: (s: typeof extensionState) => unknown) =>
+      selector(extensionState),
+    {
+      getState: () => extensionState,
+    },
+  ),
+}));
+
+vi.mock("@/stores/agent-config-template-store", () => ({
+  useAgentConfigTemplateStore: Object.assign(
+    (selector: (s: typeof agentConfigTemplateState) => unknown) =>
+      selector(agentConfigTemplateState),
+    {
+      getState: () => agentConfigTemplateState,
+    },
+  ),
+}));
+
+vi.mock("@/stores/hub-store", () => ({
+  useHubStore: Object.assign(
+    (selector: (s: typeof hubState) => unknown) => selector(hubState),
+    {
+      getState: () => hubState,
+    },
+  ),
 }));
 
 vi.mock("@/stores/harness-kit-store", () => ({
@@ -285,6 +333,10 @@ vi.mock("@/stores/harness-kit-store", () => ({
 
 vi.mock("@/components/agent-config-hub/agent-config-hub-page", () => ({
   AgentConfigHubPage: () => <div>Agent Config Hub Page</div>,
+}));
+
+vi.mock("react-router-dom", () => ({
+  useNavigate: () => navigateMock,
 }));
 
 beforeEach(() => {
@@ -310,6 +362,10 @@ beforeEach(() => {
   extensionState.extensions = [];
   extensionState.hasFetched = true;
   extensionState.fetch.mockClear();
+  extensionState.setSelectedId.mockClear();
+  agentConfigTemplateState.select.mockClear();
+  hubState.setSelectedId.mockClear();
+  navigateMock.mockClear();
   agentState.fetch.mockClear();
   projectState.loadProjects.mockClear();
   harnessKitState.fetch.mockClear();
@@ -667,14 +723,20 @@ describe("HarnessKitPage", () => {
   it("opens Harness Kit by default above Agent Config", async () => {
     render(<HarnessKitPage />);
 
-    expect(screen.getByRole("heading", { name: "Harness Kit" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Harness Kit" }),
+    ).toBeInTheDocument();
     const harnessKitMenu = screen.getByRole("button", { name: "Harness Kit" });
-    const agentConfigMenu = screen.getByRole("button", { name: "Agent Config" });
+    const agentConfigMenu = screen.getByRole("button", {
+      name: "Agent Config",
+    });
     expect(
       harnessKitMenu.compareDocumentPosition(agentConfigMenu) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
-    expect(screen.getByRole("button", { name: "New Harness Kit" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "New Harness Kit" }),
+    ).toBeInTheDocument();
     await waitFor(() => expect(harnessKitState.fetch).toHaveBeenCalled());
   });
 
@@ -697,11 +759,80 @@ describe("HarnessKitPage", () => {
     fireEvent.click(screen.getByText("Data Workspace"));
 
     await waitFor(() =>
-      expect(harnessKitState.fetchHarnessKitAssets).toHaveBeenCalledWith("hk-1"),
+      expect(harnessKitState.fetchHarnessKitAssets).toHaveBeenCalledWith(
+        "hk-1",
+      ),
     );
-    expect(screen.getAllByRole("heading", { name: "Data Workspace" }).length).toBeGreaterThan(1);
-    expect(screen.getAllByText("Agent Config").length).toBeGreaterThanOrEqual(2);
-    expect(screen.getAllByText("Extensions Kit").length).toBeGreaterThanOrEqual(2);
+    expect(
+      screen.getAllByRole("heading", { name: "Data Workspace" }).length,
+    ).toBeGreaterThan(1);
+    expect(screen.getAllByText("Agent Config").length).toBeGreaterThanOrEqual(
+      2,
+    );
+    expect(screen.getAllByText("Extensions Kit").length).toBeGreaterThanOrEqual(
+      2,
+    );
+  });
+
+  it("navigates Agent Config assets to the Agent Config overview", async () => {
+    render(<HarnessKitPage />);
+
+    fireEvent.click(screen.getByText("Data Workspace"));
+    await waitFor(() =>
+      expect(harnessKitState.fetchHarnessKitAssets).toHaveBeenCalledWith(
+        "hk-1",
+      ),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Agent Config 1/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Navigate to Rules" }));
+
+    expect(agentConfigTemplateState.select).toHaveBeenCalledWith(
+      "default/rules",
+    );
+    expect(screen.getByText("Agent Config Hub Page")).toBeInTheDocument();
+  });
+
+  it("navigates Extensions Kit assets to the Extensions Kit overview", async () => {
+    render(<HarnessKitPage />);
+
+    fireEvent.click(screen.getByText("Data Workspace"));
+    await waitFor(() =>
+      expect(harnessKitState.fetchHarnessKitAssets).toHaveBeenCalledWith(
+        "hk-1",
+      ),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Extensions Kit 1/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Navigate to Data Analyst Kit" }),
+    );
+
+    expect(
+      screen.getByRole("heading", { name: "Extensions Kit" }),
+    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(state.fetchKitAssets).toHaveBeenCalledWith("kit-1"),
+    );
+  });
+
+  it("navigates Skill assets to the Local Hub overview when a hub id exists", async () => {
+    render(<HarnessKitPage />);
+
+    fireEvent.click(screen.getByText("Data Workspace"));
+    await waitFor(() =>
+      expect(harnessKitState.fetchHarnessKitAssets).toHaveBeenCalledWith(
+        "hk-1",
+      ),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Extra Skills 1/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Navigate to frontend-design" }),
+    );
+
+    expect(hubState.setSelectedId).toHaveBeenCalledWith("skill-1");
+    expect(navigateMock).toHaveBeenCalledWith("/local-hub");
   });
 
   it("keeps existing Extensions Kit section reachable", () => {
@@ -709,7 +840,11 @@ describe("HarnessKitPage", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Extensions Kit" }));
 
-    expect(screen.getByRole("heading", { name: "Extensions Kit" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "New Extensions Kit" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Extensions Kit" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "New Extensions Kit" }),
+    ).toBeInTheDocument();
   });
 });

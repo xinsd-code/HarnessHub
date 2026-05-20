@@ -1,11 +1,12 @@
 import {
+  Blocks,
   ChevronDown,
   ChevronRight,
+  ExternalLink,
   FileText,
   Layers3,
   Pencil,
   Server,
-  Blocks,
   X,
 } from "lucide-react";
 import { useState } from "react";
@@ -19,6 +20,11 @@ type Props = {
   onEdit: () => void;
   onClose: () => void;
   editor: React.ReactNode;
+  onNavigateAsset?: (asset: {
+    kind: "agent-config" | "extensions-kit" | "skill" | "mcp";
+    id: string;
+    name: string;
+  }) => void;
 };
 
 export function HarnessKitDetailDrawer({
@@ -29,17 +35,18 @@ export function HarnessKitDetailDrawer({
   onEdit,
   onClose,
   editor,
+  onNavigateAsset,
 }: Props) {
   const [expanded, setExpanded] = useState({
-    agentConfig: true,
-    extensionsKit: true,
+    agentConfig: false,
+    extensionsKit: false,
     skills: false,
     mcp: false,
   });
 
   if (editing) {
     return (
-      <aside className="fixed inset-y-0 right-0 z-50 flex w-full max-w-6xl flex-col border-l border-border bg-background shadow-xl">
+      <aside className="absolute inset-y-0 right-0 z-50 flex w-full max-w-6xl flex-col border-l border-border bg-background shadow-xl">
         {editor}
       </aside>
     );
@@ -53,33 +60,49 @@ export function HarnessKitDetailDrawer({
       label: "Agent Config",
       icon: FileText,
       count: assets.agent_configs.length,
-      rows: assets.agent_configs.map((item) => item.template_name),
+      rows: assets.agent_configs.map((item) => ({
+        name: item.template_name,
+        id: item.template_id,
+        kind: "agent-config" as const,
+      })),
     },
     {
       key: "extensionsKit" as const,
       label: "Extensions Kit",
       icon: Layers3,
       count: assets.extension_kits.length,
-      rows: assets.extension_kits.map((item) => item.kit_name),
+      rows: assets.extension_kits.map((item) => ({
+        name: item.kit_name,
+        id: item.kit_id,
+        kind: "extensions-kit" as const,
+      })),
     },
     {
       key: "skills" as const,
       label: "Extra Skills",
       icon: Blocks,
       count: skills.length,
-      rows: skills.map((item) => item.asset_name),
+      rows: skills.map((item) => ({
+        name: item.asset_name,
+        id: item.hub_extension_id,
+        kind: "skill" as const,
+      })),
     },
     {
       key: "mcp" as const,
       label: "Extra MCP",
       icon: Server,
       count: mcps.length,
-      rows: mcps.map((item) => item.asset_name),
+      rows: mcps.map((item) => ({
+        name: item.asset_name,
+        id: item.hub_extension_id,
+        kind: "mcp" as const,
+      })),
     },
   ];
 
   return (
-    <aside className="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col border-l border-border bg-background shadow-xl">
+    <aside className="absolute inset-y-0 right-0 z-50 flex w-full max-w-md flex-col border-l border-border bg-background shadow-xl">
       <header className="border-b border-border px-4 py-4">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -149,17 +172,38 @@ export function HarnessKitDetailDrawer({
                   </button>
                   {open &&
                     (group.rows.length === 0 ? (
-                      <div className="mt-2 border border-dashed border-border bg-background/60 px-3 py-4 text-center text-sm text-muted-foreground">
+                      <div className="mt-2 px-1 py-3 text-xs text-muted-foreground">
                         No assets in this group.
                       </div>
                     ) : (
-                      <div className="mt-2 divide-y divide-border rounded-lg border border-border bg-background">
-                        {group.rows.map((name) => (
+                      <div className="mt-1 space-y-0.5">
+                        {group.rows.map((row) => (
                           <div
-                            key={name}
-                            className="px-3 py-2 text-sm font-medium text-foreground"
+                            key={row.id}
+                            className="group flex items-center gap-2 rounded-md px-1 py-1.5 transition-colors hover:bg-accent/50"
                           >
-                            {name}
+                            <span className="text-muted-foreground shrink-0">
+                              <Icon size={13} aria-hidden="true" />
+                            </span>
+                            <span className="min-w-0 flex-1 truncate text-xs font-medium text-foreground">
+                              {row.name}
+                            </span>
+                            {onNavigateAsset && (
+                              <button
+                                type="button"
+                                aria-label={`Navigate to ${row.name}`}
+                                onClick={() =>
+                                  onNavigateAsset({
+                                    kind: row.kind,
+                                    id: row.id,
+                                    name: row.name,
+                                  })
+                                }
+                                className="shrink-0 rounded p-1 text-muted-foreground/80 transition-all hover:bg-accent hover:text-primary"
+                              >
+                                <ExternalLink size={13} />
+                              </button>
+                            )}
                           </div>
                         ))}
                       </div>

@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import type { ElementType } from "react";
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { AgentConfigHubPage } from "@/components/agent-config-hub/agent-config-hub-page";
 import { HarnessKitSection } from "@/components/harness-kit/harness-kit-section";
 import { ProjectInstallPanel } from "@/components/shared/project-install-panel";
@@ -34,17 +35,20 @@ import type {
 } from "@/lib/types";
 import {
   agentDisplayName,
+  logicalAssetKey,
   normalizePathForComparison,
   pathsEqual,
   sortAgents,
 } from "@/lib/types";
+import { useAgentConfigTemplateStore } from "@/stores/agent-config-template-store";
 import { useAgentStore } from "@/stores/agent-store";
 import { useExtensionStore } from "@/stores/extension-store";
+import { useHubStore } from "@/stores/hub-store";
 import { useKitStore } from "@/stores/kit-store";
 import { useProjectStore } from "@/stores/project-store";
 
 type KitTab = "skill" | "mcp";
-type HarnessKitSection = "harness-kit" | "agent-config" | "extensions-kit";
+type HarnessKitSectionKey = "harness-kit" | "agent-config" | "extensions-kit";
 
 const tabs: Array<{ key: KitTab; label: string; icon: ElementType }> = [
   { key: "skill", label: "Skills", icon: Blocks },
@@ -191,8 +195,9 @@ function EmptyList({ title, subtitle }: { title: string; subtitle: string }) {
 }
 
 export default function HarnessKitPage() {
+  const navigate = useNavigate();
   const [activeSection, setActiveSection] =
-    useState<HarnessKitSection>("harness-kit");
+    useState<HarnessKitSectionKey>("harness-kit");
   const kits = useKitStore((s) => s.kits);
   const candidates = useKitStore((s) => s.candidates);
   const loading = useKitStore((s) => s.loading);
@@ -246,6 +251,39 @@ export default function HarnessKitPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [searchAvailable, setSearchAvailable] = useState("");
   const [searchSelected, setSearchSelected] = useState("");
+
+  const handleNavigateHarnessAsset = async (asset: {
+    kind: "agent-config" | "extensions-kit" | "skill" | "mcp";
+    id: string;
+    name: string;
+  }) => {
+    if (asset.kind === "agent-config") {
+      setActiveSection("agent-config");
+      useAgentConfigTemplateStore.getState().select(asset.id);
+      return;
+    }
+
+    if (asset.kind === "extensions-kit") {
+      setActiveSection("extensions-kit");
+      const targetKit =
+        useKitStore.getState().kits.find((kit) => kit.id === asset.id) ?? null;
+      if (targetKit) {
+        await openKitDetails(targetKit);
+      }
+      return;
+    }
+
+    if (asset.id) {
+      useHubStore.getState().setSelectedId(asset.id);
+      navigate("/local-hub");
+      return;
+    }
+
+    useExtensionStore
+      .getState()
+      .setSelectedId(logicalAssetKey({ kind: asset.kind, name: asset.name }));
+    navigate("/extensions");
+  };
 
   useEffect(() => {
     void fetch();
@@ -651,7 +689,7 @@ export default function HarnessKitPage() {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 gap-5">
+    <div className="flex min-h-0 flex-1 gap-5 relative overflow-hidden">
       <aside className="w-44 shrink-0 border-r border-border pr-3">
         <div className="mb-3 px-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
           HarnessKit
@@ -692,11 +730,11 @@ export default function HarnessKitPage() {
       </aside>
 
       {activeSection === "harness-kit" ? (
-        <main className="min-w-0 flex-1 min-h-0 pb-4">
-          <HarnessKitSection />
+        <main className="min-w-0 flex-1 min-h-0 pb-4 relative overflow-hidden">
+          <HarnessKitSection onNavigateAsset={handleNavigateHarnessAsset} />
         </main>
       ) : activeSection === "agent-config" ? (
-        <main className="min-w-0 flex-1 min-h-0 pb-4">
+        <main className="min-w-0 flex-1 min-h-0 pb-4 relative overflow-hidden">
           <AgentConfigHubPage />
         </main>
       ) : (
@@ -939,7 +977,7 @@ export default function HarnessKitPage() {
           <button
             type="button"
             aria-label="Close Kit details"
-            className="fixed inset-0 z-40 cursor-default bg-transparent"
+            className="absolute inset-0 z-40 cursor-default bg-transparent"
             onClick={() => {
               setSelectedKit(null);
               setEditingDetail(false);
@@ -947,7 +985,7 @@ export default function HarnessKitPage() {
             }}
           />
           <aside
-            className={`fixed inset-y-0 right-0 z-50 flex w-full flex-col border-l border-border bg-background shadow-xl transition-[max-width] duration-200 ${
+            className={`absolute inset-y-0 right-0 z-50 flex w-full flex-col border-l border-border bg-background shadow-xl transition-[max-width] duration-200 ${
               editingDetail ? "max-w-6xl" : "max-w-md"
             }`}
           >

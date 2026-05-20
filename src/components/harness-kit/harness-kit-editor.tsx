@@ -9,7 +9,8 @@ import {
   Server,
 } from "lucide-react";
 import type { ElementType } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { api } from "@/lib/invoke";
 import type {
   HarnessKitAssetCandidates,
   HarnessKitAssets,
@@ -24,6 +25,11 @@ export type HarnessKitEditorSelection = {
   extensionKitIds: Set<string>;
   extraCandidateIds: Set<string>;
 };
+
+const TOOLTIP_HIDE_DELAY_MS = 120;
+const AGENT_CONFIG_PREVIEW_MAX_LINES = 9;
+const AGENT_CONFIG_PREVIEW_MAX_CHARS = 520;
+const ASSET_LIST_MAX_VISIBLE_HEIGHT = "max-h-[268px]";
 
 export function assetIdentity(
   asset: Pick<NewKitAsset, "hub_extension_id" | "kind" | "asset_name">,
@@ -183,6 +189,18 @@ export default function HarnessKitEditor({
   const [searchAvailable, setSearchAvailable] = useState("");
   const [searchSelected, setSearchSelected] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
+  const [tooltip, setTooltip] = useState<{
+    type: "agent-config" | "extensions-kit";
+    rect: DOMRect;
+    data: NewHarnessKitAgentConfig | HarnessKitExtensionKitCandidate;
+  } | null>(null);
+  const [agentConfigPreviewCache, setAgentConfigPreviewCache] = useState<
+    Map<string, string>
+  >(new Map());
+  const [agentConfigPreviewLoading, setAgentConfigPreviewLoading] = useState<
+    Set<string>
+  >(new Set());
+  const tooltipHideTimer = useRef<number | null>(null);
 
   // Load extension kit assets when a new kit is selected
   useEffect(() => {
@@ -230,11 +248,110 @@ export default function HarnessKitEditor({
     });
   }, [candidates, coveredAssetMap]);
 
+  useEffect(() => {
+    return () => {
+      if (tooltipHideTimer.current != null) {
+        window.clearTimeout(tooltipHideTimer.current);
+      }
+    };
+  }, []);
+
+  const clearTooltipHideTimer = () => {
+    if (tooltipHideTimer.current != null) {
+      window.clearTimeout(tooltipHideTimer.current);
+      tooltipHideTimer.current = null;
+    }
+  };
+
+  const dismissTooltip = () => {
+    clearTooltipHideTimer();
+    setTooltip(null);
+  };
+
+  const scheduleTooltipHide = () => {
+    clearTooltipHideTimer();
+    tooltipHideTimer.current = window.setTimeout(() => {
+      setTooltip(null);
+      tooltipHideTimer.current = null;
+    }, TOOLTIP_HIDE_DELAY_MS);
+  };
+
+  const ensureAgentConfigPreview = async (templateId: string) => {
+    if (
+      agentConfigPreviewCache.has(templateId) ||
+      agentConfigPreviewLoading.has(templateId)
+    ) {
+      return;
+    }
+    setAgentConfigPreviewLoading((current) => {
+      const next = new Set(current);
+      next.add(templateId);
+      return next;
+    });
+    try {
+      const content = await api.getAgentConfigTemplateContent(templateId);
+      setAgentConfigPreviewCache((current) => {
+        const next = new Map(current);
+        next.set(templateId, content);
+        return next;
+      });
+    } catch {
+      setAgentConfigPreviewCache((current) => {
+        const next = new Map(current);
+        if (!next.has(templateId)) {
+          next.set(templateId, "Unable to load file content.");
+        }
+        return next;
+      });
+    } finally {
+      setAgentConfigPreviewLoading((current) => {
+        const next = new Set(current);
+        next.delete(templateId);
+        return next;
+      });
+    }
+  };
+
+  const ensureExtensionKitPreview = async (kitId: string) => {
+    if (extensionKitAssets.has(kitId)) return;
+    try {
+      const assets = await loadExtensionKitAssets(kitId);
+      setExtensionKitAssets((current) => {
+        if (current.has(kitId)) return current;
+        const next = new Map(current);
+        next.set(kitId, assets);
+        return next;
+      });
+    } catch {
+      // ignore preview load failures and keep current tooltip copy minimal
+    }
+  };
+
+  const showTooltip = (
+    nextTooltip: NonNullable<typeof tooltip>,
+    loadPreview?: () => void,
+  ) => {
+    clearTooltipHideTimer();
+    setTooltip(nextTooltip);
+    loadPreview?.();
+  };
+
+  const getAgentConfigPreviewSnippet = (content: string) => {
+    const trimmedByChars = content.slice(0, AGENT_CONFIG_PREVIEW_MAX_CHARS);
+    const lines = trimmedByChars.split("\n");
+    const limited = lines.slice(0, AGENT_CONFIG_PREVIEW_MAX_LINES).join("\n");
+    const truncated =
+      content.length > limited.length ||
+      lines.length > AGENT_CONFIG_PREVIEW_MAX_LINES;
+    return truncated ? `${limited}\n…` : limited;
+  };
+
   // Reset tab search when changing tabs
   const handleTabChange = (tab: Tab) => {
     setActiveTab(tab);
     setSearchAvailable("");
     setSearchSelected("");
+    dismissTooltip();
   };
 
   // Determine items for the active tab
@@ -360,7 +477,23 @@ export default function HarnessKitEditor({
     <button
       key={item.template_id}
       type="button"
-      onClick={onClick}
+      onClick={() => {
+        dismissTooltip();
+        onClick();
+      }}
+      onMouseEnter={(e) =>
+        showTooltip(
+          {
+            type: "agent-config",
+            rect: e.currentTarget.getBoundingClientRect(),
+            data: item,
+          },
+          () => {
+            void ensureAgentConfigPreview(item.template_id);
+          },
+        )
+      }
+      onMouseLeave={scheduleTooltipHide}
       className={
         action === "add"
           ? "group flex min-h-[64px] w-full min-w-0 items-center justify-between gap-3 overflow-hidden rounded-xl border border-transparent px-3 py-2.5 text-left transition-all hover:border-primary/25 hover:bg-background hover:shadow-sm"
@@ -403,7 +536,23 @@ export default function HarnessKitEditor({
     <button
       key={item.id}
       type="button"
-      onClick={onClick}
+      onClick={() => {
+        dismissTooltip();
+        onClick();
+      }}
+      onMouseEnter={(e) =>
+        showTooltip(
+          {
+            type: "extensions-kit",
+            rect: e.currentTarget.getBoundingClientRect(),
+            data: item,
+          },
+          () => {
+            void ensureExtensionKitPreview(item.id);
+          },
+        )
+      }
+      onMouseLeave={scheduleTooltipHide}
       className={
         action === "add"
           ? "group flex min-h-[64px] w-full min-w-0 items-center justify-between gap-3 overflow-hidden rounded-xl border border-transparent px-3 py-2.5 text-left transition-all hover:border-primary/25 hover:bg-background hover:shadow-sm"
@@ -517,8 +666,8 @@ export default function HarnessKitEditor({
   };
 
   return (
-    <div className="flex min-h-full flex-col gap-5">
-      <div className="grid gap-4 md:grid-cols-[0.9fr_1.1fr]">
+    <div className="flex min-h-full flex-col gap-4">
+      <div className="grid gap-3 md:grid-cols-[0.9fr_1.1fr]">
         <label className="grid gap-1.5 text-sm font-semibold">
           <span className="text-foreground/90">Name</span>
           <input
@@ -526,7 +675,7 @@ export default function HarnessKitEditor({
             value={name}
             placeholder="e.g. My Harness Kit"
             onChange={(event) => setName(event.target.value)}
-            className="rounded-xl border border-border bg-background px-4 py-2.5 text-sm outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/15"
+            className="rounded-xl border border-border bg-background px-3.5 py-2 text-sm outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/15"
           />
         </label>
         <label className="grid gap-1.5 text-sm font-semibold">
@@ -537,13 +686,13 @@ export default function HarnessKitEditor({
             placeholder="Briefly describe what this Harness Kit does"
             onChange={(event) => setDescription(event.target.value)}
             rows={2}
-            className="resize-none rounded-xl border border-border bg-background px-4 py-2.5 text-sm outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/15"
+            className="resize-none rounded-xl border border-border bg-background px-3.5 py-2 text-sm outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/15"
           />
         </label>
       </div>
 
       <section className="flex min-h-0 flex-1 flex-col rounded-2xl border border-border bg-muted/10">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-background/55 px-4 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-2.5 border-b border-border bg-background/55 px-3.5 py-2.5">
           <div className="flex gap-2">
             {tabs.map((tab) => {
               const Icon = tabIcons[tab];
@@ -561,8 +710,8 @@ export default function HarnessKitEditor({
                   onClick={() => handleTabChange(tab)}
                   className={
                     activeTab === tab
-                      ? "inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm"
-                      : "inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                      ? "inline-flex items-center gap-2 rounded-lg bg-primary px-3.5 py-1.5 text-sm font-semibold text-primary-foreground shadow-sm"
+                      : "inline-flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-sm font-semibold text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                   }
                 >
                   <Icon size={15} />
@@ -580,11 +729,11 @@ export default function HarnessKitEditor({
           </div>
         </div>
 
-        <div className="grid min-h-0 flex-1 gap-6 p-4 lg:grid-cols-2">
+        <div className="grid min-h-0 flex-1 gap-4 p-3 lg:grid-cols-2">
           {/* Available (left column) */}
           <div className="flex min-h-0 min-w-0 flex-col rounded-2xl border border-border/70 bg-card/65 shadow-sm">
-            <div className="border-b border-border/70 p-3">
-              <div className="mb-2 flex items-center justify-between">
+            <div className="border-b border-border/70 p-2.5">
+              <div className="mb-1.5 flex items-center justify-between">
                 <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                   Available Assets
                 </p>
@@ -602,14 +751,14 @@ export default function HarnessKitEditor({
                   placeholder={`Search available ${tabLabels[activeTab]} by name`}
                   value={searchAvailable}
                   onChange={(event) => setSearchAvailable(event.target.value)}
-                  className="w-full rounded-lg border border-border bg-background py-2 pl-9 pr-3 text-sm outline-none transition-colors focus:border-primary"
+                  className="w-full rounded-lg border border-border bg-background py-1.5 pl-8.5 pr-3 text-sm outline-none transition-colors focus:border-primary"
                 />
               </div>
             </div>
-            <div className="min-h-[220px] flex-1 overflow-y-auto p-2">
+            <div className="min-h-[192px] flex-1 p-1.5">
               {candidateLoading ? (
-                <div className="flex h-full min-h-[220px] flex-col items-center justify-center rounded-xl border border-dashed border-border/80 bg-background/45 px-6 text-center">
-                  <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl border border-border bg-card text-muted-foreground shadow-sm">
+                <div className="flex h-full min-h-[192px] flex-col items-center justify-center rounded-xl border border-dashed border-border/80 bg-background/45 px-5 text-center">
+                  <div className="mb-2.5 flex h-10 w-10 items-center justify-center rounded-2xl border border-border bg-card text-muted-foreground shadow-sm">
                     <Layers3 size={20} />
                   </div>
                   <p className="text-sm font-semibold text-foreground">
@@ -620,8 +769,8 @@ export default function HarnessKitEditor({
                   </p>
                 </div>
               ) : availableItems.length === 0 ? (
-                <div className="flex h-full min-h-[220px] flex-col items-center justify-center rounded-xl border border-dashed border-border/80 bg-background/45 px-6 text-center">
-                  <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl border border-border bg-card text-muted-foreground shadow-sm">
+                <div className="flex h-full min-h-[192px] flex-col items-center justify-center rounded-xl border border-dashed border-border/80 bg-background/45 px-5 text-center">
+                  <div className="mb-2.5 flex h-10 w-10 items-center justify-center rounded-2xl border border-border bg-card text-muted-foreground shadow-sm">
                     <Layers3 size={20} />
                   </div>
                   <p className="text-sm font-semibold text-foreground">
@@ -632,44 +781,48 @@ export default function HarnessKitEditor({
                   </p>
                 </div>
               ) : (
-                <div className="grid gap-1.5">
-                  {activeTab === "agent-config" &&
-                    (availableItems as NewHarnessKitAgentConfig[]).map(
-                      (item) =>
-                        renderAgentConfigRow(item, "add", () => {
-                          setSelectedAgentConfigIds((current) => {
-                            const next = new Set(current);
-                            next.add(item.template_id);
-                            return next;
-                          });
-                        }),
-                    )}
-                  {activeTab === "extensions-kit" &&
-                    (availableItems as HarnessKitExtensionKitCandidate[]).map(
-                      (item) =>
-                        renderExtensionKitRow(item, "add", () => {
-                          setSelectedExtensionKitIds((current) => {
-                            const next = new Set(current);
-                            next.add(item.id);
-                            return next;
-                          });
-                        }),
-                    )}
-                  {isExtraTab &&
-                    (availableItems as KitAssetCandidate[]).map((candidate) =>
-                      renderExtraRow(
-                        candidate,
-                        "add",
-                        () => {
-                          setSelectedExtraIds((current) => {
-                            const next = new Set(current);
-                            next.add(candidate.id);
-                            return next;
-                          });
-                        },
-                        coveredAssetMap.get(candidateIdentity(candidate)),
-                      ),
-                    )}
+                <div
+                  className={`${ASSET_LIST_MAX_VISIBLE_HEIGHT} overflow-y-auto pr-1`}
+                >
+                  <div className="grid gap-1">
+                    {activeTab === "agent-config" &&
+                      (availableItems as NewHarnessKitAgentConfig[]).map(
+                        (item) =>
+                          renderAgentConfigRow(item, "add", () => {
+                            setSelectedAgentConfigIds((current) => {
+                              const next = new Set(current);
+                              next.add(item.template_id);
+                              return next;
+                            });
+                          }),
+                      )}
+                    {activeTab === "extensions-kit" &&
+                      (availableItems as HarnessKitExtensionKitCandidate[]).map(
+                        (item) =>
+                          renderExtensionKitRow(item, "add", () => {
+                            setSelectedExtensionKitIds((current) => {
+                              const next = new Set(current);
+                              next.add(item.id);
+                              return next;
+                            });
+                          }),
+                      )}
+                    {isExtraTab &&
+                      (availableItems as KitAssetCandidate[]).map((candidate) =>
+                        renderExtraRow(
+                          candidate,
+                          "add",
+                          () => {
+                            setSelectedExtraIds((current) => {
+                              const next = new Set(current);
+                              next.add(candidate.id);
+                              return next;
+                            });
+                          },
+                          coveredAssetMap.get(candidateIdentity(candidate)),
+                        ),
+                      )}
+                  </div>
                 </div>
               )}
             </div>
@@ -677,8 +830,8 @@ export default function HarnessKitEditor({
 
           {/* Selected (right column) */}
           <div className="flex min-h-0 min-w-0 flex-col rounded-2xl border border-primary/15 bg-primary/5 shadow-sm">
-            <div className="border-b border-primary/15 p-3">
-              <div className="mb-2 flex items-center justify-between">
+            <div className="border-b border-primary/15 p-2.5">
+              <div className="mb-1.5 flex items-center justify-between">
                 <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                   Added Assets
                 </p>
@@ -696,14 +849,14 @@ export default function HarnessKitEditor({
                   placeholder={`Search added ${tabLabels[activeTab]} by name`}
                   value={searchSelected}
                   onChange={(event) => setSearchSelected(event.target.value)}
-                  className="w-full rounded-lg border border-border bg-background py-2 pl-9 pr-3 text-sm outline-none transition-colors focus:border-primary"
+                  className="w-full rounded-lg border border-border bg-background py-1.5 pl-8.5 pr-3 text-sm outline-none transition-colors focus:border-primary"
                 />
               </div>
             </div>
-            <div className="min-h-[220px] flex-1 overflow-y-auto p-2">
+            <div className="min-h-[192px] flex-1 p-1.5">
               {selectedItems.length === 0 ? (
-                <div className="flex h-full min-h-[220px] flex-col items-center justify-center rounded-xl border border-dashed border-border/80 bg-background/45 px-6 text-center">
-                  <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl border border-border bg-card text-muted-foreground shadow-sm">
+                <div className="flex h-full min-h-[192px] flex-col items-center justify-center rounded-xl border border-dashed border-border/80 bg-background/45 px-5 text-center">
+                  <div className="mb-2.5 flex h-10 w-10 items-center justify-center rounded-2xl border border-border bg-card text-muted-foreground shadow-sm">
                     <Layers3 size={20} />
                   </div>
                   <p className="text-sm font-semibold text-foreground">
@@ -715,39 +868,43 @@ export default function HarnessKitEditor({
                   </p>
                 </div>
               ) : (
-                <div className="grid gap-1.5">
-                  {activeTab === "agent-config" &&
-                    (selectedItems as NewHarnessKitAgentConfig[]).map((item) =>
-                      renderAgentConfigRow(item, "remove", () => {
-                        setSelectedAgentConfigIds((current) => {
-                          const next = new Set(current);
-                          next.delete(item.template_id);
-                          return next;
-                        });
-                      }),
-                    )}
-                  {activeTab === "extensions-kit" &&
-                    (
-                      selectedItems as HarnessKitExtensionKitCandidate[]
-                    ).map((item) =>
-                      renderExtensionKitRow(item, "remove", () => {
-                        setSelectedExtensionKitIds((current) => {
-                          const next = new Set(current);
-                          next.delete(item.id);
-                          return next;
-                        });
-                      }),
-                    )}
-                  {isExtraTab &&
-                    (selectedItems as KitAssetCandidate[]).map((candidate) =>
-                      renderExtraRow(candidate, "remove", () => {
-                        setSelectedExtraIds((current) => {
-                          const next = new Set(current);
-                          next.delete(candidate.id);
-                          return next;
-                        });
-                      }),
-                    )}
+                <div
+                  className={`${ASSET_LIST_MAX_VISIBLE_HEIGHT} overflow-y-auto pr-1`}
+                >
+                  <div className="grid gap-1">
+                    {activeTab === "agent-config" &&
+                      (selectedItems as NewHarnessKitAgentConfig[]).map(
+                        (item) =>
+                          renderAgentConfigRow(item, "remove", () => {
+                            setSelectedAgentConfigIds((current) => {
+                              const next = new Set(current);
+                              next.delete(item.template_id);
+                              return next;
+                            });
+                          }),
+                      )}
+                    {activeTab === "extensions-kit" &&
+                      (selectedItems as HarnessKitExtensionKitCandidate[]).map(
+                        (item) =>
+                          renderExtensionKitRow(item, "remove", () => {
+                            setSelectedExtensionKitIds((current) => {
+                              const next = new Set(current);
+                              next.delete(item.id);
+                              return next;
+                            });
+                          }),
+                      )}
+                    {isExtraTab &&
+                      (selectedItems as KitAssetCandidate[]).map((candidate) =>
+                        renderExtraRow(candidate, "remove", () => {
+                          setSelectedExtraIds((current) => {
+                            const next = new Set(current);
+                            next.delete(candidate.id);
+                            return next;
+                          });
+                        }),
+                      )}
+                  </div>
                 </div>
               )}
             </div>
@@ -755,7 +912,7 @@ export default function HarnessKitEditor({
         </div>
       </section>
 
-      <div className="flex items-center justify-between gap-4 border-t border-border pt-4">
+      <div className="flex items-center justify-between gap-3 border-t border-border pt-3">
         <div className="min-h-5 flex-1">
           {formError && (
             <p className="text-sm font-semibold text-destructive">
@@ -766,7 +923,7 @@ export default function HarnessKitEditor({
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-xl px-5 py-2.5 text-sm font-semibold text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          className="rounded-xl px-4 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
         >
           Cancel
         </button>
@@ -774,11 +931,139 @@ export default function HarnessKitEditor({
           type="button"
           onClick={() => void handleSubmit()}
           disabled={!name.trim() || totalSelected === 0 || saving}
-          className="rounded-xl bg-primary px-6 py-2.5 text-sm font-bold text-primary-foreground shadow-md transition-all hover:bg-primary/90 hover:shadow-lg active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50"
+          className="rounded-xl bg-primary px-5 py-2 text-sm font-bold text-primary-foreground shadow-md transition-all hover:bg-primary/90 hover:shadow-lg active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50"
         >
           {saving ? "Saving..." : "Save Harness Kit"}
         </button>
       </div>
+
+      {/* Hover tooltip — rendered at root level to avoid overflow clipping */}
+      {tooltip && (
+        <div
+          role="tooltip"
+          aria-label="Asset preview"
+          onMouseEnter={clearTooltipHideTimer}
+          onMouseLeave={scheduleTooltipHide}
+          className="fixed z-[100] w-60 rounded-xl border border-border bg-card px-2.5 py-2 shadow-xl"
+          style={{
+            left: Math.min(tooltip.rect.left, window.innerWidth - 256),
+            top: Math.min(tooltip.rect.bottom + 4, window.innerHeight - 236),
+          }}
+        >
+          {tooltip.type === "agent-config"
+            ? (() => {
+                const d = tooltip.data as NewHarnessKitAgentConfig;
+                const preview = agentConfigPreviewCache.get(d.template_id);
+                const loadingPreview = agentConfigPreviewLoading.has(
+                  d.template_id,
+                );
+                return (
+                  <>
+                    <p className="text-xs font-semibold text-foreground">
+                      {d.template_name}
+                    </p>
+                    <p className="mt-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">
+                      Template ID
+                    </p>
+                    <p className="mt-0.5 text-[11px] font-mono leading-4 text-muted-foreground break-all">
+                      {d.template_id}
+                    </p>
+                    <div className="mt-2 border-t border-border pt-2">
+                      <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">
+                        File Content
+                      </p>
+                      <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap rounded-lg bg-muted/35 px-2 py-1.5 text-[11px] leading-4 text-foreground/85">
+                        {loadingPreview
+                          ? "Loading content..."
+                          : preview
+                            ? getAgentConfigPreviewSnippet(preview)
+                            : "No content available."}
+                      </pre>
+                    </div>
+                  </>
+                );
+              })()
+            : (() => {
+                const d = tooltip.data as HarnessKitExtensionKitCandidate;
+                const kitAssets = extensionKitAssets.get(d.id);
+                const skills =
+                  kitAssets?.extra_assets.filter((a) => a.kind === "skill") ??
+                  [];
+                const mcps =
+                  kitAssets?.extra_assets.filter((a) => a.kind === "mcp") ?? [];
+                const maxItems = 6;
+                return (
+                  <>
+                    <p className="text-xs font-semibold text-foreground">
+                      {d.name}
+                    </p>
+                    {d.description && (
+                      <p className="mt-0.5 line-clamp-2 text-[11px] leading-4 text-muted-foreground">
+                        {d.description}
+                      </p>
+                    )}
+                    {skills.length > 0 && (
+                      <div className="mt-2 border-t border-border pt-2">
+                        <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">
+                          Skills ({skills.length})
+                        </p>
+                        <ul className="mt-1 space-y-0.5">
+                          {skills.slice(0, maxItems).map((s) => (
+                            <li
+                              key={s.hub_extension_id}
+                              className="flex items-center gap-1.5 text-[11px] text-foreground/80"
+                            >
+                              <Blocks
+                                size={10}
+                                className="shrink-0 text-muted-foreground"
+                              />
+                              <span className="truncate">{s.asset_name}</span>
+                            </li>
+                          ))}
+                          {skills.length > maxItems && (
+                            <li className="text-[11px] text-muted-foreground">
+                              +{skills.length - maxItems} more
+                            </li>
+                          )}
+                        </ul>
+                      </div>
+                    )}
+                    {mcps.length > 0 && (
+                      <div className="mt-2 border-t border-border pt-2">
+                        <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">
+                          MCP ({mcps.length})
+                        </p>
+                        <ul className="mt-1 space-y-0.5">
+                          {mcps.slice(0, maxItems).map((m) => (
+                            <li
+                              key={m.hub_extension_id}
+                              className="flex items-center gap-1.5 text-[11px] text-foreground/80"
+                            >
+                              <Server
+                                size={10}
+                                className="shrink-0 text-muted-foreground"
+                              />
+                              <span className="truncate">{m.asset_name}</span>
+                            </li>
+                          ))}
+                          {mcps.length > maxItems && (
+                            <li className="text-[11px] text-muted-foreground">
+                              +{mcps.length - maxItems} more
+                            </li>
+                          )}
+                        </ul>
+                      </div>
+                    )}
+                    {skills.length === 0 && mcps.length === 0 && (
+                      <p className="mt-2 text-[11px] text-muted-foreground">
+                        Assets not loaded yet
+                      </p>
+                    )}
+                  </>
+                );
+              })()}
+        </div>
+      )}
     </div>
   );
 }
