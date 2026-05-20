@@ -8,7 +8,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { HarnessKitDetailDrawer } from "@/components/harness-kit/harness-kit-detail-drawer";
 import HarnessKitEditor from "@/components/harness-kit/harness-kit-editor";
 import type {
@@ -57,12 +57,10 @@ export function HarnessKitSection() {
     return harnessKits.filter((kit) => kit.name.toLowerCase().includes(q));
   }, [harnessKits, searchQuery]);
 
-  const loadExtensionKitAssets = async (
-    id: string,
-  ): Promise<HarnessKitAssets> => {
+  const loadExtensionKitAssets = useCallback(async (id: string): Promise<HarnessKitAssets> => {
     const extra_assets = await useKitStore.getState().fetchKitAssets(id);
     return { agent_configs: [], extension_kits: [], extra_assets };
-  };
+  }, []);
 
   const openKitDetails = async (kit: HarnessKitSummary) => {
     setSelectedKit(kit);
