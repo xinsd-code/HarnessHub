@@ -15,7 +15,10 @@ import type {
   HarnessKitAssets,
   HarnessKitSummary,
   NewHarnessKitAgentConfig,
+  Project,
 } from "@/lib/types";
+import { ProjectInstallPanel } from "@/components/shared/project-install-panel";
+import type { AgentInstallIconItem } from "@/components/shared/agent-install-icon-row";
 
 const AGENT_CONFIG_PREVIEW_MAX_LINES = 9;
 const AGENT_CONFIG_PREVIEW_MAX_CHARS = 520;
@@ -43,6 +46,11 @@ type Props = {
     id: string;
     name: string;
   }) => void;
+  /** Insert to Project panel */
+  projects?: Project[];
+  selectedProjectPath?: string;
+  onProjectChange?: (path: string) => void;
+  agentItems?: AgentInstallIconItem[];
 };
 
 export function HarnessKitDetailDrawer({
@@ -54,6 +62,10 @@ export function HarnessKitDetailDrawer({
   onClose,
   editor,
   onNavigateAsset,
+  projects,
+  selectedProjectPath,
+  onProjectChange,
+  agentItems,
 }: Props) {
   const [expanded, setExpanded] = useState({
     agentConfig: false,
@@ -328,6 +340,21 @@ export function HarnessKitDetailDrawer({
               );
             })}
           </div>
+        )}
+
+        {projects && (
+          <ProjectInstallPanel
+            projects={projects}
+            selectedProjectPath={selectedProjectPath ?? ""}
+            onProjectChange={onProjectChange ?? (() => {})}
+            agentItems={agentItems ?? []}
+            className="mt-6"
+            title="Insert to Project"
+            placeholder="Select an existing project"
+            selectAriaLabel="Select target project"
+            emptyProjectText="Add a project first"
+            emptyAgentsText="No project-capable agents detected"
+          />
         )}
       </div>
 
