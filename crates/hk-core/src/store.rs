@@ -7,7 +7,7 @@ use crate::models::*;
 use crate::sanitize::strip_windows_extended_path_prefix;
 
 /// Latest schema version supported by this binary.
-const LATEST_SCHEMA_VERSION: i64 = 7;
+const LATEST_SCHEMA_VERSION: i64 = 8;
 
 /// One row of `custom_config_paths`: (id, path, label, category, scope_json).
 /// `scope_json` is `None` for legacy rows that predate v4 schema migration.
@@ -145,6 +145,7 @@ impl Store {
         if current_version < 5 { self.migrate_v5()?; }
         if current_version < 6 { self.migrate_v6()?; }
         if current_version < 7 { self.migrate_v7()?; }
+        if current_version < 8 { self.migrate_v8()?; }
 
         // Update schema version to latest
         if current_version < LATEST_SCHEMA_VERSION {
@@ -342,6 +343,43 @@ impl Store {
                 ON harness_kit_extension_kits(harness_kit_id);
             CREATE INDEX IF NOT EXISTS idx_harness_kit_assets_kit_id
                 ON harness_kit_assets(harness_kit_id);
+            ",
+        )?;
+        Ok(())
+    }
+
+    /// Schema v8: Harness Kit sync record tracking.
+    fn migrate_v8(&self) -> Result<(), HkError> {
+        self.conn.execute_batch(
+            "
+            CREATE TABLE IF NOT EXISTS harness_kit_sync_records (
+                id TEXT PRIMARY KEY,
+                harness_kit_id TEXT NOT NULL,
+                project_path TEXT NOT NULL,
+                target_agent TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                UNIQUE(harness_kit_id, project_path, target_agent)
+            );
+
+            CREATE TABLE IF NOT EXISTS harness_kit_sync_record_assets (
+                record_id TEXT NOT NULL REFERENCES harness_kit_sync_records(id) ON DELETE CASCADE,
+                hub_extension_id TEXT NOT NULL,
+                kind TEXT NOT NULL,
+                asset_name TEXT NOT NULL,
+                position INTEGER NOT NULL,
+                PRIMARY KEY(record_id, hub_extension_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS harness_kit_sync_record_configs (
+                record_id TEXT NOT NULL REFERENCES harness_kit_sync_records(id) ON DELETE CASCADE,
+                agent_config_template_id TEXT NOT NULL,
+                template_name TEXT NOT NULL,
+                rel_path TEXT NOT NULL,
+                target_path TEXT NOT NULL,
+                position INTEGER NOT NULL,
+                PRIMARY KEY(record_id, agent_config_template_id)
+            );
             ",
         )?;
         Ok(())
@@ -1750,6 +1788,170 @@ impl Store {
         })?;
         rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
     }
+
+    pub fn upsert_harness_kit_sync_record(
+        &self,
+        harness_kit_id: &str,
+        project_path: &str,
+        target_agent: &str,
+        assets: &[NewKitAsset],
+        configs: &[HarnessKitConfigTarget],
+    ) -> Result<String, HkError> {
+        let tx = self.conn.unchecked_transaction()?;
+        let now = Utc::now();
+        let existing_id: Option<String> = tx
+            .query_row(
+                "SELECT id FROM harness_kit_sync_records WHERE harness_kit_id = ?1 AND project_path = ?2 AND target_agent = ?3",
+                params![harness_kit_id, project_path, target_agent],
+                |row| row.get(0),
+            )
+            .optional()?;
+        let id = existing_id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+        tx.execute(
+            "INSERT INTO harness_kit_sync_records (id, harness_kit_id, project_path, target_agent, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?5)
+             ON CONFLICT(harness_kit_id, project_path, target_agent)
+             DO UPDATE SET updated_at = excluded.updated_at",
+            params![id, harness_kit_id, project_path, target_agent, now.to_rfc3339()],
+        )?;
+        tx.execute("DELETE FROM harness_kit_sync_record_assets WHERE record_id = ?1", params![id])?;
+        tx.execute("DELETE FROM harness_kit_sync_record_configs WHERE record_id = ?1", params![id])?;
+        for (position, asset) in assets.iter().enumerate() {
+            tx.execute(
+                "INSERT INTO harness_kit_sync_record_assets (record_id, hub_extension_id, kind, asset_name, position)
+                 VALUES (?1, ?2, ?3, ?4, ?5)",
+                params![id, asset.hub_extension_id, asset.kind.as_str(), asset.asset_name, position as i64],
+            )?;
+        }
+        for (position, config) in configs.iter().enumerate() {
+            tx.execute(
+                "INSERT INTO harness_kit_sync_record_configs
+                 (record_id, agent_config_template_id, template_name, rel_path, target_path, position)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                params![id, config.template_id, config.template_name, config.rel_path, config.target_path, position as i64],
+            )?;
+        }
+        tx.commit()?;
+        Ok(id)
+    }
+
+    pub fn get_harness_kit_sync_record(
+        &self,
+        harness_kit_id: &str,
+        project_path: &str,
+        target_agent: &str,
+    ) -> Result<Option<HarnessKitSyncRecord>, HkError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, harness_kit_id, project_path, target_agent
+             FROM harness_kit_sync_records
+             WHERE harness_kit_id = ?1 AND project_path = ?2 AND target_agent = ?3",
+        )?;
+        let mut rows = stmt.query_map(params![harness_kit_id, project_path, target_agent], |row| {
+            let id: String = row.get(0)?;
+            Ok((id, row.get(1)?, row.get(2)?, row.get(3)?))
+        })?;
+        match rows.next() {
+            Some(Ok((id, hk_id, pp, agent))) => {
+                let assets = self.list_sync_record_assets(&id)?;
+                let configs = self.list_sync_record_configs(&id)?;
+                Ok(Some(HarnessKitSyncRecord {
+                    id,
+                    harness_kit_id: hk_id,
+                    project_path: pp,
+                    target_agent: agent,
+                    assets,
+                    configs,
+                }))
+            }
+            Some(Err(e)) => Err(e.into()),
+            None => Ok(None),
+        }
+    }
+
+    pub fn delete_harness_kit_sync_record(&self, id: &str) -> Result<(), HkError> {
+        let affected = self.conn.execute(
+            "DELETE FROM harness_kit_sync_records WHERE id = ?1",
+            params![id],
+        )?;
+        if affected == 0 {
+            return Err(HkError::NotFound("Harness Kit sync record not found".into()));
+        }
+        Ok(())
+    }
+
+    pub fn list_harness_kit_sync_records(
+        &self,
+        harness_kit_id: &str,
+        project_path: &str,
+    ) -> Result<Vec<HarnessKitSyncRecord>, HkError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, harness_kit_id, project_path, target_agent
+             FROM harness_kit_sync_records
+             WHERE harness_kit_id = ?1 AND project_path = ?2
+             ORDER BY updated_at DESC",
+        )?;
+        let rows = stmt.query_map(params![harness_kit_id, project_path], |row| {
+            let id: String = row.get(0)?;
+            Ok((id, row.get(1)?, row.get(2)?, row.get(3)?))
+        })?;
+        rows.map(|result| {
+            let (id, hk_id, pp, agent) = result?;
+            let assets = self.list_sync_record_assets(&id)?;
+            let configs = self.list_sync_record_configs(&id)?;
+            Ok(HarnessKitSyncRecord {
+                id,
+                harness_kit_id: hk_id,
+                project_path: pp,
+                target_agent: agent,
+                assets,
+                configs,
+            })
+        })
+        .collect()
+    }
+
+    fn list_sync_record_assets(&self, record_id: &str) -> Result<Vec<NewKitAsset>, HkError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT hub_extension_id, kind, asset_name
+             FROM harness_kit_sync_record_assets
+             WHERE record_id = ?1
+             ORDER BY position",
+        )?;
+        let rows = stmt.query_map([record_id], |row| {
+            let kind_str: String = row.get(1)?;
+            let kind = kind_str.parse().map_err(|e: anyhow::Error| {
+                rusqlite::Error::FromSqlConversionFailure(
+                    1,
+                    rusqlite::types::Type::Text,
+                    Box::new(std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string())),
+                )
+            })?;
+            Ok(NewKitAsset {
+                hub_extension_id: row.get(0)?,
+                kind,
+                asset_name: row.get(2)?,
+            })
+        })?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
+    }
+
+    fn list_sync_record_configs(&self, record_id: &str) -> Result<Vec<HarnessKitConfigTarget>, HkError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT agent_config_template_id, template_name, rel_path, target_path
+             FROM harness_kit_sync_record_configs
+             WHERE record_id = ?1
+             ORDER BY position",
+        )?;
+        let rows = stmt.query_map([record_id], |row| {
+            Ok(HarnessKitConfigTarget {
+                template_id: row.get(0)?,
+                template_name: row.get(1)?,
+                rel_path: row.get(2)?,
+                target_path: row.get(3)?,
+            })
+        })?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
+    }
 }
 
 /// Helper to insert child rows for a harness kit within an existing transaction.
@@ -1791,6 +1993,16 @@ fn insert_harness_kit_children(
         )?;
     }
     Ok(())
+}
+
+#[derive(Debug, Clone)]
+pub struct HarnessKitSyncRecord {
+    pub id: String,
+    pub harness_kit_id: String,
+    pub project_path: String,
+    pub target_agent: String,
+    pub assets: Vec<NewKitAsset>,
+    pub configs: Vec<HarnessKitConfigTarget>,
 }
 
 #[cfg(test)]
@@ -3020,7 +3232,7 @@ mod tests {
 
         assert_eq!(kits_count, 1);
         assert_eq!(kit_assets_count, 1);
-        assert_eq!(store.schema_version().unwrap(), 7);
+        assert_eq!(store.schema_version().unwrap(), 8);
     }
 
     #[test]
@@ -3254,5 +3466,42 @@ mod tests {
 
         let empty = store.create_harness_kit("Empty", "", &[], &[], &[]);
         assert!(empty.unwrap_err().to_string().contains("Select at least one Harness Kit asset"));
+    }
+
+    #[test]
+    fn harness_kit_sync_records_round_trip_and_delete() {
+        let (store, _dir) = test_store();
+        let record_id = store
+            .upsert_harness_kit_sync_record(
+                "hk-1",
+                "/project",
+                "codex",
+                &[NewKitAsset {
+                    hub_extension_id: "hub-skill".into(),
+                    kind: ExtensionKind::Skill,
+                    asset_name: "Skill A".into(),
+                }],
+                &[HarnessKitConfigTarget {
+                    template_id: "tpl-1".into(),
+                    template_name: "Rules".into(),
+                    rel_path: ".codex/AGENTS.md".into(),
+                    target_path: "/project/.codex/AGENTS.md".into(),
+                }],
+            )
+            .unwrap();
+
+        let record = store
+            .get_harness_kit_sync_record("hk-1", "/project", "codex")
+            .unwrap()
+            .expect("record exists");
+        assert_eq!(record.id, record_id);
+        assert_eq!(record.assets[0].hub_extension_id, "hub-skill");
+        assert_eq!(record.configs[0].rel_path, ".codex/AGENTS.md");
+
+        store.delete_harness_kit_sync_record(&record.id).unwrap();
+        assert!(store
+            .get_harness_kit_sync_record("hk-1", "/project", "codex")
+            .unwrap()
+            .is_none());
     }
 }
