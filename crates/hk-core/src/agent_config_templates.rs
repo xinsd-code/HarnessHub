@@ -266,6 +266,25 @@ pub fn update_template_content(hub_dir: &Path, id: &str, content: &str) -> Resul
     metadata_to_template(&dir, meta)
 }
 
+pub fn validate_project_relpath(relpath: &str) -> Result<(), HkError> {
+    let rel = Path::new(relpath);
+    if relpath.trim().is_empty() {
+        return Err(HkError::Validation("Target rules path cannot be empty".into()));
+    }
+    if rel.is_absolute() || rel.components().any(|c| matches!(c, std::path::Component::ParentDir)) {
+        return Err(HkError::PathNotAllowed("Target rules path must stay inside the project".into()));
+    }
+    Ok(())
+}
+
+pub fn resolve_project_template_target(
+    project_path: &Path,
+    relpath: &str,
+) -> Result<PathBuf, HkError> {
+    validate_project_relpath(relpath)?;
+    Ok(project_path.join(relpath))
+}
+
 pub fn sync_template_to_project(
     hub_dir: &Path,
     id: &str,
@@ -280,12 +299,9 @@ pub fn sync_template_to_project(
     let relpath = target_relpath
         .filter(|value| !value.trim().is_empty())
         .ok_or_else(|| HkError::Validation(format!("Agent does not support project rules sync: {target_agent}")))?;
-    let rel = Path::new(relpath);
-    if rel.is_absolute() || rel.components().any(|c| matches!(c, std::path::Component::ParentDir)) {
-        return Err(HkError::PathNotAllowed("Target rules path must stay inside the project".into()));
-    }
+    validate_project_relpath(relpath)?;
     let template = get_template(hub_dir, id)?;
-    let target = project_path.join(rel);
+    let target = project_path.join(relpath);
     if target.exists() && !force {
         return Err(HkError::Conflict(format!("Target file already exists: {}", target.display())));
     }

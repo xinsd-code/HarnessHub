@@ -1860,6 +1860,29 @@ fn validate_no_extra_asset_overlap(
     Ok(())
 }
 
+struct ExpandedHarnessKit {
+    agent_configs: Vec<NewHarnessKitAgentConfig>,
+    assets: Vec<NewKitAsset>,
+}
+
+fn expand_harness_kit(store: &Mutex<Store>, harness_kit_id: &str) -> Result<ExpandedHarnessKit, HkError> {
+    let harness_assets = store.lock().list_harness_kit_assets(harness_kit_id)?;
+    let mut expanded_assets = harness_assets.extra_assets;
+    for extension_kit in &harness_assets.extension_kits {
+        let kit_assets = store.lock().list_kit_assets(&extension_kit.kit_id)?;
+        expanded_assets.extend(kit_assets);
+    }
+    // Sort and dedup by (kind, asset_name)
+    expanded_assets.sort_by(|a, b| {
+        (a.kind.as_str(), &a.asset_name).cmp(&(b.kind.as_str(), &b.asset_name))
+    });
+    expanded_assets.dedup_by(|a, b| a.kind == b.kind && a.asset_name == b.asset_name);
+    Ok(ExpandedHarnessKit {
+        agent_configs: harness_assets.agent_configs,
+        assets: expanded_assets,
+    })
+}
+
 pub fn create_harness_kit(
     store: &Mutex<Store>,
     adapters: &[Box<dyn AgentAdapter>],
@@ -2124,6 +2147,251 @@ pub fn unsync_kit_from_project(
     Ok(KitSyncResult {
         installed_count: removed_count,
         skipped_conflict_count: 0,
+    })
+}
+
+// --- Harness Kit Sync ---
+
+pub fn preview_harness_kit_project_conflicts(
+    store: &Mutex<Store>,
+    request: HarnessKitSyncRequest,
+) -> Result<HarnessKitSyncPreview, HkError> {
+    // Build target scope (same pattern as sync_kit_to_project)
+    let target_scope = {
+        let store_guard = store.lock();
+        let project = store_guard
+            .list_projects()?
+            .into_iter()
+            .find(|project| project.path == request.project_path)
+            .ok_or_else(|| HkError::NotFound("Project not found".into()))?;
+        ConfigScope::Project {
+            name: project.name,
+            path: project.path,
+        }
+    };
+
+    let expanded = expand_harness_kit(store, &request.harness_kit_id)?;
+
+    // Check asset conflicts
+    let asset_conflicts: Vec<HarnessKitAssetConflict> = expanded
+        .assets
+        .iter()
+        .filter_map(|asset| {
+            check_hub_install_conflict(
+                store,
+                &asset.hub_extension_id,
+                &request.target_agent,
+                &target_scope,
+            )
+            .map(|existing| HarnessKitAssetConflict {
+                hub_extension_id: asset.hub_extension_id.clone(),
+                kind: asset.kind,
+                asset_name: asset.asset_name.clone(),
+                existing_extension_id: existing.id,
+            })
+        })
+        .collect();
+
+    // Check config targets and conflicts
+    let mut config_targets = Vec::new();
+    let mut config_conflicts = Vec::new();
+    let project_path = std::path::Path::new(&request.project_path);
+    for template in &expanded.agent_configs {
+        let rel_path = request
+            .agent_config_paths
+            .iter()
+            .find(|path| path.template_id == template.template_id)
+            .map(|path| path.rel_path.clone())
+            .unwrap_or_default();
+        match crate::agent_config_templates::resolve_project_template_target(project_path, &rel_path) {
+            Ok(target) => {
+                let target_path = target.to_string_lossy().to_string();
+                if target.exists() {
+                    config_conflicts.push(HarnessKitConfigConflict {
+                        template_id: template.template_id.clone(),
+                        template_name: template.template_name.clone(),
+                        rel_path: rel_path.clone(),
+                        target_path: target_path.clone(),
+                        kind: HarnessKitConflictKind::ConfigConflict,
+                        message: format!("Target file already exists: {target_path}"),
+                    });
+                }
+                config_targets.push(HarnessKitConfigTarget {
+                    template_id: template.template_id.clone(),
+                    template_name: template.template_name.clone(),
+                    rel_path,
+                    target_path,
+                });
+            }
+            Err(err) => config_conflicts.push(HarnessKitConfigConflict {
+                template_id: template.template_id.clone(),
+                template_name: template.template_name.clone(),
+                rel_path,
+                target_path: String::new(),
+                kind: HarnessKitConflictKind::PathInvalid,
+                message: err.to_string(),
+            }),
+        }
+    }
+
+    Ok(HarnessKitSyncPreview {
+        installable_asset_count: expanded.assets.len(),
+        writable_config_count: config_targets.len(),
+        asset_conflicts,
+        config_conflicts,
+        config_targets,
+    })
+}
+
+pub fn sync_harness_kit_to_project(
+    store: &Mutex<Store>,
+    adapters: &[Box<dyn AgentAdapter>],
+    agent_config_hub_dir: &std::path::Path,
+    request: HarnessKitSyncRequest,
+) -> Result<HarnessKitSyncResult, HkError> {
+    let preview = preview_harness_kit_project_conflicts(store, request.clone())?;
+
+    // Block if any config paths are invalid
+    if preview.config_conflicts.iter().any(|c| c.kind == HarnessKitConflictKind::PathInvalid) {
+        return Err(HkError::Validation("Fix invalid config paths before syncing".into()));
+    }
+
+    let force_assets: std::collections::HashSet<&str> = request
+        .force_hub_extension_ids.iter().map(String::as_str).collect();
+    let force_configs: std::collections::HashSet<&str> = request
+        .force_agent_config_template_ids.iter().map(String::as_str).collect();
+
+    let expanded = expand_harness_kit(store, &request.harness_kit_id)?;
+    let target_scope = {
+        let store_guard = store.lock();
+        let project = store_guard
+            .list_projects()?
+            .into_iter()
+            .find(|project| project.path == request.project_path)
+            .ok_or_else(|| HkError::NotFound("Project not found".into()))?;
+        ConfigScope::Project {
+            name: project.name,
+            path: project.path,
+        }
+    };
+
+    let mut installed_assets: Vec<NewKitAsset> = Vec::new();
+    let mut written_configs: Vec<HarnessKitConfigTarget> = Vec::new();
+    let mut skipped_conflict_count = 0usize;
+
+    for asset in &expanded.assets {
+        let has_conflict = preview.asset_conflicts.iter()
+            .any(|c| c.hub_extension_id == asset.hub_extension_id);
+        if has_conflict && !force_assets.contains(asset.hub_extension_id.as_str()) {
+            skipped_conflict_count += 1;
+            continue;
+        }
+        install_from_hub(
+            store, adapters,
+            &asset.hub_extension_id, &request.target_agent, &target_scope,
+            has_conflict,
+        )?;
+        installed_assets.push(asset.clone());
+    }
+
+    for target in &preview.config_targets {
+        let has_conflict = preview.config_conflicts.iter()
+            .any(|c| c.template_id == target.template_id && c.kind == HarnessKitConflictKind::ConfigConflict);
+        if has_conflict && !force_configs.contains(target.template_id.as_str()) {
+            skipped_conflict_count += 1;
+            continue;
+        }
+        crate::agent_config_templates::sync_template_to_project(
+            agent_config_hub_dir,
+            &target.template_id,
+            std::path::Path::new(&request.project_path),
+            &request.target_agent,
+            Some(&target.rel_path),
+            has_conflict,
+        )?;
+        written_configs.push(target.clone());
+    }
+
+    store.lock().upsert_harness_kit_sync_record(
+        &request.harness_kit_id,
+        &request.project_path,
+        &request.target_agent,
+        &installed_assets,
+        &written_configs,
+    )?;
+
+    Ok(HarnessKitSyncResult {
+        installed_count: installed_assets.len(),
+        written_config_count: written_configs.len(),
+        skipped_conflict_count,
+        removed_count: 0,
+    })
+}
+
+pub fn list_harness_kit_sync_statuses(
+    store: &Mutex<Store>,
+    request: HarnessKitSyncStatusRequest,
+) -> Result<Vec<HarnessKitSyncStatus>, HkError> {
+    let records = store
+        .lock()
+        .list_harness_kit_sync_records(&request.harness_kit_id, &request.project_path)?;
+    Ok(records
+        .into_iter()
+        .map(|record| HarnessKitSyncStatus {
+            harness_kit_id: request.harness_kit_id.clone(),
+            project_path: request.project_path.clone(),
+            target_agent: record.target_agent,
+            synced: true,
+        })
+        .collect())
+}
+
+pub fn unsync_harness_kit_from_project(
+    store: &Mutex<Store>,
+    adapters: &[Box<dyn AgentAdapter>],
+    harness_kit_id: &str,
+    project_path: &str,
+    target_agent: &str,
+) -> Result<HarnessKitSyncResult, HkError> {
+    let record = store
+        .lock()
+        .get_harness_kit_sync_record(harness_kit_id, project_path, target_agent)?
+        .ok_or_else(|| HkError::NotFound("Harness Kit sync record not found".into()))?;
+
+    // Delete config files
+    for config in &record.configs {
+        let path = std::path::Path::new(&config.target_path);
+        if path.exists() {
+            std::fs::remove_file(path)?;
+        }
+    }
+
+    // Delete installed extensions
+    for asset in &record.assets {
+        let extensions = store
+            .lock()
+            .list_extensions(Some(asset.kind), Some(target_agent))?;
+        let ext_ids: Vec<String> = extensions
+            .into_iter()
+            .filter(|ext| {
+                ext.name == asset.asset_name
+                    && matches!(&ext.scope, ConfigScope::Project { path, .. } if path == project_path)
+            })
+            .map(|ext| ext.id)
+            .collect();
+        for ext_id in ext_ids {
+            delete_extension(store, adapters, &ext_id)?;
+        }
+    }
+
+    let removed_count = record.assets.len() + record.configs.len();
+    store.lock().delete_harness_kit_sync_record(&record.id)?;
+
+    Ok(HarnessKitSyncResult {
+        installed_count: 0,
+        written_config_count: 0,
+        skipped_conflict_count: 0,
+        removed_count,
     })
 }
 
@@ -2715,5 +2983,50 @@ mod tests {
         assert_eq!(candidates.extension_kits.len(), 1);
         assert_eq!(candidates.skills[0].name, "frontend-design");
         assert_eq!(candidates.mcps[0].name, "chrome-devtools");
+    }
+
+    #[test]
+    fn harness_kit_preview_reports_config_path_conflict() {
+        let temp = tempfile::tempdir().unwrap();
+        let project = temp.path().join("project");
+        std::fs::create_dir_all(project.join(".codex")).unwrap();
+        std::fs::write(project.join(".codex/AGENTS.md"), "existing").unwrap();
+
+        // Create a store and register the project
+        let (store, _dir) = test_store();
+        let store = std::sync::Arc::new(parking_lot::Mutex::new(store));
+        store.lock().insert_project(&Project {
+            id: "proj-001".into(),
+            name: "testproj".into(),
+            path: project.to_string_lossy().to_string(),
+            created_at: chrono::Utc::now(),
+            exists: true,
+        }).unwrap();
+
+        // Create a harness kit with one agent config
+        let hk = store.lock().create_harness_kit(
+            "Test HK", "",
+            &[NewHarnessKitAgentConfig {
+                template_id: "tpl-1".into(),
+                template_name: "Rules".into(),
+            }],
+            &[], &[],
+        ).unwrap();
+
+        let request = HarnessKitSyncRequest {
+            harness_kit_id: hk.id,
+            project_path: project.to_string_lossy().to_string(),
+            target_agent: "codex".into(),
+            agent_config_paths: vec![HarnessKitAgentConfigPath {
+                template_id: "tpl-1".into(),
+                rel_path: ".codex/AGENTS.md".into(),
+            }],
+            force_hub_extension_ids: vec![],
+            force_agent_config_template_ids: vec![],
+        };
+
+        let preview = preview_harness_kit_project_conflicts(&store, request).unwrap();
+        assert_eq!(preview.config_conflicts.len(), 1);
+        assert_eq!(preview.config_conflicts[0].kind, HarnessKitConflictKind::ConfigConflict);
     }
 }
