@@ -347,6 +347,93 @@ pub struct UpdateHarnessKitRequest {
     pub extra_candidate_ids: Vec<String>,
 }
 
+// --- Harness Kit Sync ---
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct HarnessKitAgentConfigPath {
+    pub template_id: String,
+    pub rel_path: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HarnessKitSyncRequest {
+    pub harness_kit_id: String,
+    pub project_path: String,
+    pub target_agent: String,
+    #[serde(default)]
+    pub agent_config_paths: Vec<HarnessKitAgentConfigPath>,
+    #[serde(default)]
+    pub force_hub_extension_ids: Vec<String>,
+    #[serde(default)]
+    pub force_agent_config_template_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum HarnessKitConflictKind {
+    AssetConflict,
+    ConfigConflict,
+    PathInvalid,
+    UnsupportedAgentConfig,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HarnessKitAssetConflict {
+    pub hub_extension_id: String,
+    pub kind: ExtensionKind,
+    pub asset_name: String,
+    pub existing_extension_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HarnessKitConfigConflict {
+    pub template_id: String,
+    pub template_name: String,
+    pub rel_path: String,
+    pub target_path: String,
+    pub kind: HarnessKitConflictKind,
+    pub message: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HarnessKitConfigTarget {
+    pub template_id: String,
+    pub template_name: String,
+    pub rel_path: String,
+    pub target_path: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HarnessKitSyncPreview {
+    pub asset_conflicts: Vec<HarnessKitAssetConflict>,
+    pub config_conflicts: Vec<HarnessKitConfigConflict>,
+    pub config_targets: Vec<HarnessKitConfigTarget>,
+    pub installable_asset_count: usize,
+    pub writable_config_count: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HarnessKitSyncResult {
+    pub installed_count: usize,
+    pub written_config_count: usize,
+    pub skipped_conflict_count: usize,
+    pub removed_count: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HarnessKitSyncStatusRequest {
+    pub harness_kit_id: String,
+    pub project_path: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HarnessKitSyncStatus {
+    pub harness_kit_id: String,
+    pub project_path: String,
+    pub target_agent: String,
+    pub synced: bool,
+}
+
 // --- Audit ---
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -694,5 +781,21 @@ mod tests {
         let round_trip: CliMeta = serde_json::from_str(&json).unwrap();
         assert_eq!(round_trip.binary_name, "wecom-cli");
         assert_eq!(round_trip.api_domains.len(), 1);
+    }
+
+    #[test]
+    fn harness_kit_sync_request_serialization() {
+        let request = HarnessKitSyncRequest {
+            harness_kit_id: "hk-1".into(),
+            project_path: "/tmp/project".into(),
+            target_agent: "codex".into(),
+            agent_config_paths: vec![HarnessKitAgentConfigPath {
+                template_id: "tpl-1".into(),
+                rel_path: ".codex/AGENTS.md".into(),
+            }],
+            force_hub_extension_ids: vec!["hub-1".into()],
+            force_agent_config_template_ids: vec!["tpl-1".into()],
+        };
+        assert_eq!(request.agent_config_paths[0].rel_path, ".codex/AGENTS.md");
     }
 }
