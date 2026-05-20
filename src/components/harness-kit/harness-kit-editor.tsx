@@ -218,17 +218,17 @@ export default function HarnessKitEditor({
     [selectedExtensionKitIds, extensionKitAssets, candidates.extension_kits],
   );
 
-  // Remove covered extra candidates from selection
-  useMemo(() => {
-    const cleaned = removeCoveredExtraCandidates(
-      selectedExtraIds,
-      candidates,
-      coveredAssetMap,
-    );
-    if (cleaned.size !== selectedExtraIds.size) {
-      setSelectedExtraIds(cleaned);
-    }
-  }, [selectedExtraIds, candidates, coveredAssetMap]);
+  // Remove covered extra candidates from selection when dependencies change
+  useEffect(() => {
+    setSelectedExtraIds((current) => {
+      const cleaned = removeCoveredExtraCandidates(
+        current,
+        candidates,
+        coveredAssetMap,
+      );
+      return cleaned.size !== current.size ? cleaned : current;
+    });
+  }, [candidates, coveredAssetMap]);
 
   // Reset tab search when changing tabs
   const handleTabChange = (tab: Tab) => {
