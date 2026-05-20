@@ -6,6 +6,11 @@ import type {
   HarnessKitAssetCandidates,
   HarnessKitAssets,
   HarnessKitSummary,
+  HarnessKitSyncPreview,
+  HarnessKitSyncRequest,
+  HarnessKitSyncResult,
+  HarnessKitSyncStatus,
+  HarnessKitSyncStatusRequest,
   UpdateHarnessKitRequest,
 } from "@/lib/types";
 import { useHubStore } from "@/stores/hub-store";
@@ -23,6 +28,10 @@ interface HarnessKitState {
   updateHarnessKit: (request: UpdateHarnessKitRequest) => Promise<void>;
   deleteHarnessKit: (id: string) => Promise<void>;
   fetchHarnessKitAssets: (id: string) => Promise<HarnessKitAssets>;
+  previewProjectConflicts: (request: HarnessKitSyncRequest) => Promise<HarnessKitSyncPreview>;
+  fetchSyncStatuses: (request: HarnessKitSyncStatusRequest) => Promise<HarnessKitSyncStatus[]>;
+  syncToProject: (request: HarnessKitSyncRequest) => Promise<HarnessKitSyncResult>;
+  unsyncFromProject: (request: HarnessKitSyncRequest) => Promise<HarnessKitSyncResult>;
 }
 
 const emptyCandidates: HarnessKitAssetCandidates = {
@@ -110,6 +119,38 @@ export const useHarnessKitStore = create<HarnessKitState>((set, get) => ({
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       toast.error(`Failed to load Harness Kit: ${msg}`);
+      throw error;
+    }
+  },
+
+  async previewProjectConflicts(request) {
+    return await api.previewHarnessKitProjectConflicts(request);
+  },
+
+  async fetchSyncStatuses(request) {
+    return await api.listHarnessKitSyncStatuses(request);
+  },
+
+  async syncToProject(request) {
+    try {
+      const result = await api.syncHarnessKitToProject(request);
+      toast.success("Harness Kit inserted into project");
+      return result;
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      toast.error(`Failed to insert Harness Kit: ${msg}`);
+      throw error;
+    }
+  },
+
+  async unsyncFromProject(request) {
+    try {
+      const result = await api.unsyncHarnessKitFromProject(request);
+      toast.success("Harness Kit removed from project");
+      return result;
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      toast.error(`Failed to remove Harness Kit: ${msg}`);
       throw error;
     }
   },

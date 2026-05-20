@@ -116,3 +116,65 @@ pub fn list_harness_kit_assets(
         .list_harness_kit_assets(&id)
         .map_err(|e| e.to_string())
 }
+
+#[tauri::command]
+pub fn preview_harness_kit_project_conflicts(
+    state: State<'_, AppState>,
+    request: HarnessKitSyncRequest,
+) -> Result<HarnessKitSyncPreview, String> {
+    service::preview_harness_kit_project_conflicts(&state.store, request)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn list_harness_kit_sync_statuses(
+    state: State<'_, AppState>,
+    request: HarnessKitSyncStatusRequest,
+) -> Result<Vec<HarnessKitSyncStatus>, String> {
+    service::list_harness_kit_sync_statuses(&state.store, request)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn sync_harness_kit_to_project(
+    state: State<'_, AppState>,
+    request: HarnessKitSyncRequest,
+) -> Result<HarnessKitSyncResult, String> {
+    let store = state.store.clone();
+    let adapters = state.runtime_adapters();
+    tauri::async_runtime::spawn_blocking(move || {
+        service::sync_harness_kit_to_project(
+            &store,
+            &adapters,
+            &agent_config_templates::default_hub_dir(),
+            request,
+        )
+    })
+    .await
+    .map_err(|e| e.to_string())?
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn unsync_harness_kit_from_project(
+    state: State<'_, AppState>,
+    request: HarnessKitSyncRequest,
+) -> Result<HarnessKitSyncResult, String> {
+    let store = state.store.clone();
+    let adapters = state.runtime_adapters();
+    let harness_kit_id = request.harness_kit_id;
+    let project_path = request.project_path;
+    let target_agent = request.target_agent;
+    tauri::async_runtime::spawn_blocking(move || {
+        service::unsync_harness_kit_from_project(
+            &store,
+            &adapters,
+            &harness_kit_id,
+            &project_path,
+            &target_agent,
+        )
+    })
+    .await
+    .map_err(|e| e.to_string())?
+    .map_err(|e| e.to_string())
+}

@@ -122,6 +122,10 @@ fn main() {
             commands::update_harness_kit,
             commands::delete_harness_kit,
             commands::list_harness_kit_assets,
+            commands::preview_harness_kit_project_conflicts,
+            commands::list_harness_kit_sync_statuses,
+            commands::sync_harness_kit_to_project,
+            commands::unsync_harness_kit_from_project,
             icon::set_app_icon,
         ])
         .on_window_event(|window, event| {

@@ -16,6 +16,11 @@ import type {
   HarnessKitAssetCandidates,
   HarnessKitAssets,
   HarnessKitSummary,
+  HarnessKitSyncPreview,
+  HarnessKitSyncRequest,
+  HarnessKitSyncResult,
+  HarnessKitSyncStatus,
+  HarnessKitSyncStatusRequest,
   InstallResult,
   KitSyncResult,
   KitSyncPreview,
@@ -658,5 +663,40 @@ export const api = {
   listHarnessKitAssets(id: string): Promise<HarnessKitAssets> {
     validateNonEmpty(id, "Harness Kit ID");
     return transport("list_harness_kit_assets", { id });
+  },
+
+  previewHarnessKitProjectConflicts(
+    request: HarnessKitSyncRequest,
+  ): Promise<HarnessKitSyncPreview> {
+    validateNonEmpty(request.harness_kit_id, "Harness Kit ID");
+    validateNonEmpty(request.project_path, "Project path");
+    validateNonEmpty(request.target_agent, "Target agent");
+    return transport("preview_harness_kit_project_conflicts", { request });
+  },
+
+  listHarnessKitSyncStatuses(
+    request: HarnessKitSyncStatusRequest,
+  ): Promise<HarnessKitSyncStatus[]> {
+    validateNonEmpty(request.harness_kit_id, "Harness Kit ID");
+    validateNonEmpty(request.project_path, "Project path");
+    return transport("list_harness_kit_sync_statuses", { request });
+  },
+
+  syncHarnessKitToProject(
+    request: HarnessKitSyncRequest,
+  ): Promise<HarnessKitSyncResult> {
+    validateNonEmpty(request.harness_kit_id, "Harness Kit ID");
+    validateNonEmpty(request.project_path, "Project path");
+    validateNonEmpty(request.target_agent, "Target agent");
+    return transport("sync_harness_kit_to_project", { request });
+  },
+
+  unsyncHarnessKitFromProject(
+    request: HarnessKitSyncRequest,
+  ): Promise<HarnessKitSyncResult> {
+    validateNonEmpty(request.harness_kit_id, "Harness Kit ID");
+    validateNonEmpty(request.project_path, "Project path");
+    validateNonEmpty(request.target_agent, "Target agent");
+    return transport("unsync_harness_kit_from_project", { request });
   },
 };
