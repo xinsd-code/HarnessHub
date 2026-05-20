@@ -161,7 +161,14 @@ pub fn build_router(state: WebState) -> Router {
         .route("/api/list_kit_assets", post(handlers::kits::list_kit_assets))
         .route("/api/sync_kit_to_project", post(handlers::kits::sync_kit_to_project))
         .route("/api/preview_kit_project_conflicts", post(handlers::kits::preview_kit_project_conflicts))
-        .route("/api/unsync_kit_from_project", post(handlers::kits::unsync_kit_from_project));
+        .route("/api/unsync_kit_from_project", post(handlers::kits::unsync_kit_from_project))
+        // Harness Kit aggregates
+        .route("/api/list_harness_kits", post(handlers::harness_kits::list_harness_kits))
+        .route("/api/list_harness_kit_asset_candidates", post(handlers::harness_kits::list_harness_kit_asset_candidates))
+        .route("/api/create_harness_kit", post(handlers::harness_kits::create_harness_kit))
+        .route("/api/update_harness_kit", post(handlers::harness_kits::update_harness_kit))
+        .route("/api/delete_harness_kit", post(handlers::harness_kits::delete_harness_kit))
+        .route("/api/list_harness_kit_assets", post(handlers::harness_kits::list_harness_kit_assets));
 
     let cors = CorsLayer::new()
         .allow_origin(Any)

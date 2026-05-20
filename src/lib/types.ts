@@ -601,3 +601,58 @@ export interface KitSyncConflict {
 export interface KitSyncPreview {
   conflicts: KitSyncConflict[];
 }
+
+export interface HarnessKitSummary {
+  id: string;
+  name: string;
+  description: string;
+  agent_config_count: number;
+  extensions_kit_count: number;
+  skills_count: number;
+  mcp_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NewHarnessKitAgentConfig {
+  template_id: string;
+  template_name: string;
+}
+
+export interface NewHarnessKitExtensionKit {
+  kit_id: string;
+  kit_name: string;
+}
+
+export interface HarnessKitAssets {
+  agent_configs: NewHarnessKitAgentConfig[];
+  extension_kits: NewHarnessKitExtensionKit[];
+  extra_assets: NewKitAsset[];
+}
+
+export interface HarnessKitExtensionKitCandidate {
+  id: string;
+  name: string;
+  description: string;
+  skills_count: number;
+  mcp_count: number;
+}
+
+export interface HarnessKitAssetCandidates {
+  agent_configs: NewHarnessKitAgentConfig[];
+  extension_kits: HarnessKitExtensionKitCandidate[];
+  skills: KitAssetCandidate[];
+  mcps: KitAssetCandidate[];
+}
+
+export interface CreateHarnessKitRequest {
+  name: string;
+  description: string;
+  agent_config_template_ids: string[];
+  extension_kit_ids: string[];
+  extra_candidate_ids: string[];
+}
+
+export interface UpdateHarnessKitRequest extends CreateHarnessKitRequest {
+  id: string;
+}

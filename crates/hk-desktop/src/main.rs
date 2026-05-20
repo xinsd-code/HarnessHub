@@ -115,6 +115,13 @@ fn main() {
             commands::sync_kit_to_project,
             commands::preview_kit_project_conflicts,
             commands::unsync_kit_from_project,
+            // Harness Kit aggregate commands
+            commands::list_harness_kits,
+            commands::list_harness_kit_asset_candidates,
+            commands::create_harness_kit,
+            commands::update_harness_kit,
+            commands::delete_harness_kit,
+            commands::list_harness_kit_assets,
             icon::set_app_icon,
         ])
         .on_window_event(|window, event| {

@@ -8,6 +8,7 @@ pub mod settings;
 pub mod hub;
 pub mod agent_config_templates;
 pub mod kits;
+pub mod harness_kits;
 
 use hk_core::store::Store;
 use std::path::Path;

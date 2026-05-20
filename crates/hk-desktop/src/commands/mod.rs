@@ -9,6 +9,7 @@ pub mod projects;
 pub mod settings;
 pub mod agent_config_templates;
 pub mod kits;
+pub mod harness_kits;
 
 // Re-export shared types that appear in Tauri command signatures.
 // The Tauri proc macro requires these types to be publicly reachable.
@@ -26,6 +27,7 @@ pub use projects::*;
 pub use settings::*;
 pub use agent_config_templates::*;
 pub use kits::*;
+pub use harness_kits::*;
 
 use hk_core::adapter;
 use hk_core::sanitize::strip_windows_extended_path_prefix;

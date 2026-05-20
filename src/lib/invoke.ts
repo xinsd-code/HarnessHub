@@ -6,12 +6,16 @@ import type {
   AuditResult,
   CheckUpdatesResult,
   ConfigScope,
+  CreateHarnessKitRequest,
   CreateKitRequest,
   DashboardStats,
   DiscoveredProject,
   Extension,
   ExtensionContent,
   FileEntry,
+  HarnessKitAssetCandidates,
+  HarnessKitAssets,
+  HarnessKitSummary,
   InstallResult,
   KitSyncResult,
   KitSyncPreview,
@@ -23,6 +27,7 @@ import type {
   ScanResult,
   SkillAuditInfo,
   SyncKitToProjectRequest,
+  UpdateHarnessKitRequest,
   UpdateKitRequest,
   UpdateStatus,
 } from "./types";
@@ -596,5 +601,62 @@ export const api = {
       projectPath: request.project_path,
       targetAgent: request.target_agent,
     });
+  },
+
+  // Harness Kit aggregate API
+  listHarnessKits(): Promise<HarnessKitSummary[]> {
+    return transport("list_harness_kits");
+  },
+
+  listHarnessKitAssetCandidates(): Promise<HarnessKitAssetCandidates> {
+    return transport("list_harness_kit_asset_candidates");
+  },
+
+  createHarnessKit(request: CreateHarnessKitRequest): Promise<HarnessKitSummary> {
+    validateNonEmpty(request.name, "Harness Kit name");
+    if (
+      request.agent_config_template_ids.length === 0 &&
+      request.extension_kit_ids.length === 0 &&
+      request.extra_candidate_ids.length === 0
+    ) {
+      throw new Error("Select at least one Harness Kit asset");
+    }
+    return transport("create_harness_kit", {
+      name: request.name,
+      description: request.description,
+      agentConfigTemplateIds: request.agent_config_template_ids,
+      extensionKitIds: request.extension_kit_ids,
+      extraCandidateIds: request.extra_candidate_ids,
+    });
+  },
+
+  updateHarnessKit(request: UpdateHarnessKitRequest): Promise<HarnessKitSummary> {
+    validateNonEmpty(request.id, "Harness Kit ID");
+    validateNonEmpty(request.name, "Harness Kit name");
+    if (
+      request.agent_config_template_ids.length === 0 &&
+      request.extension_kit_ids.length === 0 &&
+      request.extra_candidate_ids.length === 0
+    ) {
+      throw new Error("Select at least one Harness Kit asset");
+    }
+    return transport("update_harness_kit", {
+      id: request.id,
+      name: request.name,
+      description: request.description,
+      agentConfigTemplateIds: request.agent_config_template_ids,
+      extensionKitIds: request.extension_kit_ids,
+      extraCandidateIds: request.extra_candidate_ids,
+    });
+  },
+
+  deleteHarnessKit(id: string): Promise<void> {
+    validateNonEmpty(id, "Harness Kit ID");
+    return transport("delete_harness_kit", { id });
+  },
+
+  listHarnessKitAssets(id: string): Promise<HarnessKitAssets> {
+    validateNonEmpty(id, "Harness Kit ID");
+    return transport("list_harness_kit_assets", { id });
   },
 };
