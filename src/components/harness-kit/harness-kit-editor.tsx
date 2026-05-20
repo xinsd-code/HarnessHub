@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   FileText,
   Layers3,
+  Plus,
   Search,
   Server,
 } from "lucide-react";
@@ -496,8 +497,8 @@ export default function HarnessKitEditor({
       onMouseLeave={scheduleTooltipHide}
       className={
         action === "add"
-          ? "group flex min-h-[64px] w-full min-w-0 items-center justify-between gap-3 overflow-hidden rounded-xl border border-transparent px-3 py-2.5 text-left transition-all hover:border-primary/25 hover:bg-background hover:shadow-sm"
-          : "group flex min-h-[64px] w-full min-w-0 items-center justify-between gap-3 overflow-hidden rounded-xl border border-primary/15 bg-background/80 px-3 py-2.5 text-left shadow-sm transition-all hover:border-destructive/30 hover:bg-destructive/5"
+          ? "group flex min-h-[64px] w-full min-w-0 items-center justify-between gap-3 overflow-hidden rounded-xl border border-transparent px-3 py-2.5 text-left transition-all duration-200 hover:translate-x-1 hover:border-primary/25 hover:bg-background hover:shadow-sm"
+          : "group flex min-h-[64px] w-full min-w-0 items-center justify-between gap-3 overflow-hidden rounded-xl border border-primary/15 bg-background/80 px-3 py-2.5 text-left shadow-sm transition-all duration-200 hover:-translate-x-1 hover:border-destructive/30 hover:bg-destructive/5"
       }
     >
       <div className="min-w-0 flex-1">
@@ -505,7 +506,7 @@ export default function HarnessKitEditor({
           <span
             className={
               action === "add"
-                ? "text-muted-foreground group-hover:text-primary"
+                ? "text-muted-foreground group-hover:text-primary transition-colors duration-200"
                 : "text-primary"
             }
           >
@@ -519,11 +520,15 @@ export default function HarnessKitEditor({
       <span
         className={
           action === "add"
-            ? "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary opacity-0 transition-opacity group-hover:opacity-100"
-            : "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-destructive/10 text-destructive opacity-0 transition-opacity group-hover:opacity-100"
+            ? "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary opacity-0 scale-90 transition-all duration-200 group-hover:opacity-100 group-hover:scale-100"
+            : "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-destructive/10 text-destructive opacity-0 scale-90 transition-all duration-200 group-hover:opacity-100 group-hover:scale-100"
         }
       >
-        {action === "add" ? <ArrowRight size={15} /> : <ArrowLeft size={15} />}
+        {action === "add" ? (
+          <ArrowRight size={14} className="stroke-[2.5]" />
+        ) : (
+          <ArrowLeft size={14} className="stroke-[2.5]" />
+        )}
       </span>
     </button>
   );
@@ -555,8 +560,8 @@ export default function HarnessKitEditor({
       onMouseLeave={scheduleTooltipHide}
       className={
         action === "add"
-          ? "group flex min-h-[64px] w-full min-w-0 items-center justify-between gap-3 overflow-hidden rounded-xl border border-transparent px-3 py-2.5 text-left transition-all hover:border-primary/25 hover:bg-background hover:shadow-sm"
-          : "group flex min-h-[64px] w-full min-w-0 items-center justify-between gap-3 overflow-hidden rounded-xl border border-primary/15 bg-background/80 px-3 py-2.5 text-left shadow-sm transition-all hover:border-destructive/30 hover:bg-destructive/5"
+          ? "group flex min-h-[64px] w-full min-w-0 items-center justify-between gap-3 overflow-hidden rounded-xl border border-transparent px-3 py-2.5 text-left transition-all duration-200 hover:translate-x-1 hover:border-primary/25 hover:bg-background hover:shadow-sm"
+          : "group flex min-h-[64px] w-full min-w-0 items-center justify-between gap-3 overflow-hidden rounded-xl border border-primary/15 bg-background/80 px-3 py-2.5 text-left shadow-sm transition-all duration-200 hover:-translate-x-1 hover:border-destructive/30 hover:bg-destructive/5"
       }
     >
       <div className="min-w-0 flex-1">
@@ -564,7 +569,7 @@ export default function HarnessKitEditor({
           <span
             className={
               action === "add"
-                ? "text-muted-foreground group-hover:text-primary"
+                ? "text-muted-foreground group-hover:text-primary transition-colors duration-200"
                 : "text-primary"
             }
           >
@@ -581,11 +586,15 @@ export default function HarnessKitEditor({
       <span
         className={
           action === "add"
-            ? "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary opacity-0 transition-opacity group-hover:opacity-100"
-            : "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-destructive/10 text-destructive opacity-0 transition-opacity group-hover:opacity-100"
+            ? "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary opacity-0 scale-90 transition-all duration-200 group-hover:opacity-100 group-hover:scale-100"
+            : "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-destructive/10 text-destructive opacity-0 scale-90 transition-all duration-200 group-hover:opacity-100 group-hover:scale-100"
         }
       >
-        {action === "add" ? <ArrowRight size={15} /> : <ArrowLeft size={15} />}
+        {action === "add" ? (
+          <ArrowRight size={14} className="stroke-[2.5]" />
+        ) : (
+          <ArrowLeft size={14} className="stroke-[2.5]" />
+        )}
       </span>
     </button>
   );
@@ -606,10 +615,10 @@ export default function HarnessKitEditor({
         aria-disabled={isDisabled || undefined}
         className={
           isDisabled
-            ? "flex min-h-[64px] w-full min-w-0 items-center justify-between gap-3 overflow-hidden rounded-xl border border-border/30 bg-muted/30 px-3 py-2.5 text-left opacity-60"
+            ? "flex min-h-[64px] w-full min-w-0 items-center justify-between gap-3 overflow-hidden rounded-xl border border-dashed border-border/80 bg-muted/20 px-3 py-2.5 text-left opacity-70 cursor-default"
             : action === "add"
-              ? "group flex min-h-[64px] w-full min-w-0 items-center justify-between gap-3 overflow-hidden rounded-xl border border-transparent px-3 py-2.5 text-left transition-all hover:border-primary/25 hover:bg-background hover:shadow-sm"
-              : "group flex min-h-[64px] w-full min-w-0 items-center justify-between gap-3 overflow-hidden rounded-xl border border-primary/15 bg-background/80 px-3 py-2.5 text-left shadow-sm transition-all hover:border-destructive/30 hover:bg-destructive/5"
+              ? "group flex min-h-[64px] w-full min-w-0 items-center justify-between gap-3 overflow-hidden rounded-xl border border-transparent px-3 py-2.5 text-left transition-all duration-200 hover:translate-x-1 hover:border-primary/25 hover:bg-background hover:shadow-sm"
+              : "group flex min-h-[64px] w-full min-w-0 items-center justify-between gap-3 overflow-hidden rounded-xl border border-primary/15 bg-background/80 px-3 py-2.5 text-left shadow-sm transition-all duration-200 hover:-translate-x-1 hover:border-destructive/30 hover:bg-destructive/5"
         }
       >
         <div className="min-w-0 flex-1">
@@ -617,9 +626,9 @@ export default function HarnessKitEditor({
             <span
               className={
                 isDisabled
-                  ? "text-muted-foreground/50"
+                  ? "text-muted-foreground/45"
                   : action === "add"
-                    ? "text-muted-foreground group-hover:text-primary"
+                    ? "text-muted-foreground group-hover:text-primary transition-colors duration-200"
                     : "text-primary"
               }
             >
@@ -629,16 +638,31 @@ export default function HarnessKitEditor({
                 <Server size={15} aria-hidden="true" />
               )}
             </span>
-            <span className="truncate text-[13px] font-semibold text-foreground">
+            <span
+              className={
+                isDisabled
+                  ? "truncate text-[13px] font-semibold text-foreground/50"
+                  : "truncate text-[13px] font-semibold text-foreground"
+              }
+            >
               {candidate.name}
             </span>
             {action === "add" && !isDisabled && (
               <SourceBadge status={candidate.source_status} />
             )}
+            {isDisabled && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-muted/60 px-1.5 py-0.5 text-[9px] font-bold text-muted-foreground/80 border border-border/40">
+                Locked
+              </span>
+            )}
           </div>
           {isCovered ? (
-            <p className="mt-1 text-[11px] leading-4 text-muted-foreground">
-              Included in Extensions Kit: {coveredName}
+            <p className="mt-1.5 text-[10px] leading-relaxed text-muted-foreground/75 flex items-center gap-1.5">
+              <span className="w-1 h-1 rounded-full bg-violet-500/60 shrink-0" />
+              Included in Extensions Kit:{" "}
+              <strong className="font-semibold text-violet-600 dark:text-violet-400">
+                {coveredName}
+              </strong>
             </p>
           ) : (
             <p className="mt-1 max-w-full truncate text-[11px] leading-4 text-muted-foreground">
@@ -650,14 +674,14 @@ export default function HarnessKitEditor({
           <span
             className={
               action === "add"
-                ? "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary opacity-0 transition-opacity group-hover:opacity-100"
-                : "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-destructive/10 text-destructive opacity-0 transition-opacity group-hover:opacity-100"
+                ? "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary opacity-0 scale-90 transition-all duration-200 group-hover:opacity-100 group-hover:scale-100"
+                : "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-destructive/10 text-destructive opacity-0 scale-90 transition-all duration-200 group-hover:opacity-100 group-hover:scale-100"
             }
           >
             {action === "add" ? (
-              <ArrowRight size={15} />
+              <ArrowRight size={14} className="stroke-[2.5]" />
             ) : (
-              <ArrowLeft size={15} />
+              <ArrowLeft size={14} className="stroke-[2.5]" />
             )}
           </span>
         )}
@@ -665,20 +689,36 @@ export default function HarnessKitEditor({
     );
   };
 
+  const tabActiveStyles: Record<Tab, string> = {
+    "agent-config":
+      "bg-primary/10 text-primary border border-primary/20 shadow-inner",
+    "extensions-kit":
+      "bg-primary/10 text-primary border border-primary/20 shadow-inner",
+    skills: "bg-primary/10 text-primary border border-primary/20 shadow-inner",
+    mcp: "bg-primary/10 text-primary border border-primary/20 shadow-inner",
+  };
+
+  const tabBadgeStyles: Record<Tab, string> = {
+    "agent-config": "bg-primary/20 text-primary",
+    "extensions-kit": "bg-primary/20 text-primary",
+    skills: "bg-primary/20 text-primary",
+    mcp: "bg-primary/20 text-primary",
+  };
+
   return (
-    <div className="flex min-h-full flex-col gap-4">
+    <div className="flex min-h-full flex-col gap-5">
       <div className="grid gap-3 md:grid-cols-[0.9fr_1.1fr]">
-        <label className="grid gap-1.5 text-sm font-semibold">
+        <label className="grid gap-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">
           <span className="text-foreground/90">Name</span>
           <input
             aria-label="Name"
             value={name}
             placeholder="e.g. My Harness Kit"
             onChange={(event) => setName(event.target.value)}
-            className="rounded-xl border border-border bg-background px-3.5 py-2 text-sm outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/15"
+            className="rounded-xl border border-border bg-muted/20 hover:border-border/80 focus:bg-background px-3.5 py-2 text-sm outline-none transition-all duration-200 focus:border-primary/45 focus:ring-4 focus:ring-primary/10"
           />
         </label>
-        <label className="grid gap-1.5 text-sm font-semibold">
+        <label className="grid gap-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">
           <span className="text-foreground/90">Description</span>
           <textarea
             aria-label="Description"
@@ -686,13 +726,13 @@ export default function HarnessKitEditor({
             placeholder="Briefly describe what this Harness Kit does"
             onChange={(event) => setDescription(event.target.value)}
             rows={2}
-            className="resize-none rounded-xl border border-border bg-background px-3.5 py-2 text-sm outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/15"
+            className="resize-none rounded-xl border border-border bg-muted/20 hover:border-border/80 focus:bg-background px-3.5 py-2 text-sm outline-none transition-all duration-200 focus:border-primary/45 focus:ring-4 focus:ring-primary/10"
           />
         </label>
       </div>
 
       <section className="flex min-h-0 flex-1 flex-col rounded-2xl border border-border bg-muted/10">
-        <div className="flex flex-wrap items-center justify-between gap-2.5 border-b border-border bg-background/55 px-3.5 py-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-2.5 border-b border-border bg-background/55 px-4 py-2.5">
           <div className="flex gap-2">
             {tabs.map((tab) => {
               const Icon = tabIcons[tab];
@@ -703,47 +743,55 @@ export default function HarnessKitEditor({
                 selectedExtraIds,
                 tab,
               );
+              const isActive = activeTab === tab;
               return (
                 <button
                   key={tab}
                   type="button"
                   onClick={() => handleTabChange(tab)}
-                  className={
-                    activeTab === tab
-                      ? "inline-flex items-center gap-2 rounded-lg bg-primary px-3.5 py-1.5 text-sm font-semibold text-primary-foreground shadow-sm"
-                      : "inline-flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-sm font-semibold text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                  }
+                  className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-sm font-semibold transition-all duration-200 active:scale-95 ${
+                    isActive
+                      ? tabActiveStyles[tab]
+                      : "border border-transparent text-muted-foreground/80 hover:bg-muted/50 hover:text-foreground"
+                  }`}
                 >
-                  <Icon size={15} />
+                  <Icon size={14} className="stroke-[2]" />
                   {tabLabels[tab]}
-                  <span className="rounded-full bg-background/20 px-1.5 text-[10px]">
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                      isActive
+                        ? tabBadgeStyles[tab]
+                        : "bg-muted text-muted-foreground"
+                    }`}
+                  >
                     {count}
                   </span>
                 </button>
               );
             })}
           </div>
-          <div className="text-sm font-semibold text-muted-foreground">
+          <div className="text-xs font-bold tracking-wide uppercase text-muted-foreground/75">
             Added{" "}
-            <span className="text-foreground">{totalSelected} assets</span>
+            <span className="text-foreground font-bold">{totalSelected}</span>{" "}
+            assets
           </div>
         </div>
 
-        <div className="grid min-h-0 flex-1 gap-4 p-3 lg:grid-cols-2">
+        <div className="grid min-h-0 flex-1 gap-4 p-4 lg:grid-cols-2">
           {/* Available (left column) */}
-          <div className="flex min-h-0 min-w-0 flex-col rounded-2xl border border-border/70 bg-card/65 shadow-sm">
-            <div className="border-b border-border/70 p-2.5">
-              <div className="mb-1.5 flex items-center justify-between">
-                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+          <div className="flex min-h-0 min-w-0 flex-col">
+            <div className="border-b border-border/60 pb-3 pt-1">
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                   Available Assets
                 </p>
-                <span className="text-xs text-muted-foreground">
+                <span className="text-xs font-medium text-muted-foreground/75">
                   {availableItems.length} available
                 </span>
               </div>
               <div className="relative">
                 <Search
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/50"
                   size={15}
                 />
                 <input
@@ -751,32 +799,32 @@ export default function HarnessKitEditor({
                   placeholder={`Search available ${tabLabels[activeTab]} by name`}
                   value={searchAvailable}
                   onChange={(event) => setSearchAvailable(event.target.value)}
-                  className="w-full rounded-lg border border-border bg-background py-1.5 pl-8.5 pr-3 text-sm outline-none transition-colors focus:border-primary"
+                  className="w-full rounded-xl border border-border bg-background py-1.5 pl-9 pr-3 text-sm outline-none transition-all duration-200 focus:border-primary/45 focus:ring-4 focus:ring-primary/10"
                 />
               </div>
             </div>
-            <div className="min-h-[192px] flex-1 p-1.5">
+            <div className="min-h-[192px] flex-1 p-2">
               {candidateLoading ? (
-                <div className="flex h-full min-h-[192px] flex-col items-center justify-center rounded-xl border border-dashed border-border/80 bg-background/45 px-5 text-center">
-                  <div className="mb-2.5 flex h-10 w-10 items-center justify-center rounded-2xl border border-border bg-card text-muted-foreground shadow-sm">
-                    <Layers3 size={20} />
+                <div className="flex h-full min-h-[192px] flex-col items-center justify-center rounded-2xl border border-dashed border-border/80 bg-muted/5 px-5 py-6 text-center">
+                  <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-2xl border border-primary/10 bg-primary/5 text-primary/70 animate-pulse">
+                    <Layers3 size={18} className="stroke-[1.5]" />
                   </div>
-                  <p className="text-sm font-semibold text-foreground">
+                  <p className="text-xs font-bold text-foreground">
                     Loading assets
                   </p>
-                  <p className="mt-1 max-w-56 text-xs leading-5 text-muted-foreground">
+                  <p className="mt-1 max-w-[200px] text-[10px] leading-relaxed text-muted-foreground/70">
                     Scanning Local Hub and Extensions.
                   </p>
                 </div>
               ) : availableItems.length === 0 ? (
-                <div className="flex h-full min-h-[192px] flex-col items-center justify-center rounded-xl border border-dashed border-border/80 bg-background/45 px-5 text-center">
-                  <div className="mb-2.5 flex h-10 w-10 items-center justify-center rounded-2xl border border-border bg-card text-muted-foreground shadow-sm">
-                    <Layers3 size={20} />
+                <div className="flex h-full min-h-[192px] flex-col items-center justify-center rounded-2xl border border-dashed border-border/80 bg-muted/5 px-5 py-6 text-center">
+                  <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-2xl border border-primary/10 bg-primary/5 text-primary/70">
+                    <Layers3 size={18} className="stroke-[1.5]" />
                   </div>
-                  <p className="text-sm font-semibold text-foreground">
+                  <p className="text-xs font-bold text-foreground">
                     No assets found
                   </p>
-                  <p className="mt-1 max-w-56 text-xs leading-5 text-muted-foreground">
+                  <p className="mt-1 max-w-[200px] text-[10px] leading-relaxed text-muted-foreground/70">
                     Try a different name search or switch tabs.
                   </p>
                 </div>
@@ -829,19 +877,19 @@ export default function HarnessKitEditor({
           </div>
 
           {/* Selected (right column) */}
-          <div className="flex min-h-0 min-w-0 flex-col rounded-2xl border border-primary/15 bg-primary/5 shadow-sm">
-            <div className="border-b border-primary/15 p-2.5">
-              <div className="mb-1.5 flex items-center justify-between">
-                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+          <div className="flex min-h-0 min-w-0 flex-col">
+            <div className="border-b border-border/60 pb-3 pt-1">
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-primary">
                   Added Assets
                 </p>
-                <span className="text-xs text-muted-foreground">
+                <span className="text-xs font-medium text-primary/80">
                   {selectedItems.length} shown
                 </span>
               </div>
               <div className="relative">
                 <Search
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-primary/40"
                   size={15}
                 />
                 <input
@@ -849,20 +897,20 @@ export default function HarnessKitEditor({
                   placeholder={`Search added ${tabLabels[activeTab]} by name`}
                   value={searchSelected}
                   onChange={(event) => setSearchSelected(event.target.value)}
-                  className="w-full rounded-lg border border-border bg-background py-1.5 pl-8.5 pr-3 text-sm outline-none transition-colors focus:border-primary"
+                  className="w-full rounded-xl border border-primary/15 bg-background py-1.5 pl-9 pr-3 text-sm outline-none transition-all duration-200 focus:border-primary/45 focus:ring-4 focus:ring-primary/10"
                 />
               </div>
             </div>
-            <div className="min-h-[192px] flex-1 p-1.5">
+            <div className="min-h-[192px] flex-1 p-2">
               {selectedItems.length === 0 ? (
-                <div className="flex h-full min-h-[192px] flex-col items-center justify-center rounded-xl border border-dashed border-border/80 bg-background/45 px-5 text-center">
-                  <div className="mb-2.5 flex h-10 w-10 items-center justify-center rounded-2xl border border-border bg-card text-muted-foreground shadow-sm">
-                    <Layers3 size={20} />
+                <div className="flex h-full min-h-[192px] flex-col items-center justify-center rounded-2xl border border-dashed border-primary/15 bg-muted/5 px-5 py-6 text-center">
+                  <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-2xl border border-primary/15 bg-primary/5 text-primary">
+                    <Plus size={18} className="stroke-[2.5]" />
                   </div>
-                  <p className="text-sm font-semibold text-foreground">
+                  <p className="text-xs font-bold text-foreground">
                     No added assets
                   </p>
-                  <p className="mt-1 max-w-56 text-xs leading-5 text-muted-foreground">
+                  <p className="mt-1 max-w-[200px] text-[10px] leading-relaxed text-muted-foreground/70">
                     Choose assets from the left panel to add them to this
                     Harness Kit.
                   </p>
@@ -912,10 +960,10 @@ export default function HarnessKitEditor({
         </div>
       </section>
 
-      <div className="flex items-center justify-between gap-3 border-t border-border pt-3">
+      <div className="flex items-center justify-between gap-3 border-t border-border pt-4">
         <div className="min-h-5 flex-1">
           {formError && (
-            <p className="text-sm font-semibold text-destructive">
+            <p className="text-xs font-bold tracking-tight text-destructive">
               {formError}
             </p>
           )}
@@ -923,7 +971,7 @@ export default function HarnessKitEditor({
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-xl px-4 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          className="rounded-xl px-5 py-2.5 text-sm font-semibold text-muted-foreground transition-all duration-200 hover:bg-muted hover:text-foreground active:scale-95"
         >
           Cancel
         </button>
@@ -931,7 +979,7 @@ export default function HarnessKitEditor({
           type="button"
           onClick={() => void handleSubmit()}
           disabled={!name.trim() || totalSelected === 0 || saving}
-          className="rounded-xl bg-primary px-5 py-2 text-sm font-bold text-primary-foreground shadow-md transition-all hover:bg-primary/90 hover:shadow-lg active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50"
+          className="rounded-xl bg-primary px-6 py-2.5 text-sm font-bold text-primary-foreground shadow-md transition-all duration-200 hover:bg-primary/95 hover:shadow-lg hover:shadow-primary/5 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40"
         >
           {saving ? "Saving..." : "Save Harness Kit"}
         </button>
@@ -944,10 +992,10 @@ export default function HarnessKitEditor({
           aria-label="Asset preview"
           onMouseEnter={clearTooltipHideTimer}
           onMouseLeave={scheduleTooltipHide}
-          className="fixed z-[100] w-60 rounded-xl border border-border bg-card px-2.5 py-2 shadow-xl"
+          className="fixed z-[100] w-64 rounded-2xl border border-border/80 bg-card/95 backdrop-blur-md px-3.5 py-3 shadow-2xl animate-in fade-in zoom-in-95 duration-150"
           style={{
-            left: Math.min(tooltip.rect.left, window.innerWidth - 256),
-            top: Math.min(tooltip.rect.bottom + 4, window.innerHeight - 236),
+            left: Math.min(tooltip.rect.left, window.innerWidth - 272),
+            top: Math.min(tooltip.rect.bottom + 4, window.innerHeight - 256),
           }}
         >
           {tooltip.type === "agent-config"
@@ -959,27 +1007,16 @@ export default function HarnessKitEditor({
                 );
                 return (
                   <>
-                    <p className="text-xs font-semibold text-foreground">
+                    <p className="text-sm font-bold tracking-tight text-foreground">
                       {d.template_name}
                     </p>
-                    <p className="mt-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">
-                      Template ID
-                    </p>
-                    <p className="mt-0.5 text-[11px] font-mono leading-4 text-muted-foreground break-all">
-                      {d.template_id}
-                    </p>
-                    <div className="mt-2 border-t border-border pt-2">
-                      <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">
-                        File Content
-                      </p>
-                      <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap rounded-lg bg-muted/35 px-2 py-1.5 text-[11px] leading-4 text-foreground/85">
-                        {loadingPreview
-                          ? "Loading content..."
-                          : preview
-                            ? getAgentConfigPreviewSnippet(preview)
-                            : "No content available."}
-                      </pre>
-                    </div>
+                    <pre className="mt-2 max-h-36 overflow-auto whitespace-pre-wrap text-[10px] font-mono leading-relaxed text-black dark:text-white">
+                      {loadingPreview
+                        ? "Loading content..."
+                        : preview
+                          ? getAgentConfigPreviewSnippet(preview)
+                          : "No content available."}
+                    </pre>
                   </>
                 );
               })()
@@ -994,34 +1031,37 @@ export default function HarnessKitEditor({
                 const maxItems = 6;
                 return (
                   <>
-                    <p className="text-xs font-semibold text-foreground">
+                    <p className="text-sm font-bold tracking-tight text-foreground">
                       {d.name}
                     </p>
                     {d.description && (
-                      <p className="mt-0.5 line-clamp-2 text-[11px] leading-4 text-muted-foreground">
+                      <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-muted-foreground/80">
                         {d.description}
                       </p>
                     )}
                     {skills.length > 0 && (
-                      <div className="mt-2 border-t border-border pt-2">
-                        <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">
-                          Skills ({skills.length})
+                      <div className="mt-2.5 border-t border-border/60 pt-2">
+                        <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/75 flex items-center justify-between">
+                          <span>Skills</span>
+                          <span className="text-xs text-primary font-bold">
+                            {skills.length}
+                          </span>
                         </p>
                         <ul className="mt-1 space-y-0.5">
                           {skills.slice(0, maxItems).map((s) => (
                             <li
                               key={s.hub_extension_id}
-                              className="flex items-center gap-1.5 text-[11px] text-foreground/80"
+                              className="flex items-center gap-1.5 text-[11px] text-foreground/85"
                             >
                               <Blocks
-                                size={10}
-                                className="shrink-0 text-muted-foreground"
+                                size={11}
+                                className="shrink-0 text-primary stroke-[1.8]"
                               />
                               <span className="truncate">{s.asset_name}</span>
                             </li>
                           ))}
                           {skills.length > maxItems && (
-                            <li className="text-[11px] text-muted-foreground">
+                            <li className="pl-4 text-[10px] text-muted-foreground font-semibold">
                               +{skills.length - maxItems} more
                             </li>
                           )}
@@ -1029,25 +1069,28 @@ export default function HarnessKitEditor({
                       </div>
                     )}
                     {mcps.length > 0 && (
-                      <div className="mt-2 border-t border-border pt-2">
-                        <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">
-                          MCP ({mcps.length})
+                      <div className="mt-2.5 border-t border-border/60 pt-2">
+                        <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/75 flex items-center justify-between">
+                          <span>MCP Components</span>
+                          <span className="text-xs text-[var(--kind-mcp)] font-bold">
+                            {mcps.length}
+                          </span>
                         </p>
                         <ul className="mt-1 space-y-0.5">
                           {mcps.slice(0, maxItems).map((m) => (
                             <li
                               key={m.hub_extension_id}
-                              className="flex items-center gap-1.5 text-[11px] text-foreground/80"
+                              className="flex items-center gap-1.5 text-[11px] text-foreground/85"
                             >
                               <Server
-                                size={10}
-                                className="shrink-0 text-muted-foreground"
+                                size={11}
+                                className="shrink-0 text-[var(--kind-mcp)] stroke-[1.8]"
                               />
                               <span className="truncate">{m.asset_name}</span>
                             </li>
                           ))}
                           {mcps.length > maxItems && (
-                            <li className="text-[11px] text-muted-foreground">
+                            <li className="pl-4 text-[10px] text-muted-foreground font-semibold">
                               +{mcps.length - maxItems} more
                             </li>
                           )}
@@ -1055,7 +1098,7 @@ export default function HarnessKitEditor({
                       </div>
                     )}
                     {skills.length === 0 && mcps.length === 0 && (
-                      <p className="mt-2 text-[11px] text-muted-foreground">
+                      <p className="mt-2.5 text-[11px] text-muted-foreground/70 italic">
                         Assets not loaded yet
                       </p>
                     )}

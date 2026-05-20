@@ -828,8 +828,8 @@ export default function HarnessKitPage() {
                 </div>
 
                 <div className="grid min-h-0 flex-1 gap-6 p-4 lg:grid-cols-2">
-                  <div className="flex min-h-0 min-w-0 flex-col rounded-2xl border border-border/70 bg-card/65 shadow-sm">
-                    <div className="border-b border-border/70 p-3">
+                  <div className="flex min-h-0 min-w-0 flex-col">
+                    <div className="border-b border-border/60 pb-3 pt-1">
                       <div className="mb-2 flex items-center justify-between">
                         <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                           Existing Assets
@@ -886,8 +886,8 @@ export default function HarnessKitPage() {
                     </div>
                   </div>
 
-                  <div className="flex min-h-0 min-w-0 flex-col rounded-2xl border border-primary/15 bg-primary/5 shadow-sm">
-                    <div className="border-b border-primary/15 p-3">
+                  <div className="flex min-h-0 min-w-0 flex-col">
+                    <div className="border-b border-border/60 pb-3 pt-1">
                       <div className="mb-2 flex items-center justify-between">
                         <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                           Added Assets

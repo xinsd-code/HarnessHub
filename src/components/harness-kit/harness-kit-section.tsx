@@ -1,13 +1,4 @@
-import {
-  Blocks,
-  FileText,
-  Layers3,
-  Plus,
-  Search,
-  Server,
-  Trash2,
-  X,
-} from "lucide-react";
+import { Blocks, Layers3, Plus, Search, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { HarnessKitDetailDrawer } from "@/components/harness-kit/harness-kit-detail-drawer";
 import HarnessKitEditor from "@/components/harness-kit/harness-kit-editor";
@@ -131,13 +122,13 @@ export function HarnessKitSection({
   };
 
   return (
-    <div className="space-y-5 px-6 pt-6 pb-4">
+    <div className="space-y-6 px-6 pt-6 pb-4">
       <header className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
+          <h2 className="text-3xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/80">
             Harness Kit
           </h2>
-          <p className="mt-1.5 text-[14px] text-muted-foreground/80">
+          <p className="mt-1.5 text-[14px] text-muted-foreground/80 leading-relaxed">
             Combine Agent Configs, Extensions Kits, Skills, and MCP into one
             traceable Harness Kit.
           </p>
@@ -145,9 +136,9 @@ export function HarnessKitSection({
         <button
           type="button"
           onClick={() => setCreating(true)}
-          className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-border/60 bg-card/60 px-3 py-1.5 text-[12px] font-semibold shadow-sm backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:bg-card/90 hover:shadow-md"
+          className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl border border-primary/20 bg-card px-4 py-2 text-xs font-bold text-foreground shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-md hover:shadow-primary/5 active:scale-[0.98]"
         >
-          <Plus size={14} className="text-primary" />
+          <Plus size={14} className="text-primary stroke-[2.5]" />
           New Harness Kit
         </button>
       </header>
@@ -156,16 +147,16 @@ export function HarnessKitSection({
         <div className="relative min-w-64 flex-1 group">
           <Search
             size={16}
-            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/60 transition-colors group-focus-within:text-primary"
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 transition-colors group-focus-within:text-primary"
           />
           <input
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
-            className="h-10 w-full rounded-xl border border-border/60 bg-card/40 pl-10 pr-4 text-sm shadow-sm outline-none backdrop-blur-sm transition-all focus:border-primary/50 focus:bg-card focus:ring-2 focus:ring-primary/20"
+            className="h-10 w-full rounded-xl border border-border bg-card/45 pl-10 pr-4 text-sm shadow-sm outline-none backdrop-blur-md transition-all duration-200 focus:border-primary/45 focus:bg-card focus:ring-4 focus:ring-primary/10"
             placeholder="Search harness kits by name..."
           />
         </div>
-        <span className="ml-auto pl-4 text-sm font-medium text-muted-foreground/80 shrink-0">
+        <span className="ml-auto pl-4 text-xs font-semibold text-muted-foreground/70 tracking-wide uppercase shrink-0">
           {filteredKits.length}{" "}
           {filteredKits.length === 1 ? "result" : "results"}
         </span>
@@ -175,7 +166,7 @@ export function HarnessKitSection({
         <div
           role="status"
           aria-live="polite"
-          className="rounded-xl border border-border bg-card p-8 text-sm text-muted-foreground shadow-sm"
+          className="rounded-2xl border border-border bg-card/75 p-12 text-center text-sm text-muted-foreground shadow-sm backdrop-blur-sm animate-pulse"
         >
           Loading Harness Kits...
         </div>
@@ -183,18 +174,25 @@ export function HarnessKitSection({
         <div
           role="status"
           aria-live="polite"
-          className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card/50 py-16 text-sm text-muted-foreground"
+          className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/80 bg-muted/10 py-16 px-6 text-center transition-all"
         >
-          <Blocks className="mb-4 h-12 w-12 text-muted-foreground/30" />
-          <p>
+          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-primary/10 bg-primary/5 text-primary shadow-sm">
+            <Blocks className="h-7 w-7 text-primary/70 stroke-[1.5]" />
+          </div>
+          <p className="text-sm font-bold text-foreground">
             {searchQuery.trim()
-              ? "No Harness Kits found."
-              : "No Harness Kits yet."}
+              ? "No Harness Kits found"
+              : "No Harness Kits yet"}
+          </p>
+          <p className="mt-1 max-w-xs text-xs leading-relaxed text-muted-foreground/80">
+            {searchQuery.trim()
+              ? "Try adjusting your keywords or search query."
+              : "Group your agent assets to deploy them across projects smoothly."}
           </p>
           <button
             type="button"
             onClick={() => setCreating(true)}
-            className="mt-4 font-medium text-primary hover:underline"
+            className="mt-5 inline-flex items-center gap-1 rounded-xl bg-primary/10 hover:bg-primary/15 border border-primary/20 px-4 py-2 text-xs font-bold text-primary transition-all active:scale-95"
           >
             Create your first Harness Kit
           </button>
@@ -205,21 +203,22 @@ export function HarnessKitSection({
             <article
               key={kit.id}
               onClick={() => void openKitDetails(kit)}
-              className="group relative flex min-h-44 cursor-pointer flex-col overflow-hidden rounded-2xl border border-border/60 bg-card p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-xl"
+              className="group relative flex min-h-48 cursor-pointer flex-col overflow-hidden rounded-2xl border border-border/60 bg-card/90 p-5 shadow-sm backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/45 hover:shadow-lg hover:shadow-primary/5"
             >
-              <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary via-[var(--kind-mcp)] to-transparent opacity-80" />
-              <div className="absolute right-4 top-4 h-16 w-16 rounded-full bg-primary/8 blur-2xl transition-opacity group-hover:opacity-80" />
+              <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-primary via-[var(--kind-mcp)] to-transparent opacity-85 transition-all duration-300 group-hover:h-[4px]" />
+              <div className="absolute right-4 top-4 h-16 w-16 rounded-full bg-primary/6 blur-2xl transition-opacity duration-300 group-hover:opacity-100" />
+
               <div className="relative flex flex-1 flex-col">
                 <div className="flex items-start justify-between gap-3">
-                  <div className="flex min-w-0 items-start gap-3">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-primary/15 bg-primary/10 text-primary shadow-inner">
-                      <Layers3 size={21} />
+                  <div className="flex min-w-0 items-start gap-3.5">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-primary/15 bg-primary/10 text-primary shadow-inner transition-transform duration-300 group-hover:scale-105">
+                      <Layers3 size={20} className="stroke-[1.5]" />
                     </div>
                     <div className="min-w-0">
-                      <h3 className="truncate text-base font-bold text-foreground transition-colors group-hover:text-primary">
+                      <h3 className="truncate text-base font-bold text-foreground tracking-tight transition-colors duration-200 group-hover:text-primary">
                         {kit.name}
                       </h3>
-                      <p className="mt-1 line-clamp-2 min-h-10 text-xs leading-5 text-muted-foreground">
+                      <p className="mt-1 line-clamp-2 min-h-[36px] text-xs leading-relaxed text-muted-foreground/80">
                         {kit.description || "No description provided."}
                       </p>
                     </div>
@@ -237,27 +236,27 @@ export function HarnessKitSection({
                         void deleteHarnessKit(kit.id);
                       }
                     }}
-                    className="rounded-lg p-2 text-muted-foreground opacity-0 transition-all hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
+                    className="rounded-lg p-2 text-muted-foreground/60 opacity-0 transform scale-90 translate-x-1 transition-all duration-300 hover:bg-destructive/15 hover:text-destructive hover:scale-105 group-hover:opacity-100 group-hover:scale-100 group-hover:translate-x-0"
                   >
-                    <Trash2 size={16} />
+                    <Trash2 size={15} />
                   </button>
                 </div>
 
-                <div className="mt-auto flex flex-wrap gap-2 pt-5 text-[11px] font-semibold">
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/80 px-2.5 py-1 text-foreground shadow-sm">
-                    <FileText size={12} className="text-primary" />
+                <div className="mt-auto flex flex-wrap gap-2 pt-5 text-[10px] font-bold tracking-wide">
+                  <span className="inline-flex items-center gap-1.5 rounded-lg border border-primary/20 bg-primary/5 px-2.5 py-1 text-primary">
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary/80 shrink-0" />
                     Agent Config {kit.agent_config_count}
                   </span>
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/80 px-2.5 py-1 text-foreground shadow-sm">
-                    <Layers3 size={12} className="text-primary" />
+                  <span className="inline-flex items-center gap-1.5 rounded-lg border border-primary/20 bg-primary/5 px-2.5 py-1 text-primary">
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary/80 shrink-0" />
                     Extensions Kit {kit.extensions_kit_count}
                   </span>
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/80 px-2.5 py-1 text-foreground shadow-sm">
-                    <Blocks size={12} className="text-primary" />
+                  <span className="inline-flex items-center gap-1.5 rounded-lg border border-primary/20 bg-primary/5 px-2.5 py-1 text-primary">
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary/80 shrink-0" />
                     Skills {kit.skills_count}
                   </span>
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/80 px-2.5 py-1 text-foreground shadow-sm">
-                    <Server size={12} className="text-primary" />
+                  <span className="inline-flex items-center gap-1.5 rounded-lg border border-primary/20 bg-primary/5 px-2.5 py-1 text-primary">
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary/80 shrink-0" />
                     MCP {kit.mcp_count}
                   </span>
                 </div>
