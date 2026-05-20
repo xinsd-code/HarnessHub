@@ -17,6 +17,7 @@ import {
 import type { ElementType } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { AgentConfigHubPage } from "@/components/agent-config-hub/agent-config-hub-page";
+import { HarnessKitSection } from "@/components/harness-kit/harness-kit-section";
 import { ProjectInstallPanel } from "@/components/shared/project-install-panel";
 import { canInstallAtScope } from "@/lib/agent-capabilities";
 import type {
@@ -43,7 +44,7 @@ import { useKitStore } from "@/stores/kit-store";
 import { useProjectStore } from "@/stores/project-store";
 
 type KitTab = "skill" | "mcp";
-type HarnessKitSection = "agent-config" | "extensions-kit";
+type HarnessKitSection = "harness-kit" | "agent-config" | "extensions-kit";
 
 const tabs: Array<{ key: KitTab; label: string; icon: ElementType }> = [
   { key: "skill", label: "Skills", icon: Blocks },
@@ -191,7 +192,7 @@ function EmptyList({ title, subtitle }: { title: string; subtitle: string }) {
 
 export default function HarnessKitPage() {
   const [activeSection, setActiveSection] =
-    useState<HarnessKitSection>("extensions-kit");
+    useState<HarnessKitSection>("harness-kit");
   const kits = useKitStore((s) => s.kits);
   const candidates = useKitStore((s) => s.candidates);
   const loading = useKitStore((s) => s.loading);
@@ -520,6 +521,135 @@ export default function HarnessKitPage() {
     setFormError(null);
   };
 
+  function ExtensionsKitContent() {
+    return (
+      <main className="min-w-0 flex-1 min-h-0 space-y-5 px-6 pt-6 pb-4">
+        <header className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-3xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
+              Extensions Kit
+            </h2>
+            <p className="mt-1.5 text-[14px] text-muted-foreground/80">
+              一个组合的 Skills、MCP，形成可追溯的 Kit 清单。保存前自动把未在
+              Local Hub 的资产同步进去。
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowCreate(true)}
+            className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-border/60 bg-card/60 px-3 py-1.5 text-[12px] font-semibold shadow-sm backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:bg-card/90 hover:shadow-md"
+          >
+            <Plus size={14} className="text-primary" />
+            New Extensions Kit
+          </button>
+        </header>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative min-w-64 flex-1 group">
+            <Search
+              size={16}
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/60 transition-colors group-focus-within:text-primary"
+            />
+            <input
+              value={searchKitQuery}
+              onChange={(event) => setSearchKitQuery(event.target.value)}
+              className="h-10 w-full rounded-xl border border-border/60 bg-card/40 pl-10 pr-4 text-sm shadow-sm outline-none backdrop-blur-sm transition-all focus:border-primary/50 focus:bg-card focus:ring-2 focus:ring-primary/20"
+              placeholder="Search kits by name..."
+            />
+          </div>
+          <span className="ml-auto pl-4 text-sm font-medium text-muted-foreground/80 shrink-0">
+            {filteredKits.length}{" "}
+            {filteredKits.length === 1 ? "result" : "results"}
+          </span>
+        </div>
+
+        {loading && filteredKits.length === 0 ? (
+          <div
+            role="status"
+            aria-live="polite"
+            className="rounded-xl border border-border bg-card p-8 text-sm text-muted-foreground shadow-sm"
+          >
+            Loading Kits...
+          </div>
+        ) : filteredKits.length === 0 ? (
+          <div
+            role="status"
+            aria-live="polite"
+            className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card/50 py-16 text-sm text-muted-foreground"
+          >
+            <Blocks className="mb-4 h-12 w-12 text-muted-foreground/30" />
+            <p>{searchKitQuery.trim() ? "No Kits found." : "No Kits yet."}</p>
+            <button
+              type="button"
+              onClick={() => setShowCreate(true)}
+              className="mt-4 font-medium text-primary hover:underline"
+            >
+              Create your first Kit
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
+            {filteredKits.map((kit) => (
+              <article
+                key={kit.id}
+                onClick={() => void openKitDetails(kit)}
+                className="group relative flex min-h-44 cursor-pointer flex-col overflow-hidden rounded-2xl border border-border/60 bg-card p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-xl"
+              >
+                <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary via-[var(--kind-mcp)] to-transparent opacity-80" />
+                <div className="absolute right-4 top-4 h-16 w-16 rounded-full bg-primary/8 blur-2xl transition-opacity group-hover:opacity-80" />
+                <div className="relative flex flex-1 flex-col">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 items-start gap-3">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-primary/15 bg-primary/10 text-primary shadow-inner">
+                        <Layers3 size={21} />
+                      </div>
+                      <div className="min-w-0">
+                        <h3 className="truncate text-base font-bold text-foreground transition-colors group-hover:text-primary">
+                          {kit.name}
+                        </h3>
+                        <p className="mt-1 line-clamp-2 min-h-10 text-xs leading-5 text-muted-foreground">
+                          {kit.description || "No description provided."}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      aria-label={`Delete ${kit.name}`}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        if (
+                          window.confirm(
+                            `Delete ${kit.name}? Local Hub assets will be preserved.`,
+                          )
+                        ) {
+                          void deleteKit(kit.id);
+                        }
+                      }}
+                      className="rounded-lg p-2 text-muted-foreground opacity-0 transition-all hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+
+                  <div className="mt-auto flex flex-wrap gap-2 pt-5 text-[11px] font-semibold">
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/80 px-2.5 py-1 text-foreground shadow-sm">
+                      <Blocks size={12} className="text-primary" />
+                      Skills {kit.skills_count}
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/80 px-2.5 py-1 text-foreground shadow-sm">
+                      <Server size={12} className="text-primary" />
+                      MCP {kit.mcp_count}
+                    </span>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </main>
+    );
+  }
+
   return (
     <div className="flex min-h-0 flex-1 gap-5">
       <aside className="w-44 shrink-0 border-r border-border pr-3">
@@ -528,11 +658,22 @@ export default function HarnessKitPage() {
         </div>
         <button
           type="button"
+          onClick={() => setActiveSection("harness-kit")}
+          className={
+            activeSection === "harness-kit"
+              ? "w-full rounded-lg bg-accent px-3 py-2 text-left text-sm font-semibold text-foreground shadow-sm"
+              : "w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground"
+          }
+        >
+          Harness Kit
+        </button>
+        <button
+          type="button"
           onClick={() => setActiveSection("agent-config")}
           className={
             activeSection === "agent-config"
-              ? "w-full rounded-lg bg-accent px-3 py-2 text-left text-sm font-semibold text-foreground shadow-sm"
-              : "w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground"
+              ? "mt-1 w-full rounded-lg bg-accent px-3 py-2 text-left text-sm font-semibold text-foreground shadow-sm"
+              : "mt-1 w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground"
           }
         >
           Agent Config
@@ -550,135 +691,16 @@ export default function HarnessKitPage() {
         </button>
       </aside>
 
-      {activeSection === "agent-config" ? (
+      {activeSection === "harness-kit" ? (
+        <main className="min-w-0 flex-1 min-h-0 pb-4">
+          <HarnessKitSection />
+        </main>
+      ) : activeSection === "agent-config" ? (
         <main className="min-w-0 flex-1 min-h-0 pb-4">
           <AgentConfigHubPage />
         </main>
       ) : (
-        <main className="min-w-0 flex-1 min-h-0 space-y-5 px-6 pt-6 pb-4">
-          <header className="flex items-start justify-between gap-4">
-            <div>
-              <h2 className="text-3xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
-                Extensions Kit
-              </h2>
-              <p className="mt-1.5 text-[14px] text-muted-foreground/80">
-                一个组合的 Skills、MCP，形成可追溯的 Kit 清单。保存前自动把未在
-                Local Hub 的资产同步进去。
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowCreate(true)}
-              className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-border/60 bg-card/60 px-3 py-1.5 text-[12px] font-semibold shadow-sm backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:bg-card/90 hover:shadow-md"
-            >
-              <Plus size={14} className="text-primary" />
-              New Extensions Kit
-            </button>
-          </header>
-
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="relative min-w-64 flex-1 group">
-              <Search
-                size={16}
-                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/60 transition-colors group-focus-within:text-primary"
-              />
-              <input
-                value={searchKitQuery}
-                onChange={(event) => setSearchKitQuery(event.target.value)}
-                className="h-10 w-full rounded-xl border border-border/60 bg-card/40 pl-10 pr-4 text-sm shadow-sm outline-none backdrop-blur-sm transition-all focus:border-primary/50 focus:bg-card focus:ring-2 focus:ring-primary/20"
-                placeholder="Search kits by name..."
-              />
-            </div>
-            <span className="ml-auto pl-4 text-sm font-medium text-muted-foreground/80 shrink-0">
-              {filteredKits.length}{" "}
-              {filteredKits.length === 1 ? "result" : "results"}
-            </span>
-          </div>
-
-          {loading && filteredKits.length === 0 ? (
-            <div
-              role="status"
-              aria-live="polite"
-              className="rounded-xl border border-border bg-card p-8 text-sm text-muted-foreground shadow-sm"
-            >
-              Loading Kits...
-            </div>
-          ) : filteredKits.length === 0 ? (
-            <div
-              role="status"
-              aria-live="polite"
-              className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card/50 py-16 text-sm text-muted-foreground"
-            >
-              <Blocks className="mb-4 h-12 w-12 text-muted-foreground/30" />
-              <p>{searchKitQuery.trim() ? "No Kits found." : "No Kits yet."}</p>
-              <button
-                type="button"
-                onClick={() => setShowCreate(true)}
-                className="mt-4 font-medium text-primary hover:underline"
-              >
-                Create your first Kit
-              </button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
-              {filteredKits.map((kit) => (
-                <article
-                  key={kit.id}
-                  onClick={() => void openKitDetails(kit)}
-                  className="group relative flex min-h-44 cursor-pointer flex-col overflow-hidden rounded-2xl border border-border/60 bg-card p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-xl"
-                >
-                  <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary via-[var(--kind-mcp)] to-transparent opacity-80" />
-                  <div className="absolute right-4 top-4 h-16 w-16 rounded-full bg-primary/8 blur-2xl transition-opacity group-hover:opacity-80" />
-                  <div className="relative flex flex-1 flex-col">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex min-w-0 items-start gap-3">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-primary/15 bg-primary/10 text-primary shadow-inner">
-                          <Layers3 size={21} />
-                        </div>
-                        <div className="min-w-0">
-                          <h3 className="truncate text-base font-bold text-foreground transition-colors group-hover:text-primary">
-                            {kit.name}
-                          </h3>
-                          <p className="mt-1 line-clamp-2 min-h-10 text-xs leading-5 text-muted-foreground">
-                            {kit.description || "No description provided."}
-                          </p>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        aria-label={`Delete ${kit.name}`}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          if (
-                            window.confirm(
-                              `Delete ${kit.name}? Local Hub assets will be preserved.`,
-                            )
-                          ) {
-                            void deleteKit(kit.id);
-                          }
-                        }}
-                        className="rounded-lg p-2 text-muted-foreground opacity-0 transition-all hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-
-                    <div className="mt-auto flex flex-wrap gap-2 pt-5 text-[11px] font-semibold">
-                      <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/80 px-2.5 py-1 text-foreground shadow-sm">
-                        <Blocks size={12} className="text-primary" />
-                        Skills {kit.skills_count}
-                      </span>
-                      <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/80 px-2.5 py-1 text-foreground shadow-sm">
-                        <Server size={12} className="text-primary" />
-                        MCP {kit.mcp_count}
-                      </span>
-                    </div>
-                  </div>
-                </article>
-              ))}
-            </div>
-          )}
-        </main>
+        <ExtensionsKitContent />
       )}
 
       {showCreate && (
