@@ -234,6 +234,29 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          function Invoke-GhReleaseUploadWithRetry {
+            param(
+              [Parameter(Mandatory = $true)][string]$Tag,
+              [Parameter(Mandatory = $true)][string]$Asset
+            )
+
+            $maxAttempts = 5
+            for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+              gh release upload $Tag $Asset --clobber
+              if ($LASTEXITCODE -eq 0) {
+                return
+              }
+
+              if ($attempt -eq $maxAttempts) {
+                throw "Failed to upload $Asset after $maxAttempts attempts"
+              }
+
+              $delaySeconds = 10 * $attempt
+              Write-Warning "Upload failed for $Asset on attempt $attempt/$maxAttempts. Retrying in $delaySeconds seconds."
+              Start-Sleep -Seconds $delaySeconds
+            }
+          }
+
           $bundleRoot = "target/x86_64-pc-windows-msvc/release/bundle"
           $nsis = Get-ChildItem "$bundleRoot/nsis/*.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
           $msi = Get-ChildItem "$bundleRoot/msi/*.msi" -ErrorAction SilentlyContinue | Select-Object -First 1
@@ -241,8 +264,8 @@ jobs:
           if (-not $msi) { throw "Missing MSI output" }
           Copy-Item $nsis.FullName "HarnessKit-windows-x64-installer.exe"
           Copy-Item $msi.FullName "HarnessKit-windows-x64.msi"
-          gh release upload "${{ github.ref_name }}" "HarnessKit-windows-x64-installer.exe" --clobber
-          gh release upload "${{ github.ref_name }}" "HarnessKit-windows-x64.msi" --clobber
+          Invoke-GhReleaseUploadWithRetry "${{ github.ref_name }}" "HarnessKit-windows-x64-installer.exe"
+          Invoke-GhReleaseUploadWithRetry "${{ github.ref_name }}" "HarnessKit-windows-x64.msi"
 
   release-cli-linux:
     if: ${{ false }}
