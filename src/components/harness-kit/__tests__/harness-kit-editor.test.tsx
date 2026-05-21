@@ -90,6 +90,105 @@ describe("HarnessKitEditor duplicate coverage", () => {
   });
 });
 
+describe("HarnessKitEditor missing dependencies", () => {
+  it("drops deleted Harness Kit assets from edit submissions", async () => {
+    const candidates: HarnessKitAssetCandidates = {
+      agent_configs: [
+        {
+          template_id: "default/rules",
+          template_name: "Rules",
+        },
+      ],
+      extension_kits: [
+        {
+          id: "kit-1",
+          name: "Data Analyst Kit",
+          description: "SQL and automation bundle",
+          skills_count: 0,
+          mcp_count: 1,
+        },
+      ],
+      skills: [],
+      mcps: [
+        {
+          id: "asset:mcp:chrome-devtools",
+          kind: "mcp",
+          name: "chrome-devtools",
+          description: "Browser",
+          source_status: "in_local_hub",
+          hub_extension_id: "mcp-1",
+          extension_id: null,
+        },
+      ],
+    };
+    const initialAssets: HarnessKitAssets = {
+      agent_configs: [
+        {
+          template_id: "default/test",
+          template_name: "Deleted config",
+        },
+        {
+          template_id: "default/rules",
+          template_name: "Rules",
+        },
+      ],
+      extension_kits: [
+        {
+          kit_id: "kit-missing",
+          kit_name: "Deleted Kit",
+        },
+        {
+          kit_id: "kit-1",
+          kit_name: "Data Analyst Kit",
+        },
+      ],
+      extra_assets: [
+        {
+          hub_extension_id: "skill-missing",
+          kind: "skill",
+          asset_name: "deleted-skill",
+        },
+        {
+          hub_extension_id: "mcp-1",
+          kind: "mcp",
+          asset_name: "chrome-devtools",
+        },
+      ],
+    };
+    const onSubmit = vi.fn(() => Promise.resolve());
+
+    render(
+      <HarnessKitEditor
+        initialName="My Harness"
+        initialDescription="Existing"
+        initialAssets={initialAssets}
+        candidates={candidates}
+        candidateLoading={false}
+        loadExtensionKitAssets={() =>
+          Promise.resolve({
+            agent_configs: [],
+            extension_kits: [],
+            extra_assets: [],
+          })
+        }
+        onCancel={() => {}}
+        onSubmit={onSubmit}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Save Harness Kit" }));
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    expect(onSubmit).toHaveBeenCalledWith({
+      name: "My Harness",
+      description: "Existing",
+      agent_config_template_ids: ["default/rules"],
+      extension_kit_ids: ["kit-1"],
+      extra_candidate_ids: ["asset:mcp:chrome-devtools"],
+    });
+  });
+});
+
 describe("HarnessKitEditor hover preview", () => {
   const candidates: HarnessKitAssetCandidates = {
     agent_configs: [

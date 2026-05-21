@@ -613,14 +613,23 @@ export default function HarnessKitPage() {
           <div
             role="status"
             aria-live="polite"
-            className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card/50 py-16 text-sm text-muted-foreground"
+            className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/80 bg-muted/10 px-6 py-16 text-center transition-all"
           >
-            <Blocks className="mb-4 h-12 w-12 text-muted-foreground/30" />
-            <p>{searchKitQuery.trim() ? "No Kits found." : "No Kits yet."}</p>
+            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-primary/10 bg-primary/5 text-primary shadow-sm">
+              <Blocks className="h-7 w-7 text-primary/70 stroke-[1.5]" />
+            </div>
+            <p className="text-sm font-bold text-foreground">
+              {searchKitQuery.trim() ? "No Kits found." : "No Kits yet."}
+            </p>
+            <p className="mt-1 max-w-xs text-xs leading-relaxed text-muted-foreground/80">
+              {searchKitQuery.trim()
+                ? "Try adjusting your keywords or search query."
+                : "Combine Skills and MCP assets into one traceable Extensions Kit."}
+            </p>
             <button
               type="button"
               onClick={() => setShowCreate(true)}
-              className="mt-4 font-medium text-primary hover:underline"
+              className="mt-5 inline-flex items-center gap-1 rounded-xl border border-primary/20 bg-primary/10 px-4 py-2 text-xs font-bold text-primary transition-all hover:bg-primary/15 active:scale-95"
             >
               Create your first Kit
             </button>

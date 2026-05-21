@@ -83,6 +83,13 @@ export function removeCoveredExtraCandidates(
   );
 }
 
+function filterSelectedIds(
+  selectedIds: Set<string>,
+  availableIds: Set<string>,
+) {
+  return new Set([...selectedIds].filter((id) => availableIds.has(id)));
+}
+
 type Tab = "agent-config" | "extensions-kit" | "skills" | "mcp";
 
 const tabs: Tab[] = ["agent-config", "extensions-kit", "skills", "mcp"];
@@ -167,10 +174,26 @@ export default function HarnessKitEditor({
   const [activeTab, setActiveTab] = useState<Tab>("agent-config");
   const [selectedAgentConfigIds, setSelectedAgentConfigIds] = useState<
     Set<string>
-  >(new Set(initialAssets?.agent_configs.map((a) => a.template_id) ?? []));
+  >(() => {
+    const available = new Set(
+      candidates.agent_configs.map((candidate) => candidate.template_id),
+    );
+    return filterSelectedIds(
+      new Set(initialAssets?.agent_configs.map((a) => a.template_id) ?? []),
+      available,
+    );
+  });
   const [selectedExtensionKitIds, setSelectedExtensionKitIds] = useState<
     Set<string>
-  >(new Set(initialAssets?.extension_kits.map((k) => k.kit_id) ?? []));
+  >(() => {
+    const available = new Set(
+      candidates.extension_kits.map((candidate) => candidate.id),
+    );
+    return filterSelectedIds(
+      new Set(initialAssets?.extension_kits.map((k) => k.kit_id) ?? []),
+      available,
+    );
+  });
   const [selectedExtraIds, setSelectedExtraIds] = useState<Set<string>>(
     new Set(
       initialAssets?.extra_assets
@@ -202,6 +225,26 @@ export default function HarnessKitEditor({
     Set<string>
   >(new Set());
   const tooltipHideTimer = useRef<number | null>(null);
+
+  useEffect(() => {
+    const available = new Set(
+      candidates.agent_configs.map((candidate) => candidate.template_id),
+    );
+    setSelectedAgentConfigIds((current) => {
+      const cleaned = filterSelectedIds(current, available);
+      return cleaned.size !== current.size ? cleaned : current;
+    });
+  }, [candidates.agent_configs]);
+
+  useEffect(() => {
+    const available = new Set(
+      candidates.extension_kits.map((candidate) => candidate.id),
+    );
+    setSelectedExtensionKitIds((current) => {
+      const cleaned = filterSelectedIds(current, available);
+      return cleaned.size !== current.size ? cleaned : current;
+    });
+  }, [candidates.extension_kits]);
 
   // Load extension kit assets when a new kit is selected
   useEffect(() => {
