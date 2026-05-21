@@ -262,8 +262,7 @@ export function HarnessKitSection({
             Harness Kit
           </h2>
           <p className="mt-1.5 text-[14px] text-muted-foreground/80 leading-relaxed">
-            Combine Agent Configs, Extensions Kits, Skills, and MCP into one
-            traceable Harness Kit.
+            将 Agent Config、Extensions Kit、Skill 和 MCP 组合为可追踪的 Harness Kit，其中 Skill 和 MCP 将同步至 Local Hub。
           </p>
         </div>
         <button
@@ -414,8 +413,7 @@ export function HarnessKitSection({
                   New Harness Kit
                 </h3>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Combine Agent Configs, Extensions Kits, Skills, and MCP into
-                  one traceable Harness Kit.
+                  将 Agent Config、Extensions Kit、Skill 和 MCP 组合为可追踪的 Harness Kit，其中 Skill 和 MCP 将同步至 Local Hub。
                 </p>
               </div>
               <button

@@ -2,13 +2,15 @@ import {
   Bot,
   FolderKanban,
   FolderOpen,
+  Layers3,
   Package,
+  PackageOpen,
   Puzzle,
   RefreshCw,
   Server,
   Shield,
   ShoppingBag,
-  TriangleAlert,
+  Sliders,
   Webhook,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -23,6 +25,7 @@ import {
   filterSkillTabGroups,
   useExtensionStore,
 } from "@/stores/extension-store";
+import { useHarnessKitStore } from "@/stores/harness-kit-store";
 import { useHubStore } from "@/stores/hub-store";
 import { useProjectStore } from "@/stores/project-store";
 import { toast } from "@/stores/toast-store";
@@ -173,18 +176,21 @@ export default function OverviewPage() {
   const projectsLoading = useProjectStore((s) => s.loading);
   const loadProjects = useProjectStore((s) => s.loadProjects);
 
+  const harnessKits = useHarnessKitStore((s) => s.harnessKits);
+  const fetchHarnessKits = useHarnessKitStore((s) => s.fetch);
+
   const [auditLoading, setAuditLoading] = useState(false);
   // updatesLoading now comes from store as checkingUpdates
   const [localReady, setLocalReady] = useState(false);
 
   useEffect(() => {
     loadCached();
-    Promise.all([fetchAgents(), fetchHubExtensions()])
+    Promise.all([fetchAgents(), fetchHubExtensions(), fetchHarnessKits()])
       .catch((e) => {
         console.error("Failed to load overview data:", e);
       })
       .finally(() => setLocalReady(true));
-  }, [loadCached, fetchAgents, fetchHubExtensions]);
+  }, [loadCached, fetchAgents, fetchHubExtensions, fetchHarnessKits]);
 
   useEffect(() => {
     if (!projectsLoaded && !projectsLoading) loadProjects();
@@ -293,11 +299,16 @@ export default function OverviewPage() {
   );
 
   const localHubOverview = useMemo(() => {
-    const counts = { skill: 0, mcp: 0, plugin: 0 };
+    const counts = { skill: 0, mcp: 0, plugin: 0, cli: 0 };
     const seen = new Set<string>();
 
     for (const ext of hubExtensions) {
-      if (ext.kind !== "skill" && ext.kind !== "mcp" && ext.kind !== "plugin") {
+      if (
+        ext.kind !== "skill" &&
+        ext.kind !== "mcp" &&
+        ext.kind !== "plugin" &&
+        ext.kind !== "cli"
+      ) {
         continue;
       }
 
@@ -312,6 +323,7 @@ export default function OverviewPage() {
       skills: counts.skill,
       mcp: counts.mcp,
       plugins: counts.plugin,
+      cli: counts.cli,
     };
   }, [hubExtensions]);
 
@@ -370,6 +382,7 @@ export default function OverviewPage() {
                 icon={Puzzle}
               />
             )}
+
             {stats.hook_count > 0 && (
               <StatChip label="hooks" count={stats.hook_count} icon={Webhook} />
             )}
@@ -419,9 +432,38 @@ export default function OverviewPage() {
 
       <section className="space-y-3">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Harness Kit Overview
+        </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <OverviewMetric
+            label="Harness Kits"
+            value={harnessKits.length}
+            icon={PackageOpen}
+          />
+          <OverviewMetric
+            label="Agent Configs"
+            value={harnessKits.reduce(
+              (acc, kit) => acc + kit.agent_config_count,
+              0,
+            )}
+            icon={Sliders}
+          />
+          <OverviewMetric
+            label="Extension Kits"
+            value={harnessKits.reduce(
+              (acc, kit) => acc + kit.extensions_kit_count,
+              0,
+            )}
+            icon={Layers3}
+          />
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           Projects overview
         </h3>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <OverviewMetric
             label="Projects"
             value={projects.length}
@@ -436,11 +478,6 @@ export default function OverviewPage() {
             label="With extensions"
             value={projectOverview.withExtensionsCount}
             icon={Package}
-          />
-          <OverviewMetric
-            label="Missing"
-            value={projectOverview.missingCount}
-            icon={TriangleAlert}
           />
         </div>
       </section>
@@ -541,12 +578,18 @@ export default function OverviewPage() {
           <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Quick actions
           </h3>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
             <QuickAction
               icon={Bot}
               label="View Agents"
               sublabel="Manage agent configs"
               onClick={() => navigate("/agents")}
+            />
+            <QuickAction
+              icon={PackageOpen}
+              label="Harness Kit"
+              sublabel="Manage harness configs"
+              onClick={() => navigate("/harnesskit")}
             />
             <QuickAction
               icon={Shield}
