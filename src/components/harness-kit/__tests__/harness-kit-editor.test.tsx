@@ -1,5 +1,11 @@
 import "@testing-library/jest-dom/vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import HarnessKitEditor, {
   buildCoveredAssetMap,
@@ -263,11 +269,15 @@ describe("HarnessKitEditor hover preview", () => {
         "default/rules",
       ),
     );
-    expect(await screen.findByText("File Content")).toBeInTheDocument();
-    expect(screen.getByText(/Always respond in Chinese/i)).toBeInTheDocument();
+    const tooltip = await screen.findByRole("tooltip", {
+      name: "Asset preview",
+    });
+    expect(within(tooltip).getByText("Rules")).toBeInTheDocument();
+    expect(
+      within(tooltip).getByText(/Always respond in Chinese/i),
+    ).toBeInTheDocument();
 
     fireEvent.mouseLeave(row);
-    const tooltip = screen.getByRole("tooltip", { name: "Asset preview" });
     fireEvent.mouseEnter(tooltip);
     await new Promise((resolve) =>
       window.setTimeout(resolve, TOOLTIP_HIDE_DELAY_MS + 20),
@@ -300,9 +310,14 @@ describe("HarnessKitEditor hover preview", () => {
     await waitFor(() =>
       expect(loadExtensionKitAssets).toHaveBeenCalledWith("kit-1"),
     );
-    expect(await screen.findByText("Skills (1)")).toBeInTheDocument();
-    expect(screen.getByText("frontend-design")).toBeInTheDocument();
-    expect(screen.getByText("chrome-devtools")).toBeInTheDocument();
+    const tooltip = await screen.findByRole("tooltip", {
+      name: "Asset preview",
+    });
+    expect(within(tooltip).getByText("Skills")).toBeInTheDocument();
+    expect(within(tooltip).getByText("MCP Components")).toBeInTheDocument();
+    expect(within(tooltip).getAllByText("1")).toHaveLength(2);
+    expect(within(tooltip).getByText("frontend-design")).toBeInTheDocument();
+    expect(within(tooltip).getByText("chrome-devtools")).toBeInTheDocument();
 
     fireEvent.click(row);
 
