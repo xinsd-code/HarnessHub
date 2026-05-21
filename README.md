@@ -69,7 +69,7 @@ HarnessKit 通过统一界面管理 **全部五种扩展类型** —— **Skill*
 - **作用域感知** —— 智能区分 **全局** 扩展与 **项目级** 扩展。查看项目环境时，全局资产会被清晰标记并分组展示。
 
 <p align="center">
-  <video src="media/extensions-demo.mp4" width="800" autoplay loop muted playsinline></video>
+  <video src="https://github.com/user-attachments/assets/cd3cf756-12da-489e-ad13-4c42bc31d8e5" width="800" autoplay loop muted playsinline></video>
 </p>
 
 ---
@@ -84,7 +84,7 @@ HarnessKit 通过统一界面管理 **全部五种扩展类型** —— **Skill*
 - **Agent 配置模板** —— 捕获、标记、版本化 Agent 配置文件（如 `CLAUDE.md`、`.codex/rules.md`），作为可复用模板同步到任意项目和 Agent。
 
 <p align="center">
-  <video src="media/harnesskit-demo.mp4" width="800" autoplay loop muted playsinline></video>
+  <video src="https://github.com/user-attachments/assets/33b2c614-db51-4fc6-a1bc-682f7408f43c" width="800" autoplay loop muted playsinline></video>
 </p>
 
 ---
@@ -98,7 +98,7 @@ HarnessKit 通过统一界面管理 **全部五种扩展类型** —— **Skill*
 - **恢复部署** —— 从 Local Hub 一键恢复扩展到任意 Agent 或项目。
 
 <p align="center">
-  <video src="media/localhub-demo.mp4" width="800" autoplay loop muted playsinline></video>
+  <video src="https://github.com/user-attachments/assets/0012ef1c-8bc6-43aa-b668-20b2d731ca18" width="800" autoplay loop muted playsinline></video>
 </p>
 
 ---
@@ -113,7 +113,7 @@ HarnessKit 统一管理每个 Agent 的 **配置**、**记忆**、**规则**、*
 - **实时检测** —— 配置文件一旦发生变更，面板立即同步刷新。
 
 <p align="center">
-  <video src="media/agents-demo.mp4" width="800" autoplay loop muted playsinline></video>
+  <video src="https://github.com/user-attachments/assets/3062841d-597d-419b-b48f-ce6f221ecd28" width="800" autoplay loop muted playsinline></video>
 </p>
 
 ---
@@ -126,7 +126,7 @@ HarnessKit 统一管理每个 Agent 的 **配置**、**记忆**、**规则**、*
 - **项目级视图** —— 在扩展列表和 Agent 面板中按项目筛选，清晰查看每个项目的扩展与配置情况。
 
 <p align="center">
-  <video src="media/projects-demo.mp4" width="800" autoplay loop muted playsinline></video>
+  <video src="https://github.com/user-attachments/assets/790e817f-235f-49d4-abdf-10748a077114" width="800" autoplay loop muted playsinline></video>
 </p>
 
 ---
@@ -141,7 +141,7 @@ HarnessKit 统一管理每个 Agent 的 **配置**、**记忆**、**规则**、*
 - **权限透明** —— 每个扩展的权限按五个维度呈现：文件系统路径、网络域名、Shell 命令、数据库引擎、环境变量。在决定是否留用之前，你就能清楚知道它能触达哪些资源。
 
 <p align="center">
-  <video src="media/audit-demo.mp4" width="800" autoplay loop muted playsinline></video>
+  <video src="https://github.com/user-attachments/assets/4aba0a80-0a56-486d-8706-29c71c808111" width="800" autoplay loop muted playsinline></video>
 </p>
 
 ---
@@ -151,7 +151,7 @@ HarnessKit 统一管理每个 Agent 的 **配置**、**记忆**、**规则**、*
 发现、评估、安装 —— 多个市场聚在一处，支持搜索、分类筛选与一键安装。
 
 <p align="center">
-  <video src="media/marketplace-demo.mp4" width="800" autoplay loop muted playsinline></video>
+  <video src="https://github.com/user-attachments/assets/481b14a4-b67d-4161-9c93-86837acdd1f3" width="800" autoplay loop muted playsinline></video>
 </p>
 
 ---
@@ -161,7 +161,7 @@ HarnessKit 统一管理每个 Agent 的 **配置**、**记忆**、**规则**、*
 统一管理与配置 HarnessKit 的各项全局参数与偏好设置。
 
 <p align="center">
-  <video src="media/settings-demo.mp4" width="800" autoplay loop muted playsinline></video>
+  <video src="https://github.com/user-attachments/assets/1d39a5bd-d5a1-417c-a312-d45836ba09fa" width="800" autoplay loop muted playsinline></video>
 </p>
 
 ---
