@@ -1,4 +1,4 @@
-import { Loader2, RefreshCw } from "lucide-react";
+import { Loader2, RefreshCw, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { KindBadge } from "@/components/shared/kind-badge";
 import { api } from "@/lib/invoke";
@@ -16,7 +16,6 @@ const tabOrder: Array<{ key: "all" | ExtensionKind; label: string }> = [
   { key: "skill", label: "Skills" },
   { key: "mcp", label: "MCP" },
   { key: "plugin", label: "Plugins" },
-  { key: "cli", label: "CLIs" },
 ];
 const MAX_VISIBLE_SYNC_ROWS = 10;
 
@@ -100,26 +99,27 @@ export function SyncDialog({ open, onClose }: SyncDialogProps) {
     counts.set("skill", toSync.filter((ext) => ext.kind === "skill").length);
     counts.set("mcp", toSync.filter((ext) => ext.kind === "mcp").length);
     counts.set("plugin", toSync.filter((ext) => ext.kind === "plugin").length);
-    counts.set("cli", toSync.filter((ext) => ext.kind === "cli").length);
     return counts;
   }, [toSync]);
 
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 px-4 pt-20">
-      <div className="flex max-h-[calc(100vh-7rem)] w-[760px] flex-col rounded-xl border border-border bg-card shadow-lg">
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-background/80 px-4 pt-20 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="flex max-h-[calc(100vh-7rem)] w-[760px] flex-col rounded-2xl border border-border/50 bg-card shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-border px-4 py-3">
-          <div className="flex items-center gap-2">
-            <RefreshCw size={18} />
-            <h3 className="font-medium">Sync to Local Hub</h3>
+        <div className="flex items-center justify-between border-b border-border/50 bg-muted/20 px-6 py-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <RefreshCw size={16} />
+            </div>
+            <h3 className="font-semibold text-lg">Sync to Local Hub</h3>
           </div>
           <button
             onClick={onClose}
-            className="rounded p-1 hover:bg-accent text-muted-foreground"
+            className="rounded-full p-2 hover:bg-accent/80 text-muted-foreground transition-colors"
           >
-            ×
+            <X size={18} />
           </button>
         </div>
 
@@ -162,17 +162,17 @@ export function SyncDialog({ open, onClose }: SyncDialogProps) {
                 )}
               </div>
 
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 pt-1 pb-3">
                 {tabOrder.map((tab) => {
                   const count = tabCounts.get(tab.key) ?? 0;
                   return (
                     <button
                       key={tab.key}
                       onClick={() => setActiveTab(tab.key)}
-                      className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                      className={`rounded-full px-4 py-1.5 text-xs font-semibold transition-all shadow-sm ${
                         activeTab === tab.key
                           ? "bg-primary text-primary-foreground"
-                          : "bg-muted text-muted-foreground hover:bg-accent"
+                          : "bg-muted/50 text-muted-foreground border border-border/40 hover:bg-accent hover:text-foreground"
                       }`}
                     >
                       {tab.label} ({count})
@@ -182,40 +182,40 @@ export function SyncDialog({ open, onClose }: SyncDialogProps) {
               </div>
 
               {visibleExtensions.length > 0 ? (
-                <div className="space-y-2">
-                  <h4 className="text-xs font-medium text-muted-foreground uppercase">
+                <div className="space-y-3">
+                  <h4 className="text-[11px] font-bold text-muted-foreground/80 uppercase tracking-widest pl-1">
                     {activeTab === "all"
                       ? "New Extensions"
                       : `${tabOrder.find((tab) => tab.key === activeTab)?.label ?? "Extensions"}`}
                   </h4>
-                  <div className="overflow-hidden rounded-xl border border-border/70">
-                    <div className="grid grid-cols-[minmax(0,1.4fr)_auto_minmax(0,1fr)] gap-3 border-b border-border bg-muted/30 px-4 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  <div className="overflow-hidden rounded-xl border border-border/50 shadow-sm">
+                    <div className="grid grid-cols-[minmax(0,1.4fr)_auto_minmax(0,1fr)] gap-4 border-b border-border/50 bg-muted/40 px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground/80">
                       <span>Name</span>
                       <span>Kind</span>
                       <span>Description</span>
                     </div>
                     <div
-                      className="overflow-y-auto divide-y divide-border"
+                      className="overflow-y-auto divide-y divide-border/40 bg-card/40"
                       style={{ maxHeight: `${MAX_VISIBLE_SYNC_ROWS * 68}px` }}
                     >
                     {visibleExtensions.map((ext) => (
                       <label
                         key={ext.id}
-                        className="grid cursor-pointer grid-cols-[minmax(0,1.4fr)_auto_minmax(0,1fr)] gap-3 px-4 py-3 hover:bg-accent/40"
+                        className="grid cursor-pointer grid-cols-[minmax(0,1.4fr)_auto_minmax(0,1fr)] gap-4 px-5 py-3.5 transition-colors hover:bg-accent/40"
                       >
-                        <div className="flex min-w-0 items-start gap-3">
+                        <div className="flex min-w-0 items-start gap-3.5">
                           <input
                             type="checkbox"
                             checked={selectedIds.has(ext.id)}
                             onChange={() => toggleSelection(ext.id)}
-                            className="mt-0.5 rounded border-border accent-primary"
+                            className="mt-1 h-4 w-4 rounded border-border/60 bg-muted/50 accent-primary transition-all cursor-pointer"
                           />
                           <div className="min-w-0">
-                            <p className="truncate text-sm font-medium text-foreground">
+                            <p className="truncate text-[14px] font-medium text-foreground/90">
                               {ext.name}
                             </p>
                             {ext.pack && (
-                              <p className="truncate text-xs text-muted-foreground">
+                              <p className="truncate text-xs text-muted-foreground/70 font-mono mt-0.5">
                                 {ext.pack}
                               </p>
                             )}
@@ -224,8 +224,8 @@ export function SyncDialog({ open, onClose }: SyncDialogProps) {
                         <div className="pt-0.5">
                           <KindBadge kind={ext.kind} />
                         </div>
-                        <p className="truncate text-sm text-muted-foreground">
-                          {ext.description || "-"}
+                        <p className="truncate text-[13px] text-muted-foreground/80 pt-0.5">
+                          {ext.description || "—"}
                         </p>
                       </label>
                     ))}
@@ -233,7 +233,7 @@ export function SyncDialog({ open, onClose }: SyncDialogProps) {
                   </div>
                 </div>
               ) : (
-                <div className="text-center py-8 text-muted-foreground">
+                <div className="text-center py-12 text-muted-foreground bg-muted/20 rounded-xl border border-dashed border-border/50">
                   No extensions in this category need syncing.
                 </div>
               )}
@@ -242,26 +242,26 @@ export function SyncDialog({ open, onClose }: SyncDialogProps) {
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-2 border-t border-border px-4 py-3">
+        <div className="flex items-center justify-end gap-3 border-t border-border/50 bg-muted/10 px-6 py-4">
           <button
             onClick={onClose}
-            className="rounded-lg border border-border px-4 py-2 text-sm hover:bg-accent"
+            className="rounded-xl border border-border/60 bg-card px-5 py-2.5 text-sm font-semibold shadow-sm transition-all hover:bg-accent hover:text-foreground"
           >
             Cancel
           </button>
           <button
             onClick={handleSync}
             disabled={syncing || selectedIds.size === 0}
-            className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            className="flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/90 disabled:opacity-50 disabled:hover:bg-primary"
           >
             {syncing ? (
               <>
-                <Loader2 size={14} className="animate-spin" />
+                <Loader2 size={16} className="animate-spin" />
                 Syncing...
               </>
             ) : (
               <>
-                <RefreshCw size={14} />
+                <RefreshCw size={16} />
                 Sync {selectedIds.size > 0 && `(${selectedIds.size})`}
               </>
             )}

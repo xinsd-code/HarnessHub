@@ -216,6 +216,17 @@ function isLarkCliSkillGroup(group: GroupedExtension): boolean {
   );
 }
 
+function isLarkCliGroup(group: GroupedExtension): boolean {
+  return (
+    group.kind === "cli" &&
+    (group.name === "Lark / Feishu CLI" ||
+      group.pack === "larksuite/cli" ||
+      group.instances.some((instance) =>
+        instance.source.url?.includes("larksuite/cli"),
+      ))
+  );
+}
+
 export function isCliChildSkillGroup(
   group: GroupedExtension,
   groups: GroupedExtension[],
@@ -233,10 +244,29 @@ export function isCliChildSkillGroup(
   );
 }
 
-export function filterSkillTabGroups(
+export function isCliGroupBackedBySkillAssets(
+  group: GroupedExtension,
   groups: GroupedExtension[],
+): boolean {
+  if (group.kind !== "cli") return false;
+  const cliIds = new Set(group.instances.map((instance) => instance.id));
+  return groups.some(
+    (candidate) =>
+      candidate.kind === "skill" &&
+      candidate.instances.some(
+        (instance) =>
+          (instance.cli_parent_id != null &&
+            cliIds.has(instance.cli_parent_id)) ||
+          (group.pack != null && instance.pack === group.pack) ||
+          (isLarkCliGroup(group) && isLarkCliSkillGroup(candidate)),
+      ),
+  );
+}
+
+export function filterSkillTabGroups(
+  _groups: GroupedExtension[],
 ): GroupedExtension[] {
-  return groups.filter((group) => !isCliChildSkillGroup(group, groups));
+  return _groups.filter((group) => group.kind === "skill");
 }
 
 /** Find all child extensions of a CLI group (by cli_parent_id or matching pack).
@@ -319,11 +349,11 @@ export function getCachedFiltered(
     return _cachedFiltered;
   }
   let result = groups;
+  result = result.filter(
+    (group) => !isCliGroupBackedBySkillAssets(group, groups),
+  );
   if (kindFilter) {
     result = result.filter((g) => g.kind === kindFilter);
-    if (kindFilter === "skill") {
-      result = result.filter((group) => !isCliChildSkillGroup(group, groups));
-    }
   }
   if (agentFilter) {
     result = result.filter((g) => g.agents.includes(agentFilter));

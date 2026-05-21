@@ -195,6 +195,245 @@ pub struct InstallMeta {
     pub check_error: Option<String>,
 }
 
+// --- Kits ---
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct KitSummary {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub skills_count: usize,
+    pub mcp_count: usize,
+    pub cli_count: usize,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct NewKitAsset {
+    pub hub_extension_id: String,
+    pub kind: ExtensionKind,
+    pub asset_name: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct KitAssetCandidate {
+    pub id: String,
+    pub kind: ExtensionKind,
+    pub name: String,
+    pub description: String,
+    pub source_status: KitAssetSourceStatus,
+    pub hub_extension_id: Option<String>,
+    pub extension_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum KitAssetSourceStatus {
+    InLocalHub,
+    WillSyncToLocalHub,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateKitRequest {
+    pub name: String,
+    pub description: String,
+    pub candidate_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateKitRequest {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub candidate_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SyncKitToProjectRequest {
+    pub kit_id: String,
+    pub project_path: String,
+    pub target_agent: String,
+    #[serde(default)]
+    pub force_hub_extension_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct KitSyncResult {
+    pub installed_count: usize,
+    pub skipped_conflict_count: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct KitSyncConflict {
+    pub hub_extension_id: String,
+    pub kind: ExtensionKind,
+    pub asset_name: String,
+    pub existing_extension_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct KitSyncPreview {
+    pub conflicts: Vec<KitSyncConflict>,
+}
+
+// --- Harness Kits ---
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HarnessKitSummary {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub agent_config_count: usize,
+    pub extensions_kit_count: usize,
+    pub skills_count: usize,
+    pub mcp_count: usize,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct NewHarnessKitAgentConfig {
+    pub template_id: String,
+    pub template_name: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct NewHarnessKitExtensionKit {
+    pub kit_id: String,
+    pub kit_name: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct HarnessKitAssets {
+    pub agent_configs: Vec<NewHarnessKitAgentConfig>,
+    pub extension_kits: Vec<NewHarnessKitExtensionKit>,
+    pub extra_assets: Vec<NewKitAsset>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HarnessKitAssetCandidates {
+    pub agent_configs: Vec<NewHarnessKitAgentConfig>,
+    pub extension_kits: Vec<HarnessKitExtensionKitCandidate>,
+    pub skills: Vec<KitAssetCandidate>,
+    pub mcps: Vec<KitAssetCandidate>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HarnessKitExtensionKitCandidate {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub skills_count: usize,
+    pub mcp_count: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateHarnessKitRequest {
+    pub name: String,
+    pub description: String,
+    pub agent_config_template_ids: Vec<String>,
+    pub extension_kit_ids: Vec<String>,
+    pub extra_candidate_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateHarnessKitRequest {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub agent_config_template_ids: Vec<String>,
+    pub extension_kit_ids: Vec<String>,
+    pub extra_candidate_ids: Vec<String>,
+}
+
+// --- Harness Kit Sync ---
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct HarnessKitAgentConfigPath {
+    pub template_id: String,
+    pub rel_path: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct HarnessKitSyncRequest {
+    pub harness_kit_id: String,
+    pub project_path: String,
+    pub target_agent: String,
+    #[serde(default)]
+    pub agent_config_paths: Vec<HarnessKitAgentConfigPath>,
+    #[serde(default)]
+    pub force_hub_extension_ids: Vec<String>,
+    #[serde(default)]
+    pub force_agent_config_template_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum HarnessKitConflictKind {
+    AssetConflict,
+    ConfigConflict,
+    PathInvalid,
+    UnsupportedAgentConfig,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HarnessKitAssetConflict {
+    pub hub_extension_id: String,
+    pub kind: ExtensionKind,
+    pub asset_name: String,
+    pub existing_extension_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HarnessKitConfigConflict {
+    pub template_id: String,
+    pub template_name: String,
+    pub rel_path: String,
+    pub target_path: String,
+    pub kind: HarnessKitConflictKind,
+    pub message: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HarnessKitConfigTarget {
+    pub template_id: String,
+    pub template_name: String,
+    pub rel_path: String,
+    pub target_path: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HarnessKitSyncPreview {
+    pub asset_conflicts: Vec<HarnessKitAssetConflict>,
+    pub config_conflicts: Vec<HarnessKitConfigConflict>,
+    pub config_targets: Vec<HarnessKitConfigTarget>,
+    pub installable_asset_count: usize,
+    pub writable_config_count: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HarnessKitSyncResult {
+    pub installed_count: usize,
+    pub written_config_count: usize,
+    pub skipped_conflict_count: usize,
+    pub removed_count: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HarnessKitSyncStatusRequest {
+    pub harness_kit_id: String,
+    pub project_path: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HarnessKitSyncStatus {
+    pub harness_kit_id: String,
+    pub project_path: String,
+    pub target_agent: String,
+    pub synced: bool,
+}
+
 // --- Audit ---
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -542,5 +781,29 @@ mod tests {
         let round_trip: CliMeta = serde_json::from_str(&json).unwrap();
         assert_eq!(round_trip.binary_name, "wecom-cli");
         assert_eq!(round_trip.api_domains.len(), 1);
+    }
+
+    #[test]
+    fn harness_kit_sync_request_serialization() {
+        let request = HarnessKitSyncRequest {
+            harness_kit_id: "hk-1".into(),
+            project_path: "/tmp/project".into(),
+            target_agent: "codex".into(),
+            agent_config_paths: vec![HarnessKitAgentConfigPath {
+                template_id: "tpl-1".into(),
+                rel_path: ".codex/AGENTS.md".into(),
+            }],
+            force_hub_extension_ids: vec!["hub-1".into()],
+            force_agent_config_template_ids: vec!["tpl-1".into()],
+        };
+
+        let json = serde_json::to_string(&request).unwrap();
+        assert!(json.contains("\"harness_kit_id\":"));
+        assert!(json.contains("\"agent_config_paths\":"));
+        assert!(json.contains("\"force_hub_extension_ids\":"));
+        assert!(json.contains("\"force_agent_config_template_ids\":"));
+
+        let round_trip: HarnessKitSyncRequest = serde_json::from_str(&json).unwrap();
+        assert_eq!(round_trip, request);
     }
 }

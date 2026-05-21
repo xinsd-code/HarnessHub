@@ -5,6 +5,7 @@ import {
   FolderKanban,
   HardDrive,
   LayoutDashboard,
+  PackageOpen,
   Settings,
   Shield,
   ShoppingBag,
@@ -16,6 +17,7 @@ import { WebUpdateCard } from "./web-update-card";
 
 const mainNavItems = [
   { to: "/", icon: LayoutDashboard, label: "Overview" },
+  { to: "/harnesskit", icon: PackageOpen, label: "HarnessKit" },
   { to: "/local-hub", icon: HardDrive, label: "Local Hub" },
   { to: "/extensions", icon: Blocks, label: "Extensions" },
   { to: "/agents", icon: Bot, label: "Agents" },

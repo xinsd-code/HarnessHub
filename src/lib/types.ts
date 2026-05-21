@@ -518,3 +518,213 @@ export function formatRelativeTime(iso: string): string {
   if (diffMin > 0) return `${diffMin}m ago`;
   return "Just now";
 }
+
+export interface AgentConfigTemplate {
+  id: string;
+  name: string;
+  description: string;
+  tag: string;
+  source_project_name: string;
+  source_project_path: string;
+  source_path: string;
+  original_file_name: string;
+  content_path: string;
+  size_bytes: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AgentConfigSyncResult {
+  target_path: string;
+}
+
+export interface KitSummary {
+  id: string;
+  name: string;
+  description: string;
+  skills_count: number;
+  mcp_count: number;
+  cli_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NewKitAsset {
+  hub_extension_id: string;
+  kind: ExtensionKind;
+  asset_name: string;
+}
+
+export type KitAssetSourceStatus =
+  | "in_local_hub"
+  | "will_sync_to_local_hub";
+
+export interface KitAssetCandidate {
+  id: string;
+  kind: "skill" | "mcp" | "cli";
+  name: string;
+  description: string;
+  source_status: KitAssetSourceStatus;
+  hub_extension_id: string | null;
+  extension_id: string | null;
+}
+
+export interface CreateKitRequest {
+  name: string;
+  description: string;
+  candidate_ids: string[];
+}
+
+export interface UpdateKitRequest extends CreateKitRequest {
+  id: string;
+}
+
+export interface SyncKitToProjectRequest {
+  kit_id: string;
+  project_path: string;
+  target_agent: string;
+  force_hub_extension_ids?: string[];
+}
+
+export interface KitSyncResult {
+  installed_count: number;
+  skipped_conflict_count: number;
+}
+
+export interface KitSyncConflict {
+  hub_extension_id: string;
+  kind: ExtensionKind;
+  asset_name: string;
+  existing_extension_id: string;
+}
+
+export interface KitSyncPreview {
+  conflicts: KitSyncConflict[];
+}
+
+export interface HarnessKitSummary {
+  id: string;
+  name: string;
+  description: string;
+  agent_config_count: number;
+  extensions_kit_count: number;
+  skills_count: number;
+  mcp_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NewHarnessKitAgentConfig {
+  template_id: string;
+  template_name: string;
+}
+
+export interface NewHarnessKitExtensionKit {
+  kit_id: string;
+  kit_name: string;
+}
+
+export interface HarnessKitAssets {
+  agent_configs: NewHarnessKitAgentConfig[];
+  extension_kits: NewHarnessKitExtensionKit[];
+  extra_assets: NewKitAsset[];
+}
+
+export interface HarnessKitExtensionKitCandidate {
+  id: string;
+  name: string;
+  description: string;
+  skills_count: number;
+  mcp_count: number;
+}
+
+export interface HarnessKitAssetCandidates {
+  agent_configs: NewHarnessKitAgentConfig[];
+  extension_kits: HarnessKitExtensionKitCandidate[];
+  skills: KitAssetCandidate[];
+  mcps: KitAssetCandidate[];
+}
+
+export interface CreateHarnessKitRequest {
+  name: string;
+  description: string;
+  agent_config_template_ids: string[];
+  extension_kit_ids: string[];
+  extra_candidate_ids: string[];
+}
+
+export interface UpdateHarnessKitRequest extends CreateHarnessKitRequest {
+  id: string;
+}
+
+// --- Harness Kit Sync ---
+
+export interface HarnessKitAgentConfigPath {
+  template_id: string;
+  rel_path: string;
+}
+
+export interface HarnessKitSyncRequest {
+  harness_kit_id: string;
+  project_path: string;
+  target_agent: string;
+  agent_config_paths?: HarnessKitAgentConfigPath[];
+  force_hub_extension_ids?: string[];
+  force_agent_config_template_ids?: string[];
+}
+
+export type HarnessKitConflictKind =
+  | "asset_conflict"
+  | "config_conflict"
+  | "path_invalid"
+  | "unsupported_agent_config";
+
+export interface HarnessKitAssetConflict {
+  hub_extension_id: string;
+  kind: "skill" | "mcp" | "cli";
+  asset_name: string;
+  existing_extension_id: string;
+}
+
+export interface HarnessKitConfigConflict {
+  template_id: string;
+  template_name: string;
+  rel_path: string;
+  target_path: string;
+  kind: HarnessKitConflictKind;
+  message: string;
+}
+
+export interface HarnessKitConfigTarget {
+  template_id: string;
+  template_name: string;
+  rel_path: string;
+  target_path: string;
+}
+
+export interface HarnessKitSyncPreview {
+  asset_conflicts: HarnessKitAssetConflict[];
+  config_conflicts: HarnessKitConfigConflict[];
+  config_targets: HarnessKitConfigTarget[];
+  installable_asset_count: number;
+  writable_config_count: number;
+}
+
+export interface HarnessKitSyncResult {
+  installed_count: number;
+  written_config_count: number;
+  skipped_conflict_count: number;
+  removed_count: number;
+}
+
+export interface HarnessKitSyncStatusRequest {
+  harness_kit_id: string;
+  project_path: string;
+}
+
+export interface HarnessKitSyncStatus {
+  harness_kit_id: string;
+  project_path: string;
+  target_agent: string;
+  synced: boolean;
+}

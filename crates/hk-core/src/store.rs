@@ -7,7 +7,7 @@ use crate::models::*;
 use crate::sanitize::strip_windows_extended_path_prefix;
 
 /// Latest schema version supported by this binary.
-const LATEST_SCHEMA_VERSION: i64 = 5;
+const LATEST_SCHEMA_VERSION: i64 = 8;
 
 /// One row of `custom_config_paths`: (id, path, label, category, scope_json).
 /// `scope_json` is `None` for legacy rows that predate v4 schema migration.
@@ -143,6 +143,9 @@ impl Store {
         if current_version < 3 { self.migrate_v3()?; }
         if current_version < 4 { self.migrate_v4()?; }
         if current_version < 5 { self.migrate_v5()?; }
+        if current_version < 6 { self.migrate_v6()?; }
+        if current_version < 7 { self.migrate_v7()?; }
+        if current_version < 8 { self.migrate_v8()?; }
 
         // Update schema version to latest
         if current_version < LATEST_SCHEMA_VERSION {
@@ -267,6 +270,118 @@ impl Store {
     /// Schema v5: icon_path column on agent_settings for custom agent logos.
     fn migrate_v5(&self) -> Result<(), HkError> {
         self.migrate_add_column("ALTER TABLE agent_settings ADD COLUMN icon_path TEXT");
+        Ok(())
+    }
+
+    /// Schema v6: saved HarnessKit Kit checklists.
+    fn migrate_v6(&self) -> Result<(), HkError> {
+        self.conn.execute_batch(
+            "
+            CREATE TABLE IF NOT EXISTS kits (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                description TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS kit_assets (
+                kit_id TEXT NOT NULL REFERENCES kits(id) ON DELETE CASCADE,
+                hub_extension_id TEXT NOT NULL,
+                kind TEXT NOT NULL,
+                asset_name TEXT NOT NULL,
+                position INTEGER NOT NULL,
+                PRIMARY KEY (kit_id, hub_extension_id)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_kit_assets_kit_id ON kit_assets(kit_id);
+            ",
+        )?;
+        Ok(())
+    }
+
+    /// Schema v7: upper-level Harness Kit aggregate bundles.
+    fn migrate_v7(&self) -> Result<(), HkError> {
+        self.conn.execute_batch(
+            "
+            CREATE TABLE IF NOT EXISTS harness_kits (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                description TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS harness_kit_agent_configs (
+                harness_kit_id TEXT NOT NULL REFERENCES harness_kits(id) ON DELETE CASCADE,
+                agent_config_template_id TEXT NOT NULL,
+                template_name TEXT NOT NULL,
+                position INTEGER NOT NULL,
+                PRIMARY KEY (harness_kit_id, agent_config_template_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS harness_kit_extension_kits (
+                harness_kit_id TEXT NOT NULL REFERENCES harness_kits(id) ON DELETE CASCADE,
+                kit_id TEXT NOT NULL,
+                kit_name TEXT NOT NULL,
+                position INTEGER NOT NULL,
+                PRIMARY KEY (harness_kit_id, kit_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS harness_kit_assets (
+                harness_kit_id TEXT NOT NULL REFERENCES harness_kits(id) ON DELETE CASCADE,
+                hub_extension_id TEXT NOT NULL,
+                kind TEXT NOT NULL,
+                asset_name TEXT NOT NULL,
+                position INTEGER NOT NULL,
+                PRIMARY KEY (harness_kit_id, hub_extension_id)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_harness_kit_agent_configs_kit_id
+                ON harness_kit_agent_configs(harness_kit_id);
+            CREATE INDEX IF NOT EXISTS idx_harness_kit_extension_kits_kit_id
+                ON harness_kit_extension_kits(harness_kit_id);
+            CREATE INDEX IF NOT EXISTS idx_harness_kit_assets_kit_id
+                ON harness_kit_assets(harness_kit_id);
+            ",
+        )?;
+        Ok(())
+    }
+
+    /// Schema v8: Harness Kit sync record tracking.
+    fn migrate_v8(&self) -> Result<(), HkError> {
+        self.conn.execute_batch(
+            "
+            CREATE TABLE IF NOT EXISTS harness_kit_sync_records (
+                id TEXT PRIMARY KEY,
+                harness_kit_id TEXT NOT NULL,
+                project_path TEXT NOT NULL,
+                target_agent TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                UNIQUE(harness_kit_id, project_path, target_agent)
+            );
+
+            CREATE TABLE IF NOT EXISTS harness_kit_sync_record_assets (
+                record_id TEXT NOT NULL REFERENCES harness_kit_sync_records(id) ON DELETE CASCADE,
+                hub_extension_id TEXT NOT NULL,
+                kind TEXT NOT NULL,
+                asset_name TEXT NOT NULL,
+                position INTEGER NOT NULL,
+                PRIMARY KEY(record_id, hub_extension_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS harness_kit_sync_record_configs (
+                record_id TEXT NOT NULL REFERENCES harness_kit_sync_records(id) ON DELETE CASCADE,
+                agent_config_template_id TEXT NOT NULL,
+                template_name TEXT NOT NULL,
+                rel_path TEXT NOT NULL,
+                target_path TEXT NOT NULL,
+                position INTEGER NOT NULL,
+                PRIMARY KEY(record_id, agent_config_template_id)
+            );
+            ",
+        )?;
         Ok(())
     }
 
@@ -1307,6 +1422,587 @@ impl Store {
             scope,
         })
     }
+
+    // --- Kit CRUD ---
+
+    pub fn create_kit(
+        &self,
+        name: &str,
+        description: &str,
+        assets: &[NewKitAsset],
+    ) -> Result<KitSummary, HkError> {
+        let trimmed_name = name.trim();
+        if trimmed_name.is_empty() {
+            return Err(HkError::Validation("Kit name cannot be empty".into()));
+        }
+        if assets.is_empty() {
+            return Err(HkError::Validation("Select at least one asset".into()));
+        }
+
+        let now = Utc::now();
+        let id = uuid::Uuid::new_v4().to_string();
+        let tx = self.conn.unchecked_transaction()?;
+        tx.execute(
+            "INSERT INTO kits (id, name, description, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![
+                id,
+                trimmed_name,
+                description.trim(),
+                now.to_rfc3339(),
+                now.to_rfc3339()
+            ],
+        )?;
+
+        for (position, asset) in assets.iter().enumerate() {
+            tx.execute(
+                "INSERT INTO kit_assets (kit_id, hub_extension_id, kind, asset_name, position)
+                 VALUES (?1, ?2, ?3, ?4, ?5)",
+                params![
+                    id,
+                    asset.hub_extension_id,
+                    asset.kind.as_str(),
+                    asset.asset_name,
+                    position as i64,
+                ],
+            )?;
+        }
+        tx.commit()?;
+
+        self.get_kit_summary(&id)?
+            .ok_or_else(|| HkError::Internal("Created Kit was not found".into()))
+    }
+
+    pub fn update_kit(
+        &self,
+        id: &str,
+        name: &str,
+        description: &str,
+        assets: &[NewKitAsset],
+    ) -> Result<KitSummary, HkError> {
+        let trimmed_name = name.trim();
+        if trimmed_name.is_empty() {
+            return Err(HkError::Validation("Kit name cannot be empty".into()));
+        }
+        if assets.is_empty() {
+            return Err(HkError::Validation("Select at least one asset".into()));
+        }
+
+        let now = Utc::now();
+        let tx = self.conn.unchecked_transaction()?;
+        let updated = tx.execute(
+            "UPDATE kits
+             SET name = ?2, description = ?3, updated_at = ?4
+             WHERE id = ?1",
+            params![id, trimmed_name, description.trim(), now.to_rfc3339()],
+        )?;
+        if updated == 0 {
+            return Err(HkError::NotFound("Kit not found".into()));
+        }
+
+        tx.execute("DELETE FROM kit_assets WHERE kit_id = ?1", params![id])?;
+        for (position, asset) in assets.iter().enumerate() {
+            tx.execute(
+                "INSERT INTO kit_assets (kit_id, hub_extension_id, kind, asset_name, position)
+                 VALUES (?1, ?2, ?3, ?4, ?5)",
+                params![
+                    id,
+                    asset.hub_extension_id,
+                    asset.kind.as_str(),
+                    asset.asset_name,
+                    position as i64,
+                ],
+            )?;
+        }
+        tx.commit()?;
+
+        self.get_kit_summary(id)?
+            .ok_or_else(|| HkError::Internal("Updated Kit was not found".into()))
+    }
+
+    pub fn list_kits(&self) -> Result<Vec<KitSummary>, HkError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT
+                k.id,
+                k.name,
+                k.description,
+                k.created_at,
+                k.updated_at,
+                SUM(CASE WHEN ka.kind = 'skill' THEN 1 ELSE 0 END) AS skills_count,
+                SUM(CASE WHEN ka.kind = 'mcp' THEN 1 ELSE 0 END) AS mcp_count,
+                SUM(CASE WHEN ka.kind = 'cli' THEN 1 ELSE 0 END) AS cli_count
+             FROM kits k
+             LEFT JOIN kit_assets ka ON ka.kit_id = k.id
+             GROUP BY k.id
+             ORDER BY k.updated_at DESC, k.name ASC",
+        )?;
+
+        let rows = stmt.query_map([], |row| {
+            let created_at: String = row.get(3)?;
+            let updated_at: String = row.get(4)?;
+            Ok(KitSummary {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                description: row.get(2)?,
+                created_at: DateTime::parse_from_rfc3339(&created_at)
+                    .map(|dt| dt.with_timezone(&Utc))
+                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(
+                        3,
+                        rusqlite::types::Type::Text,
+                        Box::new(e),
+                    ))?,
+                updated_at: DateTime::parse_from_rfc3339(&updated_at)
+                    .map(|dt| dt.with_timezone(&Utc))
+                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(
+                        4,
+                        rusqlite::types::Type::Text,
+                        Box::new(e),
+                    ))?,
+                skills_count: row.get::<_, i64>(5)?.max(0) as usize,
+                mcp_count: row.get::<_, i64>(6)?.max(0) as usize,
+                cli_count: row.get::<_, i64>(7)?.max(0) as usize,
+            })
+        })?;
+
+        rows.collect::<std::result::Result<Vec<_>, _>>().map_err(Into::into)
+    }
+
+    fn get_kit_summary(&self, id: &str) -> Result<Option<KitSummary>, HkError> {
+        Ok(self.list_kits()?.into_iter().find(|kit| kit.id == id))
+    }
+
+    pub fn delete_kit(&self, id: &str) -> Result<(), HkError> {
+        let affected = self
+            .conn
+            .execute("DELETE FROM kits WHERE id = ?1", params![id])?;
+        if affected == 0 {
+            return Err(HkError::NotFound("Kit not found".into()));
+        }
+        Ok(())
+    }
+
+    pub fn list_kit_assets(&self, kit_id: &str) -> Result<Vec<NewKitAsset>, HkError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT hub_extension_id, kind, asset_name FROM kit_assets WHERE kit_id = ?1 ORDER BY position"
+        )?;
+        let rows = stmt.query_map([kit_id], |row| {
+            let kind_str: String = row.get(1)?;
+            let kind = kind_str.parse().map_err(|e: anyhow::Error| {
+                rusqlite::Error::FromSqlConversionFailure(
+                    1,
+                    rusqlite::types::Type::Text,
+                    Box::new(std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string())),
+                )
+            })?;
+            Ok(NewKitAsset {
+                hub_extension_id: row.get(0)?,
+                kind,
+                asset_name: row.get(2)?,
+            })
+        })?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
+    }
+
+    // --- Harness Kit CRUD ---
+
+    pub fn create_harness_kit(
+        &self,
+        name: &str,
+        description: &str,
+        agent_configs: &[NewHarnessKitAgentConfig],
+        extension_kits: &[NewHarnessKitExtensionKit],
+        extra_assets: &[NewKitAsset],
+    ) -> Result<HarnessKitSummary, HkError> {
+        let trimmed_name = name.trim();
+        if trimmed_name.is_empty() {
+            return Err(HkError::Validation("Harness Kit name cannot be empty".into()));
+        }
+        if agent_configs.is_empty() && extension_kits.is_empty() && extra_assets.is_empty() {
+            return Err(HkError::Validation("Select at least one Harness Kit asset".into()));
+        }
+
+        let now = Utc::now();
+        let id = uuid::Uuid::new_v4().to_string();
+        let tx = self.conn.unchecked_transaction()?;
+        tx.execute(
+            "INSERT INTO harness_kits (id, name, description, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![id, trimmed_name, description.trim(), now.to_rfc3339(), now.to_rfc3339()],
+        )?;
+        insert_harness_kit_children(&tx, &id, agent_configs, extension_kits, extra_assets)?;
+        tx.commit()?;
+
+        self.get_harness_kit_summary(&id)?
+            .ok_or_else(|| HkError::Internal("Created Harness Kit was not found".into()))
+    }
+
+    pub fn update_harness_kit(
+        &self,
+        id: &str,
+        name: &str,
+        description: &str,
+        agent_configs: &[NewHarnessKitAgentConfig],
+        extension_kits: &[NewHarnessKitExtensionKit],
+        extra_assets: &[NewKitAsset],
+    ) -> Result<HarnessKitSummary, HkError> {
+        let trimmed_name = name.trim();
+        if trimmed_name.is_empty() {
+            return Err(HkError::Validation("Harness Kit name cannot be empty".into()));
+        }
+        if agent_configs.is_empty() && extension_kits.is_empty() && extra_assets.is_empty() {
+            return Err(HkError::Validation("Select at least one Harness Kit asset".into()));
+        }
+
+        let now = Utc::now();
+        let tx = self.conn.unchecked_transaction()?;
+        let updated = tx.execute(
+            "UPDATE harness_kits
+             SET name = ?2, description = ?3, updated_at = ?4
+             WHERE id = ?1",
+            params![id, trimmed_name, description.trim(), now.to_rfc3339()],
+        )?;
+        if updated == 0 {
+            return Err(HkError::NotFound("Harness Kit not found".into()));
+        }
+        tx.execute("DELETE FROM harness_kit_agent_configs WHERE harness_kit_id = ?1", params![id])?;
+        tx.execute("DELETE FROM harness_kit_extension_kits WHERE harness_kit_id = ?1", params![id])?;
+        tx.execute("DELETE FROM harness_kit_assets WHERE harness_kit_id = ?1", params![id])?;
+        insert_harness_kit_children(&tx, id, agent_configs, extension_kits, extra_assets)?;
+        tx.commit()?;
+
+        self.get_harness_kit_summary(id)?
+            .ok_or_else(|| HkError::Internal("Updated Harness Kit was not found".into()))
+    }
+
+    pub fn list_harness_kits(&self) -> Result<Vec<HarnessKitSummary>, HkError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT
+                hk.id,
+                hk.name,
+                hk.description,
+                hk.created_at,
+                hk.updated_at,
+                (SELECT COUNT(*) FROM harness_kit_agent_configs ac WHERE ac.harness_kit_id = hk.id),
+                (SELECT COUNT(*) FROM harness_kit_extension_kits ek WHERE ek.harness_kit_id = hk.id),
+                (SELECT COUNT(*) FROM harness_kit_assets a WHERE a.harness_kit_id = hk.id AND a.kind = 'skill'),
+                (SELECT COUNT(*) FROM harness_kit_assets a WHERE a.harness_kit_id = hk.id AND a.kind = 'mcp')
+             FROM harness_kits hk
+             ORDER BY hk.updated_at DESC, hk.name ASC",
+        )?;
+
+        let rows = stmt.query_map([], |row| {
+            let created_at: String = row.get(3)?;
+            let updated_at: String = row.get(4)?;
+            Ok(HarnessKitSummary {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                description: row.get(2)?,
+                created_at: DateTime::parse_from_rfc3339(&created_at)
+                    .map(|dt| dt.with_timezone(&Utc))
+                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(3, rusqlite::types::Type::Text, Box::new(e)))?,
+                updated_at: DateTime::parse_from_rfc3339(&updated_at)
+                    .map(|dt| dt.with_timezone(&Utc))
+                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(4, rusqlite::types::Type::Text, Box::new(e)))?,
+                agent_config_count: row.get::<_, i64>(5)?.max(0) as usize,
+                extensions_kit_count: row.get::<_, i64>(6)?.max(0) as usize,
+                skills_count: row.get::<_, i64>(7)?.max(0) as usize,
+                mcp_count: row.get::<_, i64>(8)?.max(0) as usize,
+            })
+        })?;
+
+        rows.collect::<std::result::Result<Vec<_>, _>>().map_err(Into::into)
+    }
+
+    fn get_harness_kit_summary(&self, id: &str) -> Result<Option<HarnessKitSummary>, HkError> {
+        Ok(self.list_harness_kits()?.into_iter().find(|kit| kit.id == id))
+    }
+
+    pub fn list_harness_kit_assets(&self, harness_kit_id: &str) -> Result<HarnessKitAssets, HkError> {
+        let agent_configs = self.list_harness_kit_agent_configs(harness_kit_id)?;
+        let extension_kits = self.list_harness_kit_extension_kits(harness_kit_id)?;
+        let extra_assets = self.list_harness_kit_extra_assets(harness_kit_id)?;
+        Ok(HarnessKitAssets { agent_configs, extension_kits, extra_assets })
+    }
+
+    pub fn delete_harness_kit(&self, id: &str) -> Result<(), HkError> {
+        let affected = self.conn.execute("DELETE FROM harness_kits WHERE id = ?1", params![id])?;
+        if affected == 0 {
+            return Err(HkError::NotFound("Harness Kit not found".into()));
+        }
+        Ok(())
+    }
+
+    fn list_harness_kit_agent_configs(&self, harness_kit_id: &str) -> Result<Vec<NewHarnessKitAgentConfig>, HkError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT agent_config_template_id, template_name
+             FROM harness_kit_agent_configs
+             WHERE harness_kit_id = ?1
+             ORDER BY position",
+        )?;
+        let rows = stmt.query_map([harness_kit_id], |row| {
+            Ok(NewHarnessKitAgentConfig {
+                template_id: row.get(0)?,
+                template_name: row.get(1)?,
+            })
+        })?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
+    }
+
+    fn list_harness_kit_extension_kits(&self, harness_kit_id: &str) -> Result<Vec<NewHarnessKitExtensionKit>, HkError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT kit_id, kit_name
+             FROM harness_kit_extension_kits
+             WHERE harness_kit_id = ?1
+             ORDER BY position",
+        )?;
+        let rows = stmt.query_map([harness_kit_id], |row| {
+            Ok(NewHarnessKitExtensionKit {
+                kit_id: row.get(0)?,
+                kit_name: row.get(1)?,
+            })
+        })?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
+    }
+
+    fn list_harness_kit_extra_assets(&self, harness_kit_id: &str) -> Result<Vec<NewKitAsset>, HkError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT hub_extension_id, kind, asset_name
+             FROM harness_kit_assets
+             WHERE harness_kit_id = ?1
+             ORDER BY position",
+        )?;
+        let rows = stmt.query_map([harness_kit_id], |row| {
+            let kind_str: String = row.get(1)?;
+            let kind = kind_str.parse().map_err(|e: anyhow::Error| {
+                rusqlite::Error::FromSqlConversionFailure(
+                    1,
+                    rusqlite::types::Type::Text,
+                    Box::new(std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string())),
+                )
+            })?;
+            Ok(NewKitAsset {
+                hub_extension_id: row.get(0)?,
+                kind,
+                asset_name: row.get(2)?,
+            })
+        })?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
+    }
+
+    pub fn upsert_harness_kit_sync_record(
+        &self,
+        harness_kit_id: &str,
+        project_path: &str,
+        target_agent: &str,
+        assets: &[NewKitAsset],
+        configs: &[HarnessKitConfigTarget],
+    ) -> Result<String, HkError> {
+        let tx = self.conn.unchecked_transaction()?;
+        let now = Utc::now();
+        let existing_id: Option<String> = tx
+            .query_row(
+                "SELECT id FROM harness_kit_sync_records WHERE harness_kit_id = ?1 AND project_path = ?2 AND target_agent = ?3",
+                params![harness_kit_id, project_path, target_agent],
+                |row| row.get(0),
+            )
+            .optional()?;
+        let id = existing_id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+        tx.execute(
+            "INSERT INTO harness_kit_sync_records (id, harness_kit_id, project_path, target_agent, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?5)
+             ON CONFLICT(harness_kit_id, project_path, target_agent)
+             DO UPDATE SET updated_at = excluded.updated_at",
+            params![id, harness_kit_id, project_path, target_agent, now.to_rfc3339()],
+        )?;
+        tx.execute("DELETE FROM harness_kit_sync_record_assets WHERE record_id = ?1", params![id])?;
+        tx.execute("DELETE FROM harness_kit_sync_record_configs WHERE record_id = ?1", params![id])?;
+        for (position, asset) in assets.iter().enumerate() {
+            tx.execute(
+                "INSERT INTO harness_kit_sync_record_assets (record_id, hub_extension_id, kind, asset_name, position)
+                 VALUES (?1, ?2, ?3, ?4, ?5)",
+                params![id, asset.hub_extension_id, asset.kind.as_str(), asset.asset_name, position as i64],
+            )?;
+        }
+        for (position, config) in configs.iter().enumerate() {
+            tx.execute(
+                "INSERT INTO harness_kit_sync_record_configs
+                 (record_id, agent_config_template_id, template_name, rel_path, target_path, position)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                params![id, config.template_id, config.template_name, config.rel_path, config.target_path, position as i64],
+            )?;
+        }
+        tx.commit()?;
+        Ok(id)
+    }
+
+    pub fn get_harness_kit_sync_record(
+        &self,
+        harness_kit_id: &str,
+        project_path: &str,
+        target_agent: &str,
+    ) -> Result<Option<HarnessKitSyncRecord>, HkError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, harness_kit_id, project_path, target_agent
+             FROM harness_kit_sync_records
+             WHERE harness_kit_id = ?1 AND project_path = ?2 AND target_agent = ?3",
+        )?;
+        let mut rows = stmt.query_map(params![harness_kit_id, project_path, target_agent], |row| {
+            let id: String = row.get(0)?;
+            Ok((id, row.get(1)?, row.get(2)?, row.get(3)?))
+        })?;
+        match rows.next() {
+            Some(Ok((id, hk_id, pp, agent))) => {
+                let assets = self.list_sync_record_assets(&id)?;
+                let configs = self.list_sync_record_configs(&id)?;
+                Ok(Some(HarnessKitSyncRecord {
+                    id,
+                    harness_kit_id: hk_id,
+                    project_path: pp,
+                    target_agent: agent,
+                    assets,
+                    configs,
+                }))
+            }
+            Some(Err(e)) => Err(e.into()),
+            None => Ok(None),
+        }
+    }
+
+    pub fn delete_harness_kit_sync_record(&self, id: &str) -> Result<(), HkError> {
+        let affected = self.conn.execute(
+            "DELETE FROM harness_kit_sync_records WHERE id = ?1",
+            params![id],
+        )?;
+        if affected == 0 {
+            return Err(HkError::NotFound("Harness Kit sync record not found".into()));
+        }
+        Ok(())
+    }
+
+    pub fn list_harness_kit_sync_records(
+        &self,
+        harness_kit_id: &str,
+        project_path: &str,
+    ) -> Result<Vec<HarnessKitSyncRecord>, HkError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, harness_kit_id, project_path, target_agent
+             FROM harness_kit_sync_records
+             WHERE harness_kit_id = ?1 AND project_path = ?2
+             ORDER BY updated_at DESC",
+        )?;
+        let rows = stmt.query_map(params![harness_kit_id, project_path], |row| {
+            let id: String = row.get(0)?;
+            Ok((id, row.get(1)?, row.get(2)?, row.get(3)?))
+        })?;
+        rows.map(|result| {
+            let (id, hk_id, pp, agent) = result?;
+            let assets = self.list_sync_record_assets(&id)?;
+            let configs = self.list_sync_record_configs(&id)?;
+            Ok(HarnessKitSyncRecord {
+                id,
+                harness_kit_id: hk_id,
+                project_path: pp,
+                target_agent: agent,
+                assets,
+                configs,
+            })
+        })
+        .collect()
+    }
+
+    fn list_sync_record_assets(&self, record_id: &str) -> Result<Vec<NewKitAsset>, HkError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT hub_extension_id, kind, asset_name
+             FROM harness_kit_sync_record_assets
+             WHERE record_id = ?1
+             ORDER BY position",
+        )?;
+        let rows = stmt.query_map([record_id], |row| {
+            let kind_str: String = row.get(1)?;
+            let kind = kind_str.parse().map_err(|e: anyhow::Error| {
+                rusqlite::Error::FromSqlConversionFailure(
+                    1,
+                    rusqlite::types::Type::Text,
+                    Box::new(std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string())),
+                )
+            })?;
+            Ok(NewKitAsset {
+                hub_extension_id: row.get(0)?,
+                kind,
+                asset_name: row.get(2)?,
+            })
+        })?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
+    }
+
+    fn list_sync_record_configs(&self, record_id: &str) -> Result<Vec<HarnessKitConfigTarget>, HkError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT agent_config_template_id, template_name, rel_path, target_path
+             FROM harness_kit_sync_record_configs
+             WHERE record_id = ?1
+             ORDER BY position",
+        )?;
+        let rows = stmt.query_map([record_id], |row| {
+            Ok(HarnessKitConfigTarget {
+                template_id: row.get(0)?,
+                template_name: row.get(1)?,
+                rel_path: row.get(2)?,
+                target_path: row.get(3)?,
+            })
+        })?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
+    }
+}
+
+/// Helper to insert child rows for a harness kit within an existing transaction.
+fn insert_harness_kit_children(
+    tx: &rusqlite::Transaction<'_>,
+    harness_kit_id: &str,
+    agent_configs: &[NewHarnessKitAgentConfig],
+    extension_kits: &[NewHarnessKitExtensionKit],
+    extra_assets: &[NewKitAsset],
+) -> Result<(), HkError> {
+    for (position, item) in agent_configs.iter().enumerate() {
+        tx.execute(
+            "INSERT INTO harness_kit_agent_configs
+             (harness_kit_id, agent_config_template_id, template_name, position)
+             VALUES (?1, ?2, ?3, ?4)",
+            params![harness_kit_id, item.template_id, item.template_name, position as i64],
+        )?;
+    }
+    for (position, item) in extension_kits.iter().enumerate() {
+        tx.execute(
+            "INSERT INTO harness_kit_extension_kits
+             (harness_kit_id, kit_id, kit_name, position)
+             VALUES (?1, ?2, ?3, ?4)",
+            params![harness_kit_id, item.kit_id, item.kit_name, position as i64],
+        )?;
+    }
+    for (position, asset) in extra_assets.iter().enumerate() {
+        tx.execute(
+            "INSERT INTO harness_kit_assets
+             (harness_kit_id, hub_extension_id, kind, asset_name, position)
+             VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![
+                harness_kit_id,
+                asset.hub_extension_id,
+                asset.kind.as_str(),
+                asset.asset_name,
+                position as i64,
+            ],
+        )?;
+    }
+    Ok(())
+}
+
+#[derive(Debug, Clone)]
+pub struct HarnessKitSyncRecord {
+    pub id: String,
+    pub harness_kit_id: String,
+    pub project_path: String,
+    pub target_agent: String,
+    pub assets: Vec<NewKitAsset>,
+    pub configs: Vec<HarnessKitConfigTarget>,
 }
 
 #[cfg(test)]
@@ -2509,5 +3205,303 @@ mod tests {
         // Only the latest audit (with 0 findings) should be counted
         let counts = store.count_latest_findings_by_severity().unwrap();
         assert_eq!(counts.get("critical").copied().unwrap_or(0), 0);
+    }
+
+    // --- Kit tests ---
+
+    #[test]
+    fn test_kit_schema_v6_is_created() {
+        let (store, _dir) = test_store();
+
+        let kits_count: i64 = store
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'kits'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let kit_assets_count: i64 = store
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'kit_assets'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+
+        assert_eq!(kits_count, 1);
+        assert_eq!(kit_assets_count, 1);
+        assert_eq!(store.schema_version().unwrap(), 8);
+    }
+
+    #[test]
+    fn test_create_and_list_kit_counts_assets_by_kind() {
+        let (store, _dir) = test_store();
+        let kit = store
+            .create_kit(
+                "Data Analyst Kit",
+                "SQL and data analysis assets",
+                &[
+                    NewKitAsset {
+                        hub_extension_id: "hub-skill".into(),
+                        kind: ExtensionKind::Skill,
+                        asset_name: "nl2sql".into(),
+                    },
+                    NewKitAsset {
+                        hub_extension_id: "hub-mcp".into(),
+                        kind: ExtensionKind::Mcp,
+                        asset_name: "postgres".into(),
+                    },
+                    NewKitAsset {
+                        hub_extension_id: "hub-cli".into(),
+                        kind: ExtensionKind::Cli,
+                        asset_name: "psql".into(),
+                    },
+                ],
+            )
+            .unwrap();
+
+        let kits = store.list_kits().unwrap();
+        assert_eq!(kits.len(), 1);
+        assert_eq!(kits[0].id, kit.id);
+        assert_eq!(kits[0].name, "Data Analyst Kit");
+        assert_eq!(kits[0].description, "SQL and data analysis assets");
+        assert_eq!(kits[0].skills_count, 1);
+        assert_eq!(kits[0].mcp_count, 1);
+        assert_eq!(kits[0].cli_count, 1);
+    }
+
+    #[test]
+    fn test_delete_kit_removes_only_kit_rows() {
+        let (store, _dir) = test_store();
+        let kit = store
+            .create_kit(
+                "Frontend Kit",
+                "UI assets",
+                &[NewKitAsset {
+                    hub_extension_id: "hub-skill".into(),
+                    kind: ExtensionKind::Skill,
+                    asset_name: "frontend-design".into(),
+                }],
+            )
+            .unwrap();
+
+        store.delete_kit(&kit.id).unwrap();
+
+        assert!(store.list_kits().unwrap().is_empty());
+        let orphan_asset_rows: i64 = store
+            .conn
+            .query_row("SELECT COUNT(*) FROM kit_assets", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(orphan_asset_rows, 0);
+    }
+
+    #[test]
+    fn test_update_kit_replaces_metadata_and_assets() {
+        let (store, _dir) = test_store();
+        let kit = store
+            .create_kit(
+                "Data Analyst Kit",
+                "Original description",
+                &[NewKitAsset {
+                    hub_extension_id: "hub-skill".into(),
+                    kind: ExtensionKind::Skill,
+                    asset_name: "sql-skill".into(),
+                }],
+            )
+            .unwrap();
+
+        let updated = store
+            .update_kit(
+                &kit.id,
+                "Platform Kit",
+                "Updated description",
+                &[
+                    NewKitAsset {
+                        hub_extension_id: "hub-skill-2".into(),
+                        kind: ExtensionKind::Skill,
+                        asset_name: "frontend-design".into(),
+                    },
+                    NewKitAsset {
+                        hub_extension_id: "hub-mcp".into(),
+                        kind: ExtensionKind::Mcp,
+                        asset_name: "chrome-devtools".into(),
+                    },
+                ],
+            )
+            .unwrap();
+
+        assert_eq!(updated.name, "Platform Kit");
+        assert_eq!(updated.description, "Updated description");
+        assert_eq!(updated.skills_count, 1);
+        assert_eq!(updated.mcp_count, 1);
+
+        let assets = store.list_kit_assets(&kit.id).unwrap();
+        assert_eq!(assets.len(), 2);
+        assert_eq!(assets[0].asset_name, "frontend-design");
+        assert_eq!(assets[1].asset_name, "chrome-devtools");
+    }
+
+    #[test]
+    fn test_create_kit_rejects_empty_name_and_empty_assets() {
+        let (store, _dir) = test_store();
+
+        let empty_name = store.create_kit(
+            "   ",
+            "desc",
+            &[NewKitAsset {
+                hub_extension_id: "hub-skill".into(),
+                kind: ExtensionKind::Skill,
+                asset_name: "frontend-design".into(),
+            }],
+        );
+        assert!(empty_name.is_err());
+
+        let empty_assets = store.create_kit("Frontend Kit", "desc", &[]);
+        assert!(empty_assets.is_err());
+    }
+
+    #[test]
+    fn test_harness_kit_migration_creates_tables() {
+        let (store, _dir) = test_store();
+
+        for table in [
+            "harness_kits",
+            "harness_kit_agent_configs",
+            "harness_kit_extension_kits",
+            "harness_kit_assets",
+        ] {
+            let count: i64 = store
+                .conn
+                .query_row(
+                    "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?1",
+                    [table],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            assert_eq!(count, 1, "missing table {table}");
+        }
+    }
+
+    #[test]
+    fn test_harness_kit_crud_lifecycle() {
+        let (store, _dir) = test_store();
+        let first = store
+            .create_harness_kit(
+                "Data Workspace",
+                "Prompts plus data tools",
+                &[NewHarnessKitAgentConfig {
+                    template_id: "default/agent-rules".into(),
+                    template_name: "Agent Rules".into(),
+                }],
+                &[NewHarnessKitExtensionKit {
+                    kit_id: "kit-data".into(),
+                    kit_name: "Data Extensions".into(),
+                }],
+                &[
+                    NewKitAsset {
+                        hub_extension_id: "hub-skill-sql".into(),
+                        kind: ExtensionKind::Skill,
+                        asset_name: "sql-review".into(),
+                    },
+                    NewKitAsset {
+                        hub_extension_id: "hub-mcp-pg".into(),
+                        kind: ExtensionKind::Mcp,
+                        asset_name: "postgres".into(),
+                    },
+                ],
+            )
+            .unwrap();
+
+        assert_eq!(first.name, "Data Workspace");
+        assert_eq!(first.agent_config_count, 1);
+        assert_eq!(first.extensions_kit_count, 1);
+        assert_eq!(first.skills_count, 1);
+        assert_eq!(first.mcp_count, 1);
+
+        let listed = store.list_harness_kits().unwrap();
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].id, first.id);
+
+        let assets = store.list_harness_kit_assets(&first.id).unwrap();
+        assert_eq!(assets.agent_configs[0].template_name, "Agent Rules");
+        assert_eq!(assets.extension_kits[0].kit_name, "Data Extensions");
+        assert_eq!(assets.extra_assets[0].asset_name, "sql-review");
+        assert_eq!(assets.extra_assets[1].asset_name, "postgres");
+
+        let updated = store
+            .update_harness_kit(
+                &first.id,
+                "Review Workspace",
+                "Review prompts",
+                &[],
+                &[NewHarnessKitExtensionKit {
+                    kit_id: "kit-review".into(),
+                    kit_name: "Review Extensions".into(),
+                }],
+                &[NewKitAsset {
+                    hub_extension_id: "hub-skill-review".into(),
+                    kind: ExtensionKind::Skill,
+                    asset_name: "code-review".into(),
+                }],
+            )
+            .unwrap();
+        assert_eq!(updated.name, "Review Workspace");
+        assert_eq!(updated.agent_config_count, 0);
+        assert_eq!(updated.extensions_kit_count, 1);
+        assert_eq!(updated.skills_count, 1);
+        assert_eq!(updated.mcp_count, 0);
+
+        store.delete_harness_kit(&first.id).unwrap();
+        assert!(store.list_harness_kits().unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_harness_kit_rejects_empty_name_and_empty_assets() {
+        let (store, _dir) = test_store();
+
+        let blank = store.create_harness_kit("  ", "", &[], &[], &[]);
+        assert!(blank.unwrap_err().to_string().contains("Harness Kit name cannot be empty"));
+
+        let empty = store.create_harness_kit("Empty", "", &[], &[], &[]);
+        assert!(empty.unwrap_err().to_string().contains("Select at least one Harness Kit asset"));
+    }
+
+    #[test]
+    fn harness_kit_sync_records_round_trip_and_delete() {
+        let (store, _dir) = test_store();
+        let record_id = store
+            .upsert_harness_kit_sync_record(
+                "hk-1",
+                "/project",
+                "codex",
+                &[NewKitAsset {
+                    hub_extension_id: "hub-skill".into(),
+                    kind: ExtensionKind::Skill,
+                    asset_name: "Skill A".into(),
+                }],
+                &[HarnessKitConfigTarget {
+                    template_id: "tpl-1".into(),
+                    template_name: "Rules".into(),
+                    rel_path: ".codex/AGENTS.md".into(),
+                    target_path: "/project/.codex/AGENTS.md".into(),
+                }],
+            )
+            .unwrap();
+
+        let record = store
+            .get_harness_kit_sync_record("hk-1", "/project", "codex")
+            .unwrap()
+            .expect("record exists");
+        assert_eq!(record.id, record_id);
+        assert_eq!(record.assets[0].hub_extension_id, "hub-skill");
+        assert_eq!(record.configs[0].rel_path, ".codex/AGENTS.md");
+
+        store.delete_harness_kit_sync_record(&record.id).unwrap();
+        assert!(store
+            .get_harness_kit_sync_record("hk-1", "/project", "codex")
+            .unwrap()
+            .is_none());
     }
 }

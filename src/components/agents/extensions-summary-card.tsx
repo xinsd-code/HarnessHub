@@ -13,8 +13,7 @@ export function ExtensionsSummaryCard({
   activeScope?: string | null;
 }) {
   const navigate = useNavigate();
-  const total =
-    counts.skill + counts.mcp + counts.plugin + counts.hook + counts.cli;
+  const total = counts.skill + counts.mcp + counts.plugin + counts.hook;
   if (total === 0) return null;
 
   const buildHref = () => {
@@ -62,12 +61,6 @@ export function ExtensionsSummaryCard({
             <span>
               <strong>{counts.hook}</strong>{" "}
               <span className="text-muted-foreground">Hooks</span>
-            </span>
-          )}
-          {counts.cli > 0 && (
-            <span>
-              <strong>{counts.cli}</strong>{" "}
-              <span className="text-muted-foreground">CLIs</span>
             </span>
           )}
         </div>

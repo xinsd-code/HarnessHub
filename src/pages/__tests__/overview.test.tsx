@@ -204,7 +204,7 @@ describe("OverviewPage", () => {
     expect(localHub.getByText("Skills")).toBeTruthy();
     expect(localHub.getByText("MCP")).toBeTruthy();
     expect(localHub.getByText("Plugins")).toBeTruthy();
-    expect(localHub.getByText("4")).toBeTruthy();
+    expect(localHub.getByText("5")).toBeTruthy();
     expect(localHub.getByText("2")).toBeTruthy();
     expect(localHub.getAllByText("1")).not.toHaveLength(0);
 

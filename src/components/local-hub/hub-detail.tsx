@@ -157,7 +157,7 @@ export function HubDetail() {
     agents.filter((a) => a.detected),
     agentOrder,
   );
-  const globalInstallAgents = ext.kind === "cli" ? [] : detectedAgents;
+  const globalInstallAgents = detectedAgents;
   const projectTargetKind: ExtensionKind | null =
     ext.kind === "skill" || ext.kind === "mcp" ? ext.kind : null;
   const projectInstallAgents =

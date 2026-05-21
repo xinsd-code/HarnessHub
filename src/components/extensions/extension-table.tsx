@@ -521,9 +521,7 @@ export function ExtensionTable({
                     ? "No plugins match your filters."
                     : kindFilter === "hook"
                       ? "No hooks match your filters."
-                      : kindFilter === "cli"
-                        ? "No CLIs match your filters."
-                        : "No extensions match your filters."}
+                      : "No extensions match your filters."}
               <button
                 onClick={() => {
                   useExtensionStore.getState().setSearchQuery("");
@@ -547,9 +545,7 @@ export function ExtensionTable({
                       ? "No plugins found"
                       : kindFilter === "hook"
                         ? "No hooks found"
-                        : kindFilter === "cli"
-                          ? "No CLIs found"
-                          : "No extensions found"}
+                        : "No extensions found"}
               </h4>
               <p className="mt-1 text-xs text-muted-foreground">
                 Browse the Marketplace to discover and install skills, MCP

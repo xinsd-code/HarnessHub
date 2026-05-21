@@ -11,6 +11,7 @@ import { ErrorBoundary } from "./components/shared/error-boundary";
 import { api } from "./lib/invoke";
 import { isDesktop } from "./lib/transport";
 import AgentsPage from "./pages/agents";
+import HarnessKitPage from "./pages/harnesskit";
 import AuditPage from "./pages/audit";
 import ExtensionsPage from "./pages/extensions";
 import LocalHubPage from "./pages/local-hub";
@@ -170,6 +171,7 @@ export default function App() {
             <Route element={<AppShell />}>
               <Route index element={<OverviewPage />} />
               <Route path="agents" element={<AgentsPage />} />
+              <Route path="harnesskit" element={<HarnessKitPage />} />
               <Route path="projects" element={<ProjectsPage />} />
               <Route path="extensions" element={<ExtensionsPage />} />
               <Route path="local-hub" element={<LocalHubPage />} />

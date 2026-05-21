@@ -67,6 +67,10 @@ export default function ProjectsPage() {
 
   useEffect(() => {
     if (!hydrated) return;
+    if ((scope as { type: string }).type === "agent-config") {
+      setScope(projects.length > 0 ? { type: "all" } : { type: "global" });
+      return;
+    }
     if (scope.type === "global") {
       setScope(projects.length > 0 ? { type: "all" } : { type: "global" });
     }
@@ -161,26 +165,36 @@ export default function ProjectsPage() {
           Loading...
         </div>
       ) : scope.type === "all" ? (
-        <div className="flex-1 overflow-y-auto overscroll-contain p-5">
-          <div className="mb-6">
-            <h2 className="text-2xl font-bold tracking-tight">All Projects</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              This view lists every registered project. Click any project to
-              inspect the agents and configs detected inside it.
+        <div className="flex-1 overflow-y-auto overscroll-contain p-8 bg-gradient-to-br from-background via-background/95 to-accent/10">
+          <div className="mb-8 max-w-4xl">
+            <h2 className="text-3xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
+              All Projects
+            </h2>
+            <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground/90">
+              Explore your registered workspaces. Click any project to inspect
+              its connected agents, configurations, and isolated assets.
             </p>
           </div>
           {projects.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-border bg-muted/20 p-6 text-sm text-muted-foreground">
-              No projects added yet.
+            <div className="rounded-2xl border border-dashed border-border/50 bg-accent/5 p-12 text-center text-sm text-muted-foreground flex flex-col items-center justify-center gap-3 shadow-sm">
+              <FolderOpen size={32} className="text-muted-foreground/40" />
+              <p>No projects added yet.</p>
             </div>
           ) : (
-            <div className="space-y-5">
+            <div className="space-y-8 max-w-6xl">
               {groupedProjects.map((group) => (
-                <section key={group.label}>
-                  <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                    {group.label}
+                <section
+                  key={group.label}
+                  className="animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out"
+                >
+                  <div className="mb-4 flex items-center gap-3">
+                    <div className="h-[1px] flex-1 bg-border/40" />
+                    <span className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground/70 bg-background/50 px-2 rounded-full">
+                      {group.label}
+                    </span>
+                    <div className="h-[1px] flex-1 bg-border/40" />
                   </div>
-                  <div className="space-y-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                     {group.projects.map((project) => (
                       <button
                         key={project.id}
@@ -191,38 +205,42 @@ export default function ProjectsPage() {
                             path: project.path,
                           })
                         }
-                        className="flex w-full items-center gap-3 rounded-xl border border-border/70 px-4 py-3 text-left transition-colors hover:bg-accent/30"
+                        className="group relative flex flex-col items-start gap-3 overflow-hidden rounded-2xl border border-border/40 bg-card/40 p-5 text-left shadow-sm backdrop-blur-md transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:bg-card/80 hover:shadow-md dark:hover:shadow-primary/5"
                       >
-                        <FolderOpen
-                          size={16}
-                          className={clsx(
-                            "shrink-0",
-                            project.exists
-                              ? "text-muted-foreground"
-                              : "text-muted-foreground/50",
-                          )}
-                        />
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={clsx(
-                                "text-sm font-medium",
-                                project.exists
-                                  ? "text-foreground"
-                                  : "text-muted-foreground line-through",
-                              )}
-                            >
-                              {project.name}
-                            </span>
-                            {!project.exists && (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                                <TriangleAlert size={10} />
-                                Missing
-                              </span>
+                        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+                        <div className="flex w-full items-start justify-between">
+                          <div
+                            className={clsx(
+                              "flex h-10 w-10 items-center justify-center rounded-xl shadow-sm transition-colors",
+                              project.exists
+                                ? "bg-primary/10 text-primary"
+                                : "bg-muted text-muted-foreground/50",
                             )}
+                          >
+                            <FolderOpen size={20} />
                           </div>
-                          <div className="mt-1 truncate text-xs text-muted-foreground">
-                            {project.path}
+                          {!project.exists && (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-destructive/20 bg-destructive/10 px-2 py-1 text-[10px] font-semibold text-destructive shadow-sm">
+                              <TriangleAlert size={10} />
+                              Missing
+                            </span>
+                          )}
+                        </div>
+                        <div className="min-w-0 w-full pt-1 z-10">
+                          <span
+                            className={clsx(
+                              "block truncate text-base font-semibold tracking-tight transition-colors group-hover:text-primary",
+                              project.exists
+                                ? "text-foreground"
+                                : "text-muted-foreground line-through",
+                            )}
+                          >
+                            {project.name}
+                          </span>
+                          <div className="mt-1.5 flex items-center text-xs text-muted-foreground/80 font-mono">
+                            <span className="truncate" title={project.path}>
+                              {project.path}
+                            </span>
                           </div>
                         </div>
                       </button>

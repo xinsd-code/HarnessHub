@@ -215,6 +215,49 @@ fn format_dir_tree(
     lines.join("\n")
 }
 
+fn resolve_and_validate_writable_config_path(
+    state: &AppState,
+    path: &str,
+) -> Result<std::path::PathBuf, HkError> {
+    let resolved = if path.starts_with("~/") {
+        dirs::home_dir()
+            .map(|h| h.join(&path[2..]).to_string_lossy().to_string())
+            .unwrap_or_else(|| path.to_string())
+    } else {
+        path.to_string()
+    };
+    if resolved.contains("..") {
+        return Err(HkError::PathNotAllowed(
+            "Config paths cannot contain '..' components".into(),
+        ));
+    }
+
+    let resolved_path = super::normalize(std::path::Path::new(&resolved));
+    let home = dirs::home_dir()
+        .ok_or_else(|| HkError::Internal("Cannot determine home directory".into()))?;
+    let home = super::normalize(&home);
+    let allowed = resolved_path.starts_with(&home)
+        || state
+            .store
+            .lock()
+            .list_projects()?
+            .into_iter()
+            .map(|project| super::normalize(std::path::Path::new(&project.path)))
+            .any(|project_path| resolved_path.starts_with(&project_path));
+    if !allowed {
+        return Err(HkError::PathNotAllowed(
+            "Config paths must be within your home directory or a registered project".into(),
+        ));
+    }
+    if resolved_path == home {
+        return Err(HkError::Validation(
+            "Cannot use home directory itself as a config path".into(),
+        ));
+    }
+
+    Ok(resolved_path)
+}
+
 // --- Custom config path commands ---
 
 #[tauri::command]
@@ -226,34 +269,7 @@ pub fn add_custom_config_path(
     category: String,
     target_scope: ConfigScope,
 ) -> Result<i64, HkError> {
-    // Resolve ~ to home directory
-    let resolved = if path.starts_with("~/") {
-        dirs::home_dir()
-            .map(|h| h.join(&path[2..]).to_string_lossy().to_string())
-            .unwrap_or(path.clone())
-    } else {
-        path
-    };
-    // Reject paths with ".." to prevent traversal bypass (e.g., ~/../../etc/passwd)
-    if resolved.contains("..") {
-        return Err(HkError::PathNotAllowed(
-            "Config paths cannot contain '..' components".into(),
-        ));
-    }
-    let resolved_path = super::normalize(std::path::Path::new(&resolved));
-    let home = dirs::home_dir()
-        .ok_or_else(|| HkError::Internal("Cannot determine home directory".into()))?;
-    let home = super::normalize(&home);
-    if !resolved_path.starts_with(&home) {
-        return Err(HkError::PathNotAllowed(
-            "Custom config paths must be within your home directory".into(),
-        ));
-    }
-    if resolved_path == home {
-        return Err(HkError::Validation(
-            "Cannot use home directory itself as a config path".into(),
-        ));
-    }
+    let resolved_path = resolve_and_validate_writable_config_path(&state, &path)?;
     let scope_json = serde_json::to_string(&target_scope).ok();
     let resolved = resolved_path.to_string_lossy().to_string();
     let store = state.store.lock();
@@ -268,32 +284,7 @@ pub fn update_custom_config_path(
     label: String,
     category: String,
 ) -> Result<(), HkError> {
-    let resolved = if path.starts_with("~/") {
-        dirs::home_dir()
-            .map(|h| h.join(&path[2..]).to_string_lossy().to_string())
-            .unwrap_or(path.clone())
-    } else {
-        path
-    };
-    if resolved.contains("..") {
-        return Err(HkError::PathNotAllowed(
-            "Config paths cannot contain '..' components".into(),
-        ));
-    }
-    let resolved_path = super::normalize(std::path::Path::new(&resolved));
-    let home = dirs::home_dir()
-        .ok_or_else(|| HkError::Internal("Cannot determine home directory".into()))?;
-    let home = super::normalize(&home);
-    if !resolved_path.starts_with(&home) {
-        return Err(HkError::PathNotAllowed(
-            "Custom config paths must be within your home directory".into(),
-        ));
-    }
-    if resolved_path == home {
-        return Err(HkError::Validation(
-            "Cannot use home directory itself as a config path".into(),
-        ));
-    }
+    let resolved_path = resolve_and_validate_writable_config_path(&state, &path)?;
     let resolved = resolved_path.to_string_lossy().to_string();
     let store = state.store.lock();
     store.update_custom_config_path(id, &resolved, &label, &category)

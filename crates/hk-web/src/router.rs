@@ -142,7 +142,37 @@ pub fn build_router(state: WebState) -> Router {
         .route("/api/get_hub_path", post(handlers::hub::get_hub_path))
         .route("/api/get_hub_extension_content", post(handlers::hub::get_hub_extension_content))
         .route("/api/preview_sync_to_hub", post(handlers::hub::preview_sync_to_hub))
-        .route("/api/sync_extensions_to_hub", post(handlers::hub::sync_extensions_to_hub));
+        .route("/api/sync_extensions_to_hub", post(handlers::hub::sync_extensions_to_hub))
+        // Agent Config Templates
+        .route("/api/list_agent_config_templates", post(handlers::agent_config_templates::list_agent_config_templates))
+        .route("/api/get_agent_config_template_content", post(handlers::agent_config_templates::get_agent_config_template_content))
+        .route("/api/create_agent_config_template", post(handlers::agent_config_templates::create_agent_config_template))
+        .route("/api/import_agent_config_template", post(handlers::agent_config_templates::import_agent_config_template))
+        .route("/api/update_agent_config_template_content", post(handlers::agent_config_templates::update_agent_config_template_content))
+        .route("/api/update_agent_config_template_tag", post(handlers::agent_config_templates::update_agent_config_template_tag))
+        .route("/api/delete_agent_config_template", post(handlers::agent_config_templates::delete_agent_config_template))
+        .route("/api/sync_agent_config_template_to_project", post(handlers::agent_config_templates::sync_agent_config_template_to_project))
+        // HarnessKit Kits
+        .route("/api/list_kits", post(handlers::kits::list_kits))
+        .route("/api/list_kit_asset_candidates", post(handlers::kits::list_kit_asset_candidates))
+        .route("/api/create_kit", post(handlers::kits::create_kit))
+        .route("/api/update_kit", post(handlers::kits::update_kit))
+        .route("/api/delete_kit", post(handlers::kits::delete_kit))
+        .route("/api/list_kit_assets", post(handlers::kits::list_kit_assets))
+        .route("/api/sync_kit_to_project", post(handlers::kits::sync_kit_to_project))
+        .route("/api/preview_kit_project_conflicts", post(handlers::kits::preview_kit_project_conflicts))
+        .route("/api/unsync_kit_from_project", post(handlers::kits::unsync_kit_from_project))
+        // Harness Kit aggregates
+        .route("/api/list_harness_kits", post(handlers::harness_kits::list_harness_kits))
+        .route("/api/list_harness_kit_asset_candidates", post(handlers::harness_kits::list_harness_kit_asset_candidates))
+        .route("/api/create_harness_kit", post(handlers::harness_kits::create_harness_kit))
+        .route("/api/update_harness_kit", post(handlers::harness_kits::update_harness_kit))
+        .route("/api/delete_harness_kit", post(handlers::harness_kits::delete_harness_kit))
+        .route("/api/list_harness_kit_assets", post(handlers::harness_kits::list_harness_kit_assets))
+        .route("/api/preview_harness_kit_project_conflicts", post(handlers::harness_kits::preview_harness_kit_project_conflicts))
+        .route("/api/list_harness_kit_sync_statuses", post(handlers::harness_kits::list_harness_kit_sync_statuses))
+        .route("/api/sync_harness_kit_to_project", post(handlers::harness_kits::sync_harness_kit_to_project))
+        .route("/api/unsync_harness_kit_from_project", post(handlers::harness_kits::unsync_harness_kit_from_project));
 
     let cors = CorsLayer::new()
         .allow_origin(Any)
