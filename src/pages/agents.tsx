@@ -4,6 +4,7 @@ import { AgentDetail } from "@/components/agents/agent-detail";
 import { AgentList } from "@/components/agents/agent-list";
 import { useScope } from "@/hooks/use-scope";
 import { useAgentConfigStore } from "@/stores/agent-config-store";
+import { useAgentStore } from "@/stores/agent-store";
 import { useProjectStore } from "@/stores/project-store";
 import {
   resolveDeepLinkScope,
@@ -20,15 +21,24 @@ export default function AgentsPage() {
   const selectAgent = useAgentConfigStore((s) => s.selectAgent);
   const expandFile = useAgentConfigStore((s) => s.expandFile);
   const setPendingFocusFile = useAgentConfigStore((s) => s.setPendingFocusFile);
+  const agents = useAgentStore((s) => s.agents);
+  const fetchAgents = useAgentStore((s) => s.fetch);
   const { scope, setScope } = useScope();
   const projects = useProjectStore((s) => s.projects);
   const [searchParams, setSearchParams] = useSearchParams();
-  const visibleAgents = agentDetails.filter((agent) => agent.detected);
+  const enabledAgentNames = new Set(
+    agents.filter((agent) => agent.enabled).map((agent) => agent.name),
+  );
+  const visibleAgents = agentDetails.filter(
+    (agent) =>
+      agent.detected &&
+      (agents.length === 0 || enabledAgentNames.has(agent.name)),
+  );
 
   useEffect(() => {
     if (!hydrated) return;
-    fetch();
-  }, [fetch, hydrated]);
+    void Promise.all([fetch(), fetchAgents()]);
+  }, [fetch, fetchAgents, hydrated]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -70,7 +80,10 @@ export default function AgentsPage() {
     const agent = searchParams.get("agent");
     if (loading || !agent) return;
     const file = searchParams.get("file");
-    const targetScope = resolveDeepLinkScope(searchParams.get("scope"), projects);
+    const targetScope = resolveDeepLinkScope(
+      searchParams.get("scope"),
+      projects,
+    );
     if (!scopesEqual(targetScope, scope)) {
       setScope(targetScope);
       prevScopeRef.current = targetScope;

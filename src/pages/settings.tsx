@@ -1,10 +1,13 @@
 import { clsx } from "clsx";
 import {
+  Bot,
   Check,
   Download,
+  FolderKanban,
   FolderOpen,
   FolderSearch,
   Loader2,
+  Palette,
   Pencil,
   Plus,
   RefreshCw,
@@ -70,9 +73,9 @@ const ICON_OPTIONS: { value: AppIcon; label: string; src: string }[] = [
 ];
 
 const SETTINGS_SECTIONS = [
-  { id: "appearance", label: "Appearance" },
-  { id: "agent-paths", label: "Agents" },
-  { id: "project-paths", label: "Projects" },
+  { id: "appearance", label: "Appearance", icon: Palette },
+  { id: "agent-paths", label: "Agents", icon: Bot },
+  { id: "project-paths", label: "Projects", icon: FolderKanban },
 ] as const;
 
 const FORCE_DELETABLE_AGENTS = new Set(["copilot", "windsurf"]);
@@ -564,43 +567,53 @@ export default function SettingsPage() {
       </div>
       <div className="flex-1 min-h-0 overflow-y-auto">
         <div className="mx-auto flex max-w-6xl gap-8 pb-6">
+          {/* Sidebar */}
           <aside className="sticky top-0 hidden h-fit w-52 shrink-0 lg:block">
             <nav className="space-y-1">
-              {SETTINGS_SECTIONS.map((section) => (
-                <button
-                  key={section.id}
-                  type="button"
-                  onClick={() => switchSection(section.id)}
-                  className={clsx(
-                    "flex w-full items-center rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors",
-                    activeSection === section.id
-                      ? "bg-accent text-foreground"
-                      : "text-muted-foreground hover:bg-accent/70 hover:text-foreground",
-                  )}
-                >
-                  {section.label}
-                </button>
-              ))}
+              {SETTINGS_SECTIONS.map((section) => {
+                const Icon = section.icon;
+                return (
+                  <button
+                    key={section.id}
+                    type="button"
+                    onClick={() => switchSection(section.id)}
+                    className={clsx(
+                      "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-medium transition-all duration-200 active:scale-[0.98]",
+                      activeSection === section.id
+                        ? "bg-primary text-primary-foreground shadow-sm font-semibold"
+                        : "text-muted-foreground hover:bg-accent/70 hover:text-foreground",
+                    )}
+                  >
+                    <Icon size={15} strokeWidth={2} />
+                    <span>{section.label}</span>
+                  </button>
+                );
+              })}
             </nav>
           </aside>
 
           <div className="min-w-0 flex-1 space-y-4">
+            {/* Small Screen Tabs */}
             <div className="flex gap-2 overflow-x-auto pb-1 lg:hidden">
-              {SETTINGS_SECTIONS.map((section) => (
-                <button
-                  key={section.id}
-                  type="button"
-                  onClick={() => switchSection(section.id)}
-                  className={clsx(
-                    "shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
-                    activeSection === section.id
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "border border-border bg-card text-muted-foreground hover:bg-accent hover:text-foreground",
-                  )}
-                >
-                  {section.label}
-                </button>
-              ))}
+              {SETTINGS_SECTIONS.map((section) => {
+                const Icon = section.icon;
+                return (
+                  <button
+                    key={section.id}
+                    type="button"
+                    onClick={() => switchSection(section.id)}
+                    className={clsx(
+                      "flex items-center gap-1.5 shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-200 active:scale-95",
+                      activeSection === section.id
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "border border-border bg-card text-muted-foreground hover:bg-accent hover:text-foreground",
+                    )}
+                  >
+                    <Icon size={13} strokeWidth={2} />
+                    <span>{section.label}</span>
+                  </button>
+                );
+              })}
             </div>
 
             <div className="py-1">
@@ -608,20 +621,27 @@ export default function SettingsPage() {
               {activeSection === "appearance" && (
                 <section id="appearance" className="space-y-4">
                   <div>
-                    <h3 className="text-sm font-medium text-muted-foreground">
-                      Appearance
+                    <h3 className="text-sm font-semibold text-foreground tracking-tight">
+                      Appearance Settings
                     </h3>
                     <p className="mt-1 text-xs text-muted-foreground">
                       Personalize theme, color mode, and desktop app icon.
                     </p>
                   </div>
 
-                  <div className="flex flex-col gap-2">
+                  <div className="rounded-xl border border-border/40 bg-card/45 p-5 backdrop-blur-xs shadow-xs space-y-5">
                     {/* Theme */}
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm">Theme</span>
-                      <div className="flex rounded-lg border border-border">
-                        {THEME_OPTIONS.map((t, i) => (
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div>
+                        <span className="text-sm font-semibold text-foreground">
+                          Color Theme
+                        </span>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                          Select a design theme for the dashboard
+                        </p>
+                      </div>
+                      <div className="flex rounded-lg border border-border bg-muted/20 p-1">
+                        {THEME_OPTIONS.map((t, _i) => (
                           <button
                             key={t.value}
                             onClick={() => {
@@ -630,16 +650,14 @@ export default function SettingsPage() {
                             }}
                             aria-pressed={themeName === t.value}
                             className={clsx(
-                              "flex items-center gap-1.5 px-3 py-1 text-xs font-medium transition-colors duration-200",
-                              i === 0 && "rounded-l-lg",
-                              i === THEME_OPTIONS.length - 1 && "rounded-r-lg",
+                              "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200",
                               themeName === t.value
-                                ? "bg-primary text-primary-foreground shadow-sm"
-                                : "text-muted-foreground hover:bg-accent",
+                                ? "bg-primary text-primary-foreground shadow-sm animate-scale-in"
+                                : "text-muted-foreground hover:bg-card/40 hover:text-foreground",
                             )}
                           >
                             <span
-                              className="h-2.5 w-2.5 rounded-full border border-primary-foreground/20"
+                              className="h-2.5 w-2.5 rounded-full border border-primary-foreground/20 transition-transform duration-300"
                               style={{
                                 backgroundColor:
                                   themeName === t.value
@@ -653,13 +671,20 @@ export default function SettingsPage() {
                       </div>
                     </div>
 
-                    <div className="border-t border-border" />
+                    <div className="border-t border-border/40" />
 
                     {/* Mode */}
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm">Mode</span>
-                      <div className="flex rounded-lg border border-border">
-                        {(["system", "light", "dark"] as const).map((m, i) => (
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div>
+                        <span className="text-sm font-semibold text-foreground">
+                          Interface Mode
+                        </span>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                          Toggle between light, dark, or system preference
+                        </p>
+                      </div>
+                      <div className="flex rounded-lg border border-border bg-muted/20 p-1">
+                        {(["system", "light", "dark"] as const).map((m, _i) => (
                           <button
                             key={m}
                             onClick={() => {
@@ -670,12 +695,10 @@ export default function SettingsPage() {
                             }}
                             aria-pressed={mode === m}
                             className={clsx(
-                              "px-3 py-1 text-xs font-medium transition-colors duration-200",
-                              i === 0 && "rounded-l-lg",
-                              i === 2 && "rounded-r-lg",
+                              "px-3.5 py-1.5 rounded-md text-xs font-medium transition-all duration-200",
                               mode === m
-                                ? "bg-primary text-primary-foreground shadow-sm"
-                                : "text-muted-foreground hover:bg-accent",
+                                ? "bg-primary text-primary-foreground shadow-sm animate-scale-in"
+                                : "text-muted-foreground hover:bg-card/40 hover:text-foreground",
                             )}
                           >
                             {m === "system"
@@ -690,12 +713,19 @@ export default function SettingsPage() {
 
                     {isDesktop() && (
                       <>
-                        <div className="border-t border-border" />
+                        <div className="border-t border-border/40" />
 
                         {/* App Icon — desktop only */}
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm">App Icon</span>
-                          <div className="flex gap-2">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                          <div>
+                            <span className="text-sm font-semibold text-foreground">
+                              App Launcher Icon
+                            </span>
+                            <p className="text-[11px] text-muted-foreground mt-0.5">
+                              Customize the app icon of your desktop client
+                            </p>
+                          </div>
+                          <div className="flex gap-3">
                             {ICON_OPTIONS.map((icon) => (
                               <button
                                 key={icon.value}
@@ -712,7 +742,7 @@ export default function SettingsPage() {
                                 }}
                                 aria-pressed={appIcon === icon.value}
                                 className={clsx(
-                                  "rounded-lg p-0.5 transition-all duration-200",
+                                  "rounded-xl p-0.5 transition-all duration-200 active:scale-95",
                                   appIcon === icon.value
                                     ? "ring-2 ring-primary ring-offset-2 ring-offset-card"
                                     : "ring-1 ring-border hover:ring-primary/50",
@@ -721,7 +751,7 @@ export default function SettingsPage() {
                                 <img
                                   src={icon.src}
                                   alt={icon.label}
-                                  className="h-10 w-10 rounded-md"
+                                  className="h-10 w-10 rounded-lg"
                                 />
                               </button>
                             ))}
@@ -738,25 +768,25 @@ export default function SettingsPage() {
                 <section id="agent-paths" className="space-y-4">
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <h3 className="text-sm font-medium text-muted-foreground">
-                        Agents
+                      <h3 className="text-sm font-semibold text-foreground tracking-tight">
+                        Agent Paths
                       </h3>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        Manage built-in and custom agents. You can override
-                        built-in paths or add a preset AI tool with its default
-                        base configs.
+                        Manage built-in and custom agents. Override search
+                        directories or add a preset AI tool with default
+                        configurations.
                       </p>
                     </div>
                     <button
                       type="button"
                       onClick={() => setShowCreateAgentDialog(true)}
-                      className="flex shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs text-primary-foreground shadow-sm transition-[color,background-color,box-shadow] duration-200 hover:bg-primary/90 hover:shadow-md"
+                      className="flex shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs text-primary-foreground shadow-sm transition-[color,background-color,box-shadow] duration-200 hover:bg-primary/90 hover:shadow-md active:scale-95"
                     >
                       <Plus size={12} />
                       Add Agent
                     </button>
                   </div>
-                  <div className="divide-y divide-border">
+                  <div className="space-y-3">
                     {agentNames.map((agent) => {
                       const info = agentMap.get(agent);
                       const isEnabled = info?.enabled ?? true;
@@ -768,131 +798,141 @@ export default function SettingsPage() {
                         <div
                           key={agent}
                           className={clsx(
-                            "flex items-center gap-3 px-4 py-2.5 transition-opacity",
-                            !isEnabled && "opacity-50",
+                            "group flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-xl border border-border/50 bg-card/45 p-4 transition-all duration-300 hover:border-border/90 hover:bg-card/75 hover:shadow-xs",
+                            !isEnabled && "opacity-55",
                           )}
                         >
-                          {info ? (
-                            <div className="shrink-0">
-                              <AgentLogo agent={info} className="h-9 w-9" />
+                          <div className="flex items-center gap-3.5 w-full md:w-36 shrink-0 min-w-0">
+                            {info ? (
+                              <div className="shrink-0 transition-transform duration-300 group-hover:scale-105">
+                                <AgentLogo agent={info} className="h-9 w-9" />
+                              </div>
+                            ) : (
+                              <div className="h-9 w-9 shrink-0 bg-muted rounded-lg" />
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <span className="block text-sm font-semibold text-foreground tracking-tight truncate">
+                                {agentDisplayName(agent)}
+                              </span>
+                              <span className="block text-[10px] text-muted-foreground mt-0.5 font-medium uppercase tracking-wider">
+                                {info?.builtin ? "Built-in" : "Custom"}
+                              </span>
                             </div>
-                          ) : (
-                            <div className="h-9 w-9 shrink-0" />
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => setEnabled(agent, !isEnabled)}
-                            className={clsx(
-                              "shrink-0 w-16 text-center rounded-md px-2 py-0.5 text-xs font-medium transition-colors",
-                              isEnabled
-                                ? "bg-primary/10 text-primary hover:bg-primary/20"
-                                : "bg-muted text-muted-foreground hover:bg-muted/80",
-                            )}
-                          >
-                            {isEnabled ? "Enabled" : "Disabled"}
-                          </button>
-                          <span className="shrink-0 w-28 text-sm font-medium text-foreground">
-                            {agentDisplayName(agent)}
-                          </span>
-                          <input
-                            type="text"
-                            readOnly={editingAgent !== agent}
-                            disabled={!isEnabled}
-                            value={
-                              editingAgent === agent
-                                ? editingPath
-                                : displayHomePath(info?.path ?? "", homeDir)
-                            }
-                            placeholder="Not detected"
-                            aria-label={`${agent} config path`}
-                            onChange={(e) => setEditingPath(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" && editingPath.trim()) {
-                                updatePath(agent, editingPath.trim());
-                                setEditingAgent(null);
+                          </div>
+
+                          <div className="flex items-center gap-2 flex-1 w-full md:max-w-lg lg:max-w-xl">
+                            <input
+                              type="text"
+                              readOnly={editingAgent !== agent}
+                              disabled={!isEnabled}
+                              value={
+                                editingAgent === agent
+                                  ? editingPath
+                                  : displayHomePath(info?.path ?? "", homeDir)
                               }
-                              if (e.key === "Escape") setEditingAgent(null);
-                            }}
-                            className={clsx(
-                              "flex-1 rounded-md border border-border px-3 py-1 text-sm text-foreground placeholder:text-muted-foreground truncate disabled:opacity-40",
-                              editingAgent === agent
-                                ? "bg-card ring-1 ring-ring"
-                                : "bg-muted cursor-default",
-                            )}
-                          />
-                          {editingAgent === agent ? (
-                            <>
-                              {isDesktop() && (
-                                <button
-                                  type="button"
-                                  aria-label={`Browse ${agent} path`}
-                                  className="shrink-0 rounded-md border border-border p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                                  onClick={async () => {
-                                    const path = await handleBrowseAgentPath({
-                                      title: `Select ${agent} directory`,
-                                    });
-                                    if (path) {
-                                      updatePath(agent, path);
-                                      setEditingAgent(null);
-                                    }
-                                  }}
-                                >
-                                  <FolderSearch size={14} />
-                                </button>
-                              )}
-                              <button
-                                type="button"
-                                aria-label="Cancel"
-                                className="shrink-0 rounded-md border border-border bg-background p-1.5 text-muted-foreground hover:text-foreground transition-colors"
-                                onClick={() => setEditingAgent(null)}
-                              >
-                                <X size={14} />
-                              </button>
-                              <button
-                                type="button"
-                                aria-label="Save"
-                                disabled={!editingPath.trim()}
-                                className="shrink-0 rounded-md bg-primary p-1.5 text-primary-foreground hover:bg-primary/90 disabled:opacity-40 transition-colors"
-                                onClick={() => {
+                              placeholder="Not detected"
+                              aria-label={`${agent} config path`}
+                              onChange={(e) => setEditingPath(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" && editingPath.trim()) {
                                   updatePath(agent, editingPath.trim());
                                   setEditingAgent(null);
-                                }}
-                              >
-                                <Check size={14} />
-                              </button>
-                            </>
-                          ) : (
-                            <div className="flex items-center gap-1.5">
-                              {canDelete && (
+                                }
+                                if (e.key === "Escape") setEditingAgent(null);
+                              }}
+                              className={clsx(
+                                "flex-1 rounded-md border border-border px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground truncate disabled:opacity-40",
+                                editingAgent === agent
+                                  ? "bg-card ring-1 ring-ring"
+                                  : "bg-muted/60 cursor-default hover:bg-muted/80",
+                              )}
+                            />
+                            {editingAgent === agent ? (
+                              <>
+                                {isDesktop() && (
+                                  <button
+                                    type="button"
+                                    aria-label={`Browse ${agent} path`}
+                                    className="shrink-0 rounded-md border border-border p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors active:scale-95"
+                                    onClick={async () => {
+                                      const path = await handleBrowseAgentPath({
+                                        title: `Select ${agent} directory`,
+                                      });
+                                      if (path) {
+                                        updatePath(agent, path);
+                                        setEditingAgent(null);
+                                      }
+                                    }}
+                                  >
+                                    <FolderSearch size={14} />
+                                  </button>
+                                )}
                                 <button
                                   type="button"
-                                  aria-label={
-                                    info?.builtin
-                                      ? `Remove ${agent} custom path`
-                                      : `Delete ${agent}`
-                                  }
-                                  className="shrink-0 rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                                  aria-label="Cancel"
+                                  className="shrink-0 rounded-md border border-border bg-background p-1.5 text-muted-foreground hover:text-foreground transition-colors active:scale-95"
+                                  onClick={() => setEditingAgent(null)}
+                                >
+                                  <X size={14} />
+                                </button>
+                                <button
+                                  type="button"
+                                  aria-label="Save"
+                                  disabled={!editingPath.trim()}
+                                  className="shrink-0 rounded-md bg-primary p-1.5 text-primary-foreground hover:bg-primary/90 disabled:opacity-40 transition-colors active:scale-95"
                                   onClick={() => {
-                                    if (info) setDeletingAgent(info);
+                                    updatePath(agent, editingPath.trim());
+                                    setEditingAgent(null);
                                   }}
                                 >
-                                  <Trash2 size={14} />
+                                  <Check size={14} />
                                 </button>
+                              </>
+                            ) : (
+                              <>
+                                {canDelete && (
+                                  <button
+                                    type="button"
+                                    aria-label={
+                                      info?.builtin
+                                        ? `Remove ${agent} custom path`
+                                        : `Delete ${agent}`
+                                    }
+                                    className="shrink-0 rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive active:scale-90"
+                                    onClick={() => {
+                                      if (info) setDeletingAgent(info);
+                                    }}
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  disabled={!isEnabled}
+                                  aria-label={`Edit ${agent} path`}
+                                  className="shrink-0 rounded-md border border-border p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:pointer-events-none disabled:opacity-40 active:scale-90"
+                                  onClick={() => {
+                                    setEditingAgent(agent);
+                                    setEditingPath(info?.path ?? "");
+                                  }}
+                                >
+                                  <Pencil size={14} />
+                                </button>
+                              </>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => setEnabled(agent, !isEnabled)}
+                              className={clsx(
+                                "shrink-0 rounded-md px-2.5 py-1 text-[10px] font-bold tracking-wide uppercase transition-all duration-200 active:scale-95",
+                                isEnabled
+                                  ? "bg-primary/10 text-primary hover:bg-primary/20"
+                                  : "bg-muted text-muted-foreground hover:bg-muted/80",
                               )}
-                              <button
-                                type="button"
-                                disabled={!isEnabled}
-                                aria-label={`Edit ${agent} path`}
-                                className="shrink-0 rounded-md border border-border p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:pointer-events-none disabled:opacity-40"
-                                onClick={() => {
-                                  setEditingAgent(agent);
-                                  setEditingPath(info?.path ?? "");
-                                }}
-                              >
-                                <Pencil size={14} />
-                              </button>
-                            </div>
-                          )}
+                            >
+                              {isEnabled ? "Active" : "Inactive"}
+                            </button>
+                          </div>
                         </div>
                       );
                     })}
@@ -904,15 +944,15 @@ export default function SettingsPage() {
               {activeSection === "project-paths" && (
                 <section id="project-paths" className="space-y-4">
                   <div>
-                    <h3 className="text-sm font-medium text-muted-foreground">
-                      Projects
+                    <h3 className="text-sm font-semibold text-foreground tracking-tight">
+                      Projects Configuration
                     </h3>
                     <p className="text-xs text-muted-foreground mt-1">
                       Add project directories to scan their local extensions
                       (.claude/skills, .mcp.json, hooks).
                     </p>
                   </div>
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-2">
                     <input
                       type="text"
                       placeholder={
@@ -926,30 +966,30 @@ export default function SettingsPage() {
                         if (e.key === "Enter" && projectPathInput.trim())
                           handleAddPath(projectPathInput.trim());
                       }}
-                      className="flex-1 rounded-md border border-border bg-card px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                      className="flex-1 rounded-lg border border-border bg-card px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                     />
                     {isDesktop() && (
                       <button
                         type="button"
                         disabled={adding}
                         onClick={handleBrowseProject}
-                        className="shrink-0 rounded-md border border-border bg-card p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-40"
+                        className="shrink-0 rounded-lg border border-border bg-card p-2 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-40 active:scale-95"
                         title="Browse..."
                       >
-                        <FolderSearch size={16} />
+                        <FolderSearch size={15} />
                       </button>
                     )}
                     <button
                       onClick={() => handleAddPath(projectPathInput.trim())}
                       disabled={adding || !projectPathInput.trim()}
-                      className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs text-primary-foreground shadow-sm transition-[color,background-color,box-shadow] duration-200 hover:bg-primary/90 hover:shadow-md disabled:opacity-50"
+                      className="flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground shadow-sm transition-[color,background-color,box-shadow] duration-200 hover:bg-primary/90 hover:shadow-md disabled:opacity-50 active:scale-95"
                     >
                       {adding ? (
                         <Loader2 size={12} className="animate-spin" />
                       ) : (
                         <Plus size={12} />
                       )}
-                      Add
+                      <span>Add Project</span>
                     </button>
                   </div>
 
@@ -1029,52 +1069,57 @@ export default function SettingsPage() {
                   {loading ? (
                     <p className="text-xs text-muted-foreground">Loading...</p>
                   ) : projects.length === 0 ? (
-                    <div className="rounded-lg border border-dashed border-border bg-muted/20 p-6">
-                      <h4 className="text-sm font-medium text-foreground">
+                    <div className="rounded-xl border border-dashed border-border bg-card/25 p-8 text-center">
+                      <FolderOpen
+                        size={24}
+                        className="mx-auto text-muted-foreground/45"
+                      />
+                      <h4 className="mt-3 text-sm font-semibold text-foreground">
                         No projects yet
                       </h4>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Add a project directory to scan for local extensions.
+                      <p className="mt-1.5 text-xs text-muted-foreground max-w-sm mx-auto">
+                        Add a project directory to scan for local extensions and
+                        manage their settings.
                       </p>
                     </div>
                   ) : (
-                    <div className="space-y-1">
+                    <div className="space-y-3">
                       {projects.map((project) => (
                         <div
                           key={project.id}
                           className={clsx(
-                            "flex w-full items-center gap-3 rounded-lg border px-4 py-2.5 text-sm",
-                            project.exists ? "border-border" : "border-border",
+                            "group flex w-full items-center justify-between gap-3 rounded-xl border p-4 transition-all duration-300 hover:border-border/90 hover:bg-card/75 hover:shadow-xs",
+                            project.exists
+                              ? "border-border/50 bg-card/45"
+                              : "border-destructive/20 bg-destructive/[0.015] hover:border-destructive/40 hover:bg-destructive/[0.03]",
                           )}
                         >
-                          <FolderOpen
-                            size={14}
-                            className={clsx(
-                              "shrink-0",
-                              project.exists
-                                ? "text-muted-foreground"
-                                : "text-muted-foreground/50",
-                            )}
-                          />
-                          <div className="min-w-0 flex-1">
-                            <span
-                              className={clsx(
-                                "font-medium",
-                                project.exists
-                                  ? "text-foreground"
-                                  : "text-muted-foreground line-through",
-                              )}
-                            >
-                              {project.name}
+                          <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted/60 text-muted-foreground group-hover:scale-105 group-hover:bg-primary/5 group-hover:text-primary transition-all duration-300">
+                              <FolderOpen size={15} />
                             </span>
-                            {!project.exists && (
-                              <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground inline-flex items-center gap-1">
-                                <TriangleAlert size={10} /> Missing
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <span
+                                  className={clsx(
+                                    "font-semibold text-sm tracking-tight",
+                                    project.exists
+                                      ? "text-foreground"
+                                      : "text-muted-foreground/75 line-through",
+                                  )}
+                                >
+                                  {project.name}
+                                </span>
+                                {!project.exists && (
+                                  <span className="text-[9px] font-bold tracking-wide uppercase px-1.5 py-0.5 rounded bg-destructive/10 text-destructive inline-flex items-center gap-1">
+                                    <TriangleAlert size={9} /> Missing
+                                  </span>
+                                )}
+                              </div>
+                              <span className="block text-xs text-muted-foreground mt-0.5 truncate">
+                                {project.path}
                               </span>
-                            )}
-                            <span className="ml-2 text-xs text-muted-foreground truncate">
-                              {project.path}
-                            </span>
+                            </div>
                           </div>
                           <button
                             type="button"
@@ -1082,7 +1127,7 @@ export default function SettingsPage() {
                               removeProject(project.id);
                               toast.success("Project removed");
                             }}
-                            className="text-muted-foreground hover:text-destructive transition-colors cursor-pointer focus:outline-none"
+                            className="text-muted-foreground hover:text-destructive p-1.5 rounded-md hover:bg-destructive/10 transition-all duration-200 cursor-pointer focus:outline-none active:scale-90"
                             aria-label={`Remove ${project.name}`}
                           >
                             <Trash2 size={14} />
