@@ -299,7 +299,7 @@ export default function OverviewPage() {
   );
 
   const localHubOverview = useMemo(() => {
-    const counts = { skill: 0, mcp: 0, plugin: 0, cli: 0 };
+    const counts = { skill: 0, mcp: 0 };
     const seen = new Set<string>();
 
     for (const ext of hubExtensions) {
@@ -315,15 +315,15 @@ export default function OverviewPage() {
       const key = logicalAssetKey(ext);
       if (seen.has(key)) continue;
       seen.add(key);
-      counts[ext.kind]++;
+      if (ext.kind === "skill" || ext.kind === "mcp") {
+        counts[ext.kind]++;
+      }
     }
 
     return {
       assets: seen.size,
       skills: counts.skill,
       mcp: counts.mcp,
-      plugins: counts.plugin,
-      cli: counts.cli,
     };
   }, [hubExtensions]);
 
@@ -421,11 +421,6 @@ export default function OverviewPage() {
             label="MCP"
             value={localHubOverview.mcp}
             icon={Server}
-          />
-          <OverviewMetric
-            label="Plugins"
-            value={localHubOverview.plugins}
-            icon={Puzzle}
           />
         </div>
       </section>

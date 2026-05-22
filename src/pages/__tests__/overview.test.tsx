@@ -88,9 +88,10 @@ vi.mock("@/components/shared/agent-card", () => ({
   AgentCard: () => null,
 }));
 vi.mock("react-router-dom", async () => {
-  const actual = await vi.importActual<typeof import("react-router-dom")>(
-    "react-router-dom",
-  );
+  const actual =
+    await vi.importActual<typeof import("react-router-dom")>(
+      "react-router-dom",
+    );
   return {
     ...actual,
     useNavigate: () => mocks.navigate,
@@ -105,7 +106,8 @@ vi.mock("@/stores/audit-store", () => ({
     selector(mocks.auditState),
 }));
 vi.mock("@/stores/extension-store", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/stores/extension-store")>();
+  const actual =
+    await importOriginal<typeof import("@/stores/extension-store")>();
   return {
     ...actual,
     useExtensionStore: Object.assign(
@@ -203,7 +205,6 @@ describe("OverviewPage", () => {
     expect(localHub.getByText("Assets")).toBeTruthy();
     expect(localHub.getByText("Skills")).toBeTruthy();
     expect(localHub.getByText("MCP")).toBeTruthy();
-    expect(localHub.getByText("Plugins")).toBeTruthy();
     expect(localHub.getByText("5")).toBeTruthy();
     expect(localHub.getByText("2")).toBeTruthy();
     expect(localHub.getAllByText("1")).not.toHaveLength(0);

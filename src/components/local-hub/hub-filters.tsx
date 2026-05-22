@@ -4,12 +4,7 @@ import { useMemo } from "react";
 import type { ExtensionKind } from "@/lib/types";
 import { useHubStore } from "@/stores/hub-store";
 
-const kinds: (ExtensionKind | null)[] = [
-  null,
-  "skill",
-  "mcp",
-  "plugin",
-];
+const kinds: (ExtensionKind | null)[] = [null, "skill", "mcp"];
 const kindLabel: Record<ExtensionKind, string> = {
   skill: "skill",
   mcp: "MCP",

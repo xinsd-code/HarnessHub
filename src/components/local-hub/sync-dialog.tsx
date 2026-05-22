@@ -15,8 +15,8 @@ const tabOrder: Array<{ key: "all" | ExtensionKind; label: string }> = [
   { key: "all", label: "All" },
   { key: "skill", label: "Skills" },
   { key: "mcp", label: "MCP" },
-  { key: "plugin", label: "Plugins" },
 ];
+const syncableKinds = new Set<ExtensionKind>(["skill", "mcp"]);
 const MAX_VISIBLE_SYNC_ROWS = 10;
 
 export function SyncDialog({ open, onClose }: SyncDialogProps) {
@@ -36,9 +36,12 @@ export function SyncDialog({ open, onClose }: SyncDialogProps) {
       api
         .previewSyncToHub()
         .then((result) => {
-          setToSync(result.to_sync);
+          const syncableExtensions = result.to_sync.filter((extension) =>
+            syncableKinds.has(extension.kind),
+          );
+          setToSync(syncableExtensions);
           // Select all non-conflict extensions by default
-          setSelectedIds(new Set(result.to_sync.map((e) => e.id)));
+          setSelectedIds(new Set(syncableExtensions.map((e) => e.id)));
         })
         .catch((e) => {
           setPreviewFailed(true);
@@ -98,7 +101,6 @@ export function SyncDialog({ open, onClose }: SyncDialogProps) {
     counts.set("all", toSync.length);
     counts.set("skill", toSync.filter((ext) => ext.kind === "skill").length);
     counts.set("mcp", toSync.filter((ext) => ext.kind === "mcp").length);
-    counts.set("plugin", toSync.filter((ext) => ext.kind === "plugin").length);
     return counts;
   }, [toSync]);
 
@@ -127,7 +129,10 @@ export function SyncDialog({ open, onClose }: SyncDialogProps) {
         <div className="flex-1 overflow-y-auto p-4">
           {loading ? (
             <div className="flex items-center justify-center py-8">
-              <Loader2 size={24} className="animate-spin text-muted-foreground" />
+              <Loader2
+                size={24}
+                className="animate-spin text-muted-foreground"
+              />
             </div>
           ) : previewFailed ? (
             <div className="text-center py-8 text-muted-foreground">
@@ -142,7 +147,8 @@ export function SyncDialog({ open, onClose }: SyncDialogProps) {
               {/* Summary */}
               <div className="flex items-center justify-between">
                 <p className="text-sm">
-                  Found <strong>{toSync.length}</strong> new extension(s) to sync
+                  Found <strong>{toSync.length}</strong> new extension(s) to
+                  sync
                 </p>
                 {toSync.length > 0 && (
                   <div className="flex gap-2">
@@ -198,37 +204,37 @@ export function SyncDialog({ open, onClose }: SyncDialogProps) {
                       className="overflow-y-auto divide-y divide-border/40 bg-card/40"
                       style={{ maxHeight: `${MAX_VISIBLE_SYNC_ROWS * 68}px` }}
                     >
-                    {visibleExtensions.map((ext) => (
-                      <label
-                        key={ext.id}
-                        className="grid cursor-pointer grid-cols-[minmax(0,1.4fr)_auto_minmax(0,1fr)] gap-4 px-5 py-3.5 transition-colors hover:bg-accent/40"
-                      >
-                        <div className="flex min-w-0 items-start gap-3.5">
-                          <input
-                            type="checkbox"
-                            checked={selectedIds.has(ext.id)}
-                            onChange={() => toggleSelection(ext.id)}
-                            className="mt-1 h-4 w-4 rounded border-border/60 bg-muted/50 accent-primary transition-all cursor-pointer"
-                          />
-                          <div className="min-w-0">
-                            <p className="truncate text-[14px] font-medium text-foreground/90">
-                              {ext.name}
-                            </p>
-                            {ext.pack && (
-                              <p className="truncate text-xs text-muted-foreground/70 font-mono mt-0.5">
-                                {ext.pack}
+                      {visibleExtensions.map((ext) => (
+                        <label
+                          key={ext.id}
+                          className="grid cursor-pointer grid-cols-[minmax(0,1.4fr)_auto_minmax(0,1fr)] gap-4 px-5 py-3.5 transition-colors hover:bg-accent/40"
+                        >
+                          <div className="flex min-w-0 items-start gap-3.5">
+                            <input
+                              type="checkbox"
+                              checked={selectedIds.has(ext.id)}
+                              onChange={() => toggleSelection(ext.id)}
+                              className="mt-1 h-4 w-4 rounded border-border/60 bg-muted/50 accent-primary transition-all cursor-pointer"
+                            />
+                            <div className="min-w-0">
+                              <p className="truncate text-[14px] font-medium text-foreground/90">
+                                {ext.name}
                               </p>
-                            )}
+                              {ext.pack && (
+                                <p className="truncate text-xs text-muted-foreground/70 font-mono mt-0.5">
+                                  {ext.pack}
+                                </p>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                        <div className="pt-0.5">
-                          <KindBadge kind={ext.kind} />
-                        </div>
-                        <p className="truncate text-[13px] text-muted-foreground/80 pt-0.5">
-                          {ext.description || "—"}
-                        </p>
-                      </label>
-                    ))}
+                          <div className="pt-0.5">
+                            <KindBadge kind={ext.kind} />
+                          </div>
+                          <p className="truncate text-[13px] text-muted-foreground/80 pt-0.5">
+                            {ext.description || "—"}
+                          </p>
+                        </label>
+                      ))}
                     </div>
                   </div>
                 </div>

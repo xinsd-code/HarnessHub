@@ -10,12 +10,18 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AgentInstallIconRow } from "@/components/shared/agent-install-icon-row";
+import {
+  GlobalBadge,
+  hasGlobalInstance,
+} from "@/components/shared/global-badge";
 import { KindBadge } from "@/components/shared/kind-badge";
-import { GlobalBadge, hasGlobalInstance } from "@/components/shared/global-badge";
 import { PermissionTags } from "@/components/shared/permission-tags";
 import { TrustBadge } from "@/components/shared/trust-badge";
 import { useScope } from "@/hooks/use-scope";
-import { buildInstallState, getInstallSourceInstance } from "@/lib/install-surface";
+import {
+  buildInstallState,
+  getInstallSourceInstance,
+} from "@/lib/install-surface";
 import { api } from "@/lib/invoke";
 import type { ConfigScope, GroupedExtension } from "@/lib/types";
 import { agentDisplayName, scopeLabel, sortAgentNames } from "@/lib/types";
@@ -109,9 +115,7 @@ function AgentMembershipCell({
           );
           await rescanAndFetch();
         }
-        toast.success(
-          `${agentDisplayName(agentName)} 已移除 ${name}`,
-        );
+        toast.success(`${agentDisplayName(agentName)} 已移除 ${name}`);
         return;
       }
 
@@ -133,7 +137,9 @@ function AgentMembershipCell({
           type: "global",
         });
         if (!sourceInstance) {
-          throw new Error("No source extension instance found for agent install");
+          throw new Error(
+            "No source extension instance found for agent install",
+          );
         }
         await installToAgent(sourceInstance.id, agentName);
       }
@@ -160,6 +166,7 @@ function AgentMembershipCell({
             surface: "extension-list",
           });
           const isPending = pendingAgents.has(agentName);
+          const isPlugin = ext.kind === "plugin";
           const isUnsupportedAdd =
             !state.globalInstalled &&
             ext.kind === "hook" &&
@@ -169,18 +176,20 @@ function AgentMembershipCell({
             name: agentName,
             installed: state.globalInstalled,
             pending: isPending,
-            disabled: isUnsupportedAdd || isPending,
-            title:
-              state.globalInstalled
+            disabled: isPlugin || isUnsupportedAdd || isPending,
+            title: isPlugin
+              ? `${agentDisplayName(agentName)} · 仅展示安装状态`
+              : state.globalInstalled
                 ? `${agentDisplayName(agentName)} · 点击移除全局安装`
                 : isUnsupportedAdd
                   ? `${agentDisplayName(agentName)} · 当前不可添加`
                   : `${agentDisplayName(agentName)} · 点击添加全局安装`,
-            onClick: isUnsupportedAdd || isPending
-              ? undefined
-              : () => {
-                  void handleToggle(agentName);
-                },
+            onClick:
+              isPlugin || isUnsupportedAdd || isPending
+                ? undefined
+                : () => {
+                    void handleToggle(agentName);
+                  },
           };
         })}
       />
@@ -280,7 +289,9 @@ export function ExtensionTable({
                 />
               )}
               <span>{displayName}</span>
-              {showGlobalBadge && hasGlobalInstance(ext.instances) && <GlobalBadge />}
+              {showGlobalBadge && hasGlobalInstance(ext.instances) && (
+                <GlobalBadge />
+              )}
             </span>
           );
         },
@@ -364,7 +375,14 @@ export function ExtensionTable({
     ],
     // selectedIds, updateStatuses accessed via getState() inside cell renderers
     // to avoid recomputing columns on every selection/status change
-    [agentOrder, scope, agentFilter, showGlobalBadge, selectAll, clearSelection, toggleSelected, toggle],
+    [
+      agentOrder,
+      showGlobalBadge,
+      selectAll,
+      clearSelection,
+      toggleSelected,
+      toggle,
+    ],
   );
   const sorting = useExtensionStore((s) => s.tableSorting) as SortingState;
   const setStoreSorting = useExtensionStore((s) => s.setTableSorting);
