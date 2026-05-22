@@ -161,7 +161,7 @@ HarnessKit 统一管理每个 Agent 的 **配置**、**记忆**、**规则**、*
 统一管理与配置 HarnessKit 的各项全局参数与偏好设置。
 
 <p align="center">
-  <video src="https://github.com/user-attachments/assets/1d39a5bd-d5a1-417c-a312-d45836ba09fa" width="800" autoplay loop muted playsinline></video>
+  <video src="https://github.com/user-attachments/assets/a74f5193-9f1f-49fa-bb42-de656d918231" width="800" autoplay loop muted playsinline></video>
 </p>
 
 ---
