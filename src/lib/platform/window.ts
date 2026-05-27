@@ -15,6 +15,7 @@ async function getTauriWindow() {
 }
 
 async function runWindowOperation(
+  operationName: string,
   operation: (
     appWindow: NonNullable<Awaited<ReturnType<typeof getTauriWindow>>>,
   ) => Promise<void>,
@@ -24,32 +25,42 @@ async function runWindowOperation(
   try {
     await operation(appWindow);
   } catch (error) {
-    console.error("Tauri window operation failed:", error);
+    console.error(`Tauri window operation failed: ${operationName}`, error);
   }
 }
 
 export async function startWindowDrag(): Promise<void> {
-  await runWindowOperation((appWindow) => appWindow.startDragging());
+  await runWindowOperation("start window drag", (appWindow) =>
+    appWindow.startDragging(),
+  );
 }
 
 export async function toggleWindowMaximize(): Promise<void> {
-  await runWindowOperation((appWindow) => appWindow.toggleMaximize());
+  await runWindowOperation("toggle window maximize", (appWindow) =>
+    appWindow.toggleMaximize(),
+  );
 }
 
 export async function minimizeWindow(): Promise<void> {
-  await runWindowOperation((appWindow) => appWindow.minimize());
+  await runWindowOperation("minimize window", (appWindow) =>
+    appWindow.minimize(),
+  );
 }
 
 export async function maximizeWindow(): Promise<void> {
-  await runWindowOperation((appWindow) => appWindow.maximize());
+  await runWindowOperation("maximize window", (appWindow) =>
+    appWindow.maximize(),
+  );
 }
 
 export async function closeWindow(): Promise<void> {
-  await runWindowOperation((appWindow) => appWindow.close());
+  await runWindowOperation("close window", (appWindow) => appWindow.close());
 }
 
 export async function setWindowTheme(theme: WindowTheme): Promise<void> {
-  await runWindowOperation((appWindow) => appWindow.setTheme(theme));
+  await runWindowOperation("set window theme", (appWindow) =>
+    appWindow.setTheme(theme),
+  );
 }
 
 export async function onWindowFocusChanged(
@@ -60,7 +71,7 @@ export async function onWindowFocusChanged(
   try {
     return await appWindow.onFocusChanged(({ payload }) => callback(payload));
   } catch (error) {
-    console.error("Tauri window focus listener failed:", error);
+    console.error("Tauri window listener failed: window focus changed", error);
     return () => {};
   }
 }

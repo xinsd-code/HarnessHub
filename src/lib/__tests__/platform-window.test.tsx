@@ -57,10 +57,18 @@ vi.mock("@/stores/scope-store", () => ({
   ),
 }));
 
+const originalScrollTo = Element.prototype.scrollTo;
+
 afterEach(() => {
+  if (originalScrollTo) {
+    Element.prototype.scrollTo = originalScrollTo;
+  } else {
+    delete (Element.prototype as { scrollTo?: Element["scrollTo"] }).scrollTo;
+  }
   vi.unstubAllGlobals();
   vi.resetModules();
   vi.clearAllMocks();
+  vi.restoreAllMocks();
   delete (window as Window & { __TAURI_INTERNALS__?: unknown })
     .__TAURI_INTERNALS__;
 });
@@ -171,6 +179,9 @@ describe("platform window boundary", () => {
   it("does not reject when a Tauri window method rejects", async () => {
     (window as Window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ =
       {};
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
     mocks.startDragging.mockRejectedValue(new Error("drag failed"));
     mocks.getCurrentWindow.mockReturnValue({
       startDragging: mocks.startDragging,
@@ -180,5 +191,33 @@ describe("platform window boundary", () => {
 
     await expect(startWindowDrag()).resolves.toBeUndefined();
     expect(mocks.startDragging).toHaveBeenCalledTimes(1);
+    expect(consoleError).toHaveBeenCalledWith(
+      "Tauri window operation failed: start window drag",
+      expect.any(Error),
+    );
+  });
+
+  it("returns a noop cleanup when Tauri focus listener registration rejects", async () => {
+    (window as Window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ =
+      {};
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    mocks.onFocusChanged.mockRejectedValue(new Error("listener failed"));
+    mocks.getCurrentWindow.mockReturnValue({
+      onFocusChanged: mocks.onFocusChanged,
+    });
+
+    const { onWindowFocusChanged } = await import("@/lib/platform/window");
+
+    const cleanup = await onWindowFocusChanged(() => undefined);
+
+    expect(typeof cleanup).toBe("function");
+    expect(() => cleanup()).not.toThrow();
+    expect(mocks.onFocusChanged).toHaveBeenCalledTimes(1);
+    expect(consoleError).toHaveBeenCalledWith(
+      "Tauri window listener failed: window focus changed",
+      expect.any(Error),
+    );
   });
 });
