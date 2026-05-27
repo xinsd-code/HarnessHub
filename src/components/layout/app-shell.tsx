@@ -1,7 +1,7 @@
-import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useEffect, useRef } from "react";
 import { Outlet, useLocation, useSearchParams } from "react-router-dom";
 import { ToastContainer } from "@/components/shared/toast-container";
+import { startWindowDrag, toggleWindowMaximize } from "@/lib/platform/window";
 import { pathsEqual } from "@/lib/types";
 import { useProjectStore } from "@/stores/project-store";
 import { useScopeStore } from "@/stores/scope-store";
@@ -78,7 +78,7 @@ export function AppShell() {
       )
         return;
       e.preventDefault();
-      getCurrentWindow().startDragging();
+      void startWindowDrag();
     };
 
     const onDblClick = (e: MouseEvent) => {
@@ -89,7 +89,7 @@ export function AppShell() {
         target.closest("nav")
       )
         return;
-      getCurrentWindow().toggleMaximize();
+      void toggleWindowMaximize();
     };
 
     document.addEventListener("mousedown", onMouseDown);
