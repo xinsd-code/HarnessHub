@@ -37,20 +37,27 @@ import type {
   UpdateStatus,
 } from "./types";
 
-const supportedGitUrlPrefixes = [
-  "https://",
-  "git://",
-  "ssh://",
-  "git@",
-  "file://",
-];
+const supportedGitUrlPrefixes = ["https://", "git://", "ssh://", "file://"];
 
 function validateGitUrl(url: string): void {
-  if (!supportedGitUrlPrefixes.some((prefix) => url.startsWith(prefix))) {
+  if (
+    !supportedGitUrlPrefixes.some((prefix) => url.startsWith(prefix)) &&
+    !isScpLikeGitUrl(url)
+  ) {
     throw new Error(
       "Invalid git URL — must start with https://, git://, ssh://, git@, or file://",
     );
   }
+}
+
+function isScpLikeGitUrl(url: string): boolean {
+  if (!url.startsWith("git@")) return false;
+  const separator = url.indexOf(":");
+  if (separator === -1) return false;
+
+  const host = url.slice("git@".length, separator).trim();
+  const path = url.slice(separator + 1).trim();
+  return host.length > 0 && path.length > 0;
 }
 
 function validateNonEmpty(value: string, label: string): void {

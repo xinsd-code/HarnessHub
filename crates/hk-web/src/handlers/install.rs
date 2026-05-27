@@ -444,6 +444,8 @@ pub async fn scan_git_repo(
     }
 
     blocking(move || {
+        sanitize::validate_git_url(&params.url)
+            .map_err(|e| hk_core::HkError::Validation(e.to_string()))?;
         let temp = tempfile::tempdir()?;
         let clone_dir = temp.path().join("repo");
         let output = std::process::Command::new("git")
@@ -601,6 +603,8 @@ pub async fn install_new_repo_skills(
     Json(params): Json<InstallNewRepoSkillsParams>,
 ) -> Result<Vec<manager::InstallResult>> {
     blocking(move || {
+        sanitize::validate_git_url(&params.url)
+            .map_err(|e| hk_core::HkError::Validation(e.to_string()))?;
         let temp = tempfile::tempdir()
             .map_err(|e| hk_core::HkError::Internal(format!("Failed to create temp directory: {e}")))?;
         let clone_dir = temp.path().join("repo");

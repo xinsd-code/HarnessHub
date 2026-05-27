@@ -38,6 +38,7 @@ describe("git URL validation", () => {
     "ssh://git@github.com/org/repo.git",
     "git@github.com:org/repo.git",
     "file:///Users/xinsd/repo",
+    "file:///C:/repo",
     "file:///tmp/repo",
   ])("allows backend-supported URL %s", async (url) => {
     for (const { call } of gitCalls) {
@@ -49,6 +50,10 @@ describe("git URL validation", () => {
     "",
     "not a url",
     "ftp://github.com/org/repo.git",
+    "git@",
+    "git@host",
+    "git@host:",
+    "git@   ",
   ])("rejects invalid URL %s", async (url) => {
     for (const { name, call } of gitCalls) {
       await expect(

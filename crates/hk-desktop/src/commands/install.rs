@@ -1,5 +1,5 @@
 use super::{AppState, PendingClone};
-use hk_core::{HkError, deployer, manager, marketplace, models::*, scanner, service};
+use hk_core::{HkError, deployer, manager, marketplace, models::*, sanitize, scanner, service};
 use tauri::State;
 
 // --- Multi-skill git install flow ---
@@ -216,6 +216,7 @@ pub async fn scan_git_repo(
     let pending_clones = state.pending_clones.clone();
 
     tauri::async_runtime::spawn_blocking(move || -> Result<ScanResult, HkError> {
+        sanitize::validate_git_url(&url).map_err(|e| HkError::Validation(e.to_string()))?;
         let temp = tempfile::tempdir()?;
         let clone_dir = temp.path().join("repo");
 
@@ -459,6 +460,7 @@ pub async fn install_new_repo_skills(
     let adapters = state.runtime_adapters();
 
     tauri::async_runtime::spawn_blocking(move || -> Result<Vec<manager::InstallResult>, HkError> {
+        sanitize::validate_git_url(&url).map_err(|e| HkError::Validation(e.to_string()))?;
         // Clone the repo once
         let temp = tempfile::tempdir()
             .map_err(|e| HkError::Internal(format!("Failed to create temp directory: {e}")))?;
