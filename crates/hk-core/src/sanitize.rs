@@ -91,7 +91,7 @@ pub fn validate_git_url(url: &str) -> Result<()> {
         Ok(())
     } else {
         bail!(
-            "Invalid git URL (must be https://, git://, ssh://, or git@): {}",
+            "Invalid git URL (must be https://, git://, ssh://, git@, or file://): {}",
             url
         );
     }

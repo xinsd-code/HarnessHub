@@ -22,12 +22,12 @@ import type {
   HarnessKitSyncStatus,
   HarnessKitSyncStatusRequest,
   InstallResult,
-  KitSyncResult,
-  KitSyncPreview,
   KitAssetCandidate,
   KitSummary,
-  NewKitAsset,
+  KitSyncPreview,
+  KitSyncResult,
   MarketplaceItem,
+  NewKitAsset,
   Project,
   ScanResult,
   SkillAuditInfo,
@@ -37,13 +37,19 @@ import type {
   UpdateStatus,
 } from "./types";
 
+const supportedGitUrlPrefixes = [
+  "https://",
+  "git://",
+  "ssh://",
+  "git@",
+  "file://",
+];
+
 function validateGitUrl(url: string): void {
-  if (
-    !url.startsWith("https://") &&
-    !url.startsWith("git://") &&
-    !url.startsWith("git@")
-  ) {
-    throw new Error("Invalid git URL — must be https://, git://, or git@");
+  if (!supportedGitUrlPrefixes.some((prefix) => url.startsWith(prefix))) {
+    throw new Error(
+      "Invalid git URL — must start with https://, git://, ssh://, git@, or file://",
+    );
   }
 }
 
@@ -140,6 +146,7 @@ export const api = {
     targetAgents: string[],
     targetScope: ConfigScope,
   ): Promise<ScanResult> {
+    validateGitUrl(url);
     return transport("scan_git_repo", { url, targetAgents, targetScope });
   },
 
@@ -163,6 +170,7 @@ export const api = {
     targetAgents: string[],
     targetScope: ConfigScope,
   ): Promise<InstallResult[]> {
+    validateGitUrl(url);
     return transport("install_new_repo_skills", {
       url,
       skillIds,
