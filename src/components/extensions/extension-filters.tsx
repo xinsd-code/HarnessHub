@@ -2,7 +2,7 @@ import { clsx } from "clsx";
 import { Search, X } from "lucide-react";
 import { useEffect, useMemo } from "react";
 import { agentDisplayName, type ExtensionKind, sortAgents } from "@/lib/types";
-import { isWeb as web, webSelectStyle } from "@/lib/web-select";
+import { webSelectStyle } from "@/lib/web-select";
 import { useAgentStore } from "@/stores/agent-store";
 import { useExtensionStore } from "@/stores/extension-store";
 
@@ -137,9 +137,9 @@ export function ExtensionFilters() {
             style={webSelectStyle}
             className={clsx(
               "shrink-0 border px-3 text-xs capitalize focus:outline-none transition-colors",
-              web ? "rounded-[6px] h-[26px]" : "rounded-lg py-1.5",
+              "rounded-[6px] h-[26px]",
               agentFilter && AGENT_FILTER_COLORS[agentFilter]
-                ? `${AGENT_FILTER_COLORS[agentFilter]}${web ? " font-medium" : ""}`
+                ? `${AGENT_FILTER_COLORS[agentFilter]} font-medium`
                 : "border-border bg-card text-foreground focus:border-ring",
             )}
           >
@@ -159,7 +159,7 @@ export function ExtensionFilters() {
             style={webSelectStyle}
             className={clsx(
               "w-36 shrink-0 overflow-hidden text-ellipsis border border-border bg-card px-3 text-xs text-foreground focus:border-ring focus:outline-none",
-              web ? "rounded-[6px] h-[26px]" : "rounded-lg py-1.5",
+              "rounded-[6px] h-[26px]",
             )}
           >
             <option value="">All Sources</option>

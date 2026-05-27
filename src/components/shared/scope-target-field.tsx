@@ -3,7 +3,7 @@ import { Folder } from "lucide-react";
 import { useScope } from "@/hooks/use-scope";
 import type { ConfigScope } from "@/lib/types";
 import { pathsEqual } from "@/lib/types";
-import { isWeb, webSelectStyle } from "@/lib/web-select";
+import { webSelectStyle } from "@/lib/web-select";
 import { useProjectStore } from "@/stores/project-store";
 
 interface ScopeTargetFieldProps {
@@ -72,7 +72,7 @@ export function ScopeTargetField({
         style={webSelectStyle}
         className={clsx(
           "flex-1 min-w-0 border border-border bg-card px-3 text-xs text-foreground focus:border-ring focus:outline-none transition-colors",
-          isWeb ? "rounded-[6px] h-[26px]" : "rounded-lg py-1.5",
+          "rounded-[6px] h-[26px]",
         )}
       >
         <option value="">— Required —</option>

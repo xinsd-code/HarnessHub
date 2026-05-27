@@ -15,9 +15,3 @@ export const webSelectStyle: React.CSSProperties = {
   backgroundPosition: "right 8px center",
   paddingRight: "24px",
 };
-
-/** Use the normalized layout (`rounded-[6px] h-[26px]`) instead of the
- *  legacy desktop-only (`rounded-lg py-1.5`). Now true everywhere since
- *  desktop also normalizes — kept as a constant for callers that gate
- *  className choice on it; can be inlined later. */
-export const isWeb = true;

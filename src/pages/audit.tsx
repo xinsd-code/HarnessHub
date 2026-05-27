@@ -25,7 +25,7 @@ import {
   type TrustTier,
   trustTier,
 } from "@/lib/types";
-import { isWeb, webSelectStyle } from "@/lib/web-select";
+import { webSelectStyle } from "@/lib/web-select";
 import { useAuditStore } from "@/stores/audit-store";
 import { buildGroups } from "@/stores/extension-store";
 import { useScopeStore } from "@/stores/scope-store";
@@ -429,7 +429,7 @@ export default function AuditPage() {
               style={webSelectStyle}
               className={clsx(
                 "shrink-0 border border-border bg-card px-3 text-xs text-foreground focus:border-ring focus:outline-none transition-colors",
-                isWeb ? "rounded-[6px] h-[26px]" : "rounded-lg py-1.5",
+                "rounded-[6px] h-[26px]",
               )}
             >
               <option value="">All Trust Tiers</option>
