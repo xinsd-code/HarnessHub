@@ -10,7 +10,7 @@ vi.mock("@/lib/transport", () => ({
 const mockTransport = vi.mocked(transport);
 const globalScope: ConfigScope = { type: "global" };
 
-const gitCalls = [
+const gitCalls: Array<{ name: string; call: (url: string) => Promise<unknown> }> = [
   {
     name: "installFromGit",
     call: (url: string) =>
@@ -55,10 +55,9 @@ describe("git URL validation", () => {
     "git@host:",
     "git@   ",
   ])("rejects invalid URL %s", async (url) => {
-    for (const { name, call } of gitCalls) {
+    for (const { call } of gitCalls) {
       await expect(
         Promise.resolve().then(() => call(url)),
-        name,
       ).rejects.toThrow("Invalid git URL");
     }
   });
