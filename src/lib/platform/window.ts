@@ -14,41 +14,53 @@ async function getTauriWindow() {
   }
 }
 
-export async function startWindowDrag(): Promise<void> {
+async function runWindowOperation(
+  operation: (
+    appWindow: NonNullable<Awaited<ReturnType<typeof getTauriWindow>>>,
+  ) => Promise<void>,
+): Promise<void> {
   const appWindow = await getTauriWindow();
-  await appWindow?.startDragging();
+  if (!appWindow) return;
+  try {
+    await operation(appWindow);
+  } catch (error) {
+    console.error("Tauri window operation failed:", error);
+  }
+}
+
+export async function startWindowDrag(): Promise<void> {
+  await runWindowOperation((appWindow) => appWindow.startDragging());
 }
 
 export async function toggleWindowMaximize(): Promise<void> {
-  const appWindow = await getTauriWindow();
-  await appWindow?.toggleMaximize();
+  await runWindowOperation((appWindow) => appWindow.toggleMaximize());
 }
 
 export async function minimizeWindow(): Promise<void> {
-  const appWindow = await getTauriWindow();
-  await appWindow?.minimize();
+  await runWindowOperation((appWindow) => appWindow.minimize());
 }
 
 export async function maximizeWindow(): Promise<void> {
-  const appWindow = await getTauriWindow();
-  await appWindow?.maximize();
+  await runWindowOperation((appWindow) => appWindow.maximize());
 }
 
 export async function closeWindow(): Promise<void> {
-  const appWindow = await getTauriWindow();
-  await appWindow?.close();
+  await runWindowOperation((appWindow) => appWindow.close());
 }
 
 export async function setWindowTheme(theme: WindowTheme): Promise<void> {
-  const appWindow = await getTauriWindow();
-  await appWindow?.setTheme(theme);
+  await runWindowOperation((appWindow) => appWindow.setTheme(theme));
 }
 
 export async function onWindowFocusChanged(
   callback: (focused: boolean) => void,
 ): Promise<UnlistenFn> {
   const appWindow = await getTauriWindow();
-  return (
-    appWindow?.onFocusChanged(({ payload }) => callback(payload)) ?? (() => {})
-  );
+  if (!appWindow) return () => {};
+  try {
+    return await appWindow.onFocusChanged(({ payload }) => callback(payload));
+  } catch (error) {
+    console.error("Tauri window focus listener failed:", error);
+    return () => {};
+  }
 }

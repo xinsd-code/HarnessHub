@@ -1,6 +1,6 @@
 import { fireEvent, render } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   getCurrentWindow: vi.fn(),
@@ -10,7 +10,11 @@ const mocks = vi.hoisted(() => ({
   maximize: vi.fn(() => Promise.resolve()),
   close: vi.fn(() => Promise.resolve()),
   setTheme: vi.fn(() => Promise.resolve()),
-  onFocusChanged: vi.fn(() => Promise.resolve(() => undefined)),
+  onFocusChanged: vi.fn((callback: (event: { payload: boolean }) => void) => {
+    callback({ payload: true });
+    callback({ payload: false });
+    return Promise.resolve(() => undefined);
+  }),
 }));
 
 vi.mock("@tauri-apps/api/window", () => ({
@@ -62,6 +66,23 @@ afterEach(() => {
 });
 
 describe("platform window boundary", () => {
+  beforeEach(() => {
+    mocks.getCurrentWindow.mockReset();
+    mocks.startDragging.mockReset().mockResolvedValue(undefined);
+    mocks.toggleMaximize.mockReset().mockResolvedValue(undefined);
+    mocks.minimize.mockReset().mockResolvedValue(undefined);
+    mocks.maximize.mockReset().mockResolvedValue(undefined);
+    mocks.close.mockReset().mockResolvedValue(undefined);
+    mocks.setTheme.mockReset().mockResolvedValue(undefined);
+    mocks.onFocusChanged
+      .mockReset()
+      .mockImplementation((callback: (event: { payload: boolean }) => void) => {
+        callback({ payload: true });
+        callback({ payload: false });
+        return Promise.resolve(() => undefined);
+      });
+  });
+
   it("keeps AppShell window gestures safe in web mode", async () => {
     Element.prototype.scrollTo = vi.fn();
     const { AppShell } = await import("@/components/layout/app-shell");
@@ -74,6 +95,30 @@ describe("platform window boundary", () => {
 
     fireEvent.mouseDown(document.body, { button: 0 });
     fireEvent.doubleClick(document.body);
+
+    expect(mocks.getCurrentWindow).not.toHaveBeenCalled();
+  });
+
+  it("keeps exported window controls as no-ops in web mode", async () => {
+    const {
+      startWindowDrag,
+      toggleWindowMaximize,
+      minimizeWindow,
+      maximizeWindow,
+      closeWindow,
+      setWindowTheme,
+      onWindowFocusChanged,
+    } = await import("@/lib/platform/window");
+
+    await expect(startWindowDrag()).resolves.toBeUndefined();
+    await expect(toggleWindowMaximize()).resolves.toBeUndefined();
+    await expect(minimizeWindow()).resolves.toBeUndefined();
+    await expect(maximizeWindow()).resolves.toBeUndefined();
+    await expect(closeWindow()).resolves.toBeUndefined();
+    await expect(setWindowTheme("dark")).resolves.toBeUndefined();
+    await expect(onWindowFocusChanged(() => undefined)).resolves.toEqual(
+      expect.any(Function),
+    );
 
     expect(mocks.getCurrentWindow).not.toHaveBeenCalled();
   });
@@ -107,7 +152,10 @@ describe("platform window boundary", () => {
     await maximizeWindow();
     await closeWindow();
     await setWindowTheme("dark");
-    const unlisten = await onWindowFocusChanged(() => undefined);
+    const focusEvents: boolean[] = [];
+    const unlisten = await onWindowFocusChanged((focused) => {
+      focusEvents.push(focused);
+    });
 
     expect(mocks.startDragging).toHaveBeenCalledTimes(1);
     expect(mocks.toggleMaximize).toHaveBeenCalledTimes(1);
@@ -116,6 +164,21 @@ describe("platform window boundary", () => {
     expect(mocks.close).toHaveBeenCalledTimes(1);
     expect(mocks.setTheme).toHaveBeenCalledWith("dark");
     expect(mocks.onFocusChanged).toHaveBeenCalledTimes(1);
+    expect(focusEvents).toEqual([true, false]);
     expect(typeof unlisten).toBe("function");
+  });
+
+  it("does not reject when a Tauri window method rejects", async () => {
+    (window as Window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ =
+      {};
+    mocks.startDragging.mockRejectedValue(new Error("drag failed"));
+    mocks.getCurrentWindow.mockReturnValue({
+      startDragging: mocks.startDragging,
+    });
+
+    const { startWindowDrag } = await import("@/lib/platform/window");
+
+    await expect(startWindowDrag()).resolves.toBeUndefined();
+    expect(mocks.startDragging).toHaveBeenCalledTimes(1);
   });
 });

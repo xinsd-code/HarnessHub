@@ -251,7 +251,13 @@ export function Onboarding({ onComplete }: OnboardingProps) {
    Step 0: Welcome (unchanged)
    ══════════════════════════════════════════════════════ */
 
-const AGENTS = ["claude", "codex", "gemini", "cursor", "antigravity"] as const;
+const AGENTS = [
+  "claude",
+  "codex",
+  "gemini",
+  "cursor",
+  "antigravity",
+] as const;
 const FLOAT_DELAYS = [0, 0.4, 0.9, 1.3, 0.6];
 const SCATTER_POSITIONS = [
   { x: -140, y: -80, r: -15 },
