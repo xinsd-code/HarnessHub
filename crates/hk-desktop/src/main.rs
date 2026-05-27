@@ -128,10 +128,11 @@ fn main() {
             commands::unsync_harness_kit_from_project,
             icon::set_app_icon,
         ])
-        .on_window_event(|window, event| {
-            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+        .on_window_event(|_window, _event| {
+            #[cfg(target_os = "macos")]
+            if let tauri::WindowEvent::CloseRequested { api, .. } = _event {
                 // Hide instead of quit on macOS red X
-                window.hide().unwrap_or_default();
+                _window.hide().unwrap_or_default();
                 api.prevent_close();
             }
         })
