@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { RELEASES_URL } from "@/lib/release";
 
-const RELEASES_URL =
-  "https://api.github.com/repos/RealZST/HarnessKit/releases/latest";
 const CACHE_KEY = "hk-web-update-cache";
 const DISMISS_KEY_PREFIX = "hk-update-dismissed-v";
 

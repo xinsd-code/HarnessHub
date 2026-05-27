@@ -1,8 +1,7 @@
 import { ExternalLink, X } from "lucide-react";
+import { UPDATE_INSTRUCTIONS_URL } from "@/lib/release";
 import { useWebUpdateStore } from "@/stores/web-update-store";
 import { ChangelogMarkdown } from "./changelog-markdown";
-
-const INSTRUCTIONS_URL = "https://github.com/RealZST/HarnessKit#updating";
 
 export function WebUpdateDialog() {
   const available = useWebUpdateStore((s) => s.available);
@@ -44,7 +43,7 @@ export function WebUpdateDialog() {
             Close
           </button>
           <a
-            href={INSTRUCTIONS_URL}
+            href={UPDATE_INSTRUCTIONS_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-xs font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
