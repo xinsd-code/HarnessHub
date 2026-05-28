@@ -1,10 +1,14 @@
 import { FolderPlus, HardDrive, RefreshCw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { open } from "@tauri-apps/plugin-dialog";
 import { HubDetail } from "@/components/local-hub/hub-detail";
 import { HubFilters } from "@/components/local-hub/hub-filters";
 import { HubTable } from "@/components/local-hub/hub-table";
 import { SyncDialog } from "@/components/local-hub/sync-dialog";
+import {
+  openDirectoryPicker,
+  PICKER_UNSUPPORTED_MESSAGE,
+  selectedPickerPath,
+} from "@/lib/platform/dialog";
 import { extensionListGroupKey, usesLooseLogicalAssetIdentity } from "@/lib/types";
 import { useAgentStore } from "@/stores/agent-store";
 import { buildGroups } from "@/stores/extension-helpers";
@@ -89,11 +93,14 @@ export default function LocalHubPage() {
 
   const handleImport = async () => {
     try {
-      const selected = await open({
-        directory: true,
-        multiple: false,
+      const result = await openDirectoryPicker({
         title: "Select directory to import",
       });
+      if (result.status === "unsupported") {
+        toast.info(PICKER_UNSUPPORTED_MESSAGE);
+        return;
+      }
+      const selected = selectedPickerPath(result);
       if (selected && typeof selected === "string") {
         // Detect kind from directory contents
         let kind = "skill"; // default

@@ -25,8 +25,14 @@ import {
   deriveAgentBasePath,
 } from "@/lib/agent-base-config";
 import { getAgentIconPath } from "@/lib/agent-icons";
-import { openDirectoryPicker, openFilePicker } from "@/lib/dialog";
 import { api } from "@/lib/invoke";
+import {
+  openDirectoryPicker,
+  openFilePicker,
+  PICKER_UNSUPPORTED_MESSAGE,
+  type PickerResult,
+  selectedPickerPath,
+} from "@/lib/platform/dialog";
 import { isDesktop } from "@/lib/transport";
 import {
   type AgentInfo,
@@ -390,9 +396,14 @@ export default function SettingsPage() {
   };
 
   const handleBrowseProject = async () => {
-    const path = await openDirectoryPicker({
+    const result = await openDirectoryPicker({
       title: "Select Project Directory",
     });
+    if (result.status === "unsupported") {
+      toast.info(PICKER_UNSUPPORTED_MESSAGE);
+      return;
+    }
+    const path = selectedPickerPath(result);
     if (path) handleAddPath(path);
   };
 
@@ -438,6 +449,14 @@ export default function SettingsPage() {
       title: "Select Agent Directory",
       ...options,
     });
+  };
+
+  const handlePickerResult = (result: PickerResult): string | null => {
+    if (result.status === "unsupported") {
+      toast.info(PICKER_UNSUPPORTED_MESSAGE);
+      return null;
+    }
+    return selectedPickerPath(result);
   };
 
   const handleCreateAgent = async () => {
@@ -858,8 +877,9 @@ export default function SettingsPage() {
                                       const path = await handleBrowseAgentPath({
                                         title: `Select ${agent} directory`,
                                       });
-                                      if (path) {
-                                        updatePath(agent, path);
+                                      const selected = handlePickerResult(path);
+                                      if (selected) {
+                                        updatePath(agent, selected);
                                         setEditingAgent(null);
                                       }
                                     }}
@@ -1290,7 +1310,8 @@ export default function SettingsPage() {
                               const path = await handleBrowseAgentPath({
                                 title: "Select Custom Agent Directory",
                               });
-                              if (path) setCustomAgentPath(path);
+                              const selected = handlePickerResult(path);
+                              if (selected) setCustomAgentPath(selected);
                             }}
                             className="shrink-0 rounded-md border border-border bg-background p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-40"
                             title="Browse..."
@@ -1320,9 +1341,10 @@ export default function SettingsPage() {
                             <button
                               type="button"
                               onClick={async () => {
-                                const path = await openFilePicker({
+                                const result = await openFilePicker({
                                   title: "Select Agent Icon",
                                 });
+                                const path = handlePickerResult(result);
                                 if (path) setCustomAgentIconPath(path);
                               }}
                               className="rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"

@@ -1,7 +1,12 @@
 import { FileSearch, FolderPlus, FolderSearch, Package, Settings2, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useScope } from "@/hooks/use-scope";
-import { openDirectoryPicker, openFilePicker } from "@/lib/dialog";
+import {
+  openDirectoryPicker,
+  openFilePicker,
+  PICKER_UNSUPPORTED_MESSAGE,
+  selectedPickerPath,
+} from "@/lib/platform/dialog";
 import { isDesktop } from "@/lib/transport";
 import {
   type AgentDetail as AgentDetailType,
@@ -16,6 +21,7 @@ import {
 import { useAgentConfigStore } from "@/stores/agent-config-store";
 import { isCliGroupBackedBySkillAssets } from "@/stores/extension-helpers";
 import { useExtensionStore } from "@/stores/extension-store";
+import { toast } from "@/stores/toast-store";
 import { AgentExtensionsPanel } from "./agent-extensions-panel";
 import { ConfigSection } from "./config-section";
 
@@ -287,9 +293,14 @@ function AgentDetailContent({
                 {isDesktop() && (
                   <button
                     onClick={async () => {
-                      const selected = await openFilePicker({
+                      const result = await openFilePicker({
                         title: "Select file",
                       });
+                      if (result.status === "unsupported") {
+                        toast.info(PICKER_UNSUPPORTED_MESSAGE);
+                        return;
+                      }
+                      const selected = selectedPickerPath(result);
                       if (selected) setCustomPath(selected);
                     }}
                     className="shrink-0 rounded-md border border-border bg-card px-2.5 py-1.5 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
@@ -301,9 +312,14 @@ function AgentDetailContent({
                 {isDesktop() && (
                   <button
                     onClick={async () => {
-                      const selected = await openDirectoryPicker({
+                      const result = await openDirectoryPicker({
                         title: "Select folder",
                       });
+                      if (result.status === "unsupported") {
+                        toast.info(PICKER_UNSUPPORTED_MESSAGE);
+                        return;
+                      }
+                      const selected = selectedPickerPath(result);
                       if (selected) setCustomPath(selected);
                     }}
                     className="shrink-0 rounded-md border border-border bg-card px-2.5 py-1.5 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"

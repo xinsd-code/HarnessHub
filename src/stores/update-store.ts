@@ -1,6 +1,8 @@
-import { relaunch } from "@tauri-apps/plugin-process";
-import { check } from "@tauri-apps/plugin-updater";
 import { create } from "zustand";
+import {
+  checkDesktopUpdate,
+  relaunchDesktopApp,
+} from "@/lib/platform/updater";
 
 /** Clean up GitHub auto-generated release notes for in-app display.
  *  - Removes "New Contributors" and "Full Changelog" sections
@@ -68,7 +70,7 @@ export const useUpdateStore = create<UpdateState>((set, get) => ({
     if (get().checking) return;
     set({ checking: true });
     try {
-      const update = await check();
+      const update = await checkDesktopUpdate();
       if (update) {
         const dismissed =
           localStorage.getItem(`${DISMISS_KEY_PREFIX}${update.version}`) ===
@@ -113,10 +115,10 @@ export const useUpdateStore = create<UpdateState>((set, get) => ({
     if (get().installing) return;
     set({ installing: true, showChangelog: false });
     try {
-      const update = await check();
+      const update = await checkDesktopUpdate();
       if (update) {
         await update.downloadAndInstall();
-        await relaunch();
+        await relaunchDesktopApp();
       }
     } catch {
       set({ installing: false });

@@ -65,13 +65,22 @@ const stores = vi.hoisted(() => ({
   toast: {
     success: vi.fn(),
     error: vi.fn(),
+    info: vi.fn(),
   },
   extensionListGroupKey: vi.fn(
     (ext: Pick<Extension, "kind" | "name">) => `${ext.kind}\0${ext.name}`,
   ),
 }));
 
-vi.mock("@tauri-apps/plugin-dialog", () => ({ open: vi.fn() }));
+vi.mock("@/lib/platform/dialog", () => ({
+  openDirectoryPicker: vi
+    .fn()
+    .mockResolvedValue({ status: "cancelled" }),
+  PICKER_UNSUPPORTED_MESSAGE:
+    "Local file selection is only available in the desktop app",
+  selectedPickerPath: (result: { status: string; path?: string }) =>
+    result.status === "selected" ? result.path : null,
+}));
 vi.mock("@/lib/types", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/types")>();
   return {
@@ -134,6 +143,7 @@ describe("LocalHubPage asset grouping", () => {
     stores.extensionState.checkUpdates.mockClear();
     stores.toast.success.mockClear();
     stores.toast.error.mockClear();
+    stores.toast.info.mockClear();
     stores.extensionListGroupKey.mockClear();
   });
 

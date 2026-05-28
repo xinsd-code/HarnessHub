@@ -1,4 +1,3 @@
-import { listen } from "@tauri-apps/api/event";
 import { useEffect, useRef, useState } from "react";
 import { HashRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AppShell } from "./components/layout/app-shell";
@@ -8,6 +7,7 @@ import { Confetti } from "./components/onboarding/confetti";
 import { Onboarding, useOnboarding } from "./components/onboarding/onboarding";
 import { ErrorBoundary } from "./components/shared/error-boundary";
 import { api } from "./lib/invoke";
+import { listenTauriEvent } from "./lib/platform/event";
 import { onWindowFocusChanged, setWindowTheme } from "./lib/platform/window";
 import { isDesktop } from "./lib/transport";
 import AgentsPage from "./pages/agents";
@@ -99,11 +99,9 @@ export default function App() {
       : null;
 
     // Refresh when background marketplace matching completes — desktop only
-    const unlistenChanged = isDesktop()
-      ? listen("extensions-changed", () => {
-          fetchExtensions();
-        })
-      : null;
+    const unlistenChanged = listenTauriEvent("extensions-changed", () => {
+      fetchExtensions();
+    });
 
     return () => {
       unlistenFocus?.then((fn) => fn());

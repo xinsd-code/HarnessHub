@@ -13,10 +13,16 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useScrollPassthrough } from "@/hooks/use-scroll-passthrough";
-import { openDirectoryPicker, openFilePicker } from "@/lib/dialog";
-import type { AgentConfigFile } from "@/lib/types";
+import {
+  openDirectoryPicker,
+  openFilePicker,
+  PICKER_UNSUPPORTED_MESSAGE,
+  selectedPickerPath,
+} from "@/lib/platform/dialog";
 import { isDesktop } from "@/lib/transport";
+import type { AgentConfigFile } from "@/lib/types";
 import { useAgentConfigStore } from "@/stores/agent-config-store";
+import { toast } from "@/stores/toast-store";
 
 export function ConfigFileEntry({ file }: { file: AgentConfigFile }) {
   const expandedFiles = useAgentConfigStore((s) => s.expandedFiles);
@@ -191,9 +197,14 @@ export function ConfigFileEntry({ file }: { file: AgentConfigFile }) {
                 <button
                   onClick={async (e) => {
                     e.stopPropagation();
-                    const selected = await openFilePicker({
+                    const result = await openFilePicker({
                       title: "Select file",
                     });
+                    if (result.status === "unsupported") {
+                      toast.info(PICKER_UNSUPPORTED_MESSAGE);
+                      return;
+                    }
+                    const selected = selectedPickerPath(result);
                     if (selected) setEditPath(selected);
                   }}
                   className="shrink-0 rounded-md border border-border bg-card p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
@@ -206,9 +217,14 @@ export function ConfigFileEntry({ file }: { file: AgentConfigFile }) {
                 <button
                   onClick={async (e) => {
                     e.stopPropagation();
-                    const selected = await openDirectoryPicker({
+                    const result = await openDirectoryPicker({
                       title: "Select folder",
                     });
+                    if (result.status === "unsupported") {
+                      toast.info(PICKER_UNSUPPORTED_MESSAGE);
+                      return;
+                    }
+                    const selected = selectedPickerPath(result);
                     if (selected) setEditPath(selected);
                   }}
                   className="shrink-0 rounded-md border border-border bg-card p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
