@@ -6,7 +6,7 @@ import {
   FolderOpen as FolderOpenIcon,
 } from "lucide-react";
 import { useState } from "react";
-import { api } from "@/lib/invoke";
+import { openPathInSystem } from "@/lib/platform/desktop-actions";
 import { isDesktop } from "@/lib/transport";
 import type { FileEntry } from "@/lib/types";
 
@@ -53,7 +53,7 @@ export function FileTreeNode({
             {isDesktop() &&
               (truncated ? (
                 <button
-                  onClick={() => api.openInSystem(entry.path)}
+                  onClick={() => openPathInSystem(entry.path)}
                   className="flex items-center gap-1.5 rounded px-1 py-0.5 text-xs text-muted-foreground hover:text-primary hover:bg-muted/60"
                   style={{ paddingLeft: `${(depth + 1) * 16 + 4}px` }}
                 >
@@ -64,7 +64,7 @@ export function FileTreeNode({
                 </button>
               ) : (
                 <button
-                  onClick={() => api.openInSystem(entry.path)}
+                  onClick={() => openPathInSystem(entry.path)}
                   className="flex items-center gap-1.5 rounded px-1 py-0.5 text-xs text-muted-foreground hover:text-primary hover:bg-muted/60"
                   style={{ paddingLeft: `${(depth + 1) * 16 + 4}px` }}
                 >
@@ -80,7 +80,7 @@ export function FileTreeNode({
 
   return (
     <button
-      onClick={() => isDesktop() && api.openInSystem(entry.path)}
+      onClick={() => openPathInSystem(entry.path)}
       className="flex w-full items-center gap-1.5 rounded px-1 py-0.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/60"
       style={{ paddingLeft: `${depth * 16 + 20}px` }}
       title={entry.path}

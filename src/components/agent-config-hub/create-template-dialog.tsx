@@ -24,14 +24,23 @@ export function CreateTemplateDialog({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <div role="dialog" aria-label="New Agent Config" className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
+    <div
+      role="dialog"
+      aria-label="New Agent Config"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm animate-in fade-in duration-200"
+    >
       <div className="w-[720px] rounded-2xl border border-border/50 bg-card shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden">
         <div className="border-b border-border/50 bg-muted/20 px-6 py-4">
           <h3 className="text-lg font-semibold">New Agent Config</h3>
         </div>
         <div className="space-y-4 p-6">
           <div className="space-y-1.5">
-            <label htmlFor="new-agent-config-file-name" className="block text-[11px] font-bold text-muted-foreground/80 uppercase tracking-widest pl-1">File name</label>
+            <label
+              htmlFor="new-agent-config-file-name"
+              className="block text-[11px] font-bold text-muted-foreground/80 uppercase tracking-widest pl-1"
+            >
+              File name
+            </label>
             <input
               id="new-agent-config-file-name"
               value={name}
@@ -41,7 +50,12 @@ export function CreateTemplateDialog({ onClose }: { onClose: () => void }) {
             />
           </div>
           <div className="space-y-1.5">
-            <label htmlFor="new-agent-config-description" className="block text-[11px] font-bold text-muted-foreground/80 uppercase tracking-widest pl-1">Description</label>
+            <label
+              htmlFor="new-agent-config-description"
+              className="block text-[11px] font-bold text-muted-foreground/80 uppercase tracking-widest pl-1"
+            >
+              Description
+            </label>
             <input
               id="new-agent-config-description"
               value={description}
@@ -51,7 +65,12 @@ export function CreateTemplateDialog({ onClose }: { onClose: () => void }) {
             />
           </div>
           <div className="space-y-1.5">
-            <label htmlFor="new-agent-config-tag" className="block text-[11px] font-bold text-muted-foreground/80 uppercase tracking-widest pl-1">Tag</label>
+            <label
+              htmlFor="new-agent-config-tag"
+              className="block text-[11px] font-bold text-muted-foreground/80 uppercase tracking-widest pl-1"
+            >
+              Tag
+            </label>
             <input
               id="new-agent-config-tag"
               value={tag}
@@ -61,7 +80,12 @@ export function CreateTemplateDialog({ onClose }: { onClose: () => void }) {
             />
           </div>
           <div className="space-y-1.5">
-            <label htmlFor="new-agent-config-file-content" className="block text-[11px] font-bold text-muted-foreground/80 uppercase tracking-widest pl-1">File content</label>
+            <label
+              htmlFor="new-agent-config-file-content"
+              className="block text-[11px] font-bold text-muted-foreground/80 uppercase tracking-widest pl-1"
+            >
+              File content
+            </label>
             <textarea
               id="new-agent-config-file-content"
               value={content}
@@ -72,7 +96,12 @@ export function CreateTemplateDialog({ onClose }: { onClose: () => void }) {
           </div>
         </div>
         <div className="flex items-center justify-end gap-3 border-t border-border/50 bg-muted/10 px-6 py-4">
-          <button onClick={onClose} className="rounded-xl border border-border/60 bg-card px-5 py-2.5 text-sm font-semibold shadow-sm transition-all hover:bg-accent hover:text-foreground">Cancel</button>
+          <button
+            onClick={onClose}
+            className="rounded-xl border border-border/60 bg-card px-5 py-2.5 text-sm font-semibold shadow-sm transition-all hover:bg-accent hover:text-foreground"
+          >
+            Cancel
+          </button>
           <button
             disabled={!canSubmit}
             onClick={handleSubmit}

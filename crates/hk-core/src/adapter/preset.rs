@@ -260,7 +260,10 @@ impl AgentAdapter for KimiCodeCliAdapter {
         self.base_dir().exists() || self.fallback_base_dir().exists()
     }
     fn skill_dirs(&self) -> Vec<PathBuf> {
-        vec![self.base_dir().join("skills"), self.fallback_base_dir().join("skills")]
+        vec![
+            self.base_dir().join("skills"),
+            self.fallback_base_dir().join("skills"),
+        ]
     }
     fn project_skill_dirs(&self) -> Vec<String> {
         vec![".agents/skills".into()]

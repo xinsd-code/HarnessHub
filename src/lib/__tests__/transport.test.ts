@@ -45,6 +45,31 @@ describe("transport runtime boundary", () => {
     });
   });
 
+  it("loads web auth token from the URL and removes it before invoking", async () => {
+    window.history.replaceState({}, "", "/?token=secret123");
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ ok: true }),
+    } as Response);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { getAuthToken, transport } = await import("../transport");
+
+    expect(getAuthToken()).toBe("secret123");
+    expect(window.location.search).toBe("");
+
+    await transport("list_extensions", {});
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/list_extensions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer secret123",
+      },
+      body: JSON.stringify({}),
+    });
+  });
+
   it("uses Tauri invoke with camelCase args when the runtime is present", async () => {
     (window as Window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ =
       {};

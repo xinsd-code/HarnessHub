@@ -8,7 +8,7 @@ on:
 
 jobs:
   analyze:
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     permissions:
       security-events: write
 

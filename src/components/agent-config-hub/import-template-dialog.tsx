@@ -1,10 +1,10 @@
 import { clsx } from "clsx";
 import { useMemo, useState } from "react";
 import { AgentMascot } from "@/components/shared/agent-mascot/agent-mascot";
+import { pathsEqual } from "@/lib/types";
 import { useAgentConfigStore } from "@/stores/agent-config-store";
 import { useAgentConfigTemplateStore } from "@/stores/agent-config-template-store";
 import { useProjectStore } from "@/stores/project-store";
-import { pathsEqual } from "@/lib/types";
 
 export function ImportTemplateDialog({ onClose }: { onClose: () => void }) {
   const projects = useProjectStore((s) => s.projects).filter((p) => p.exists);
@@ -44,7 +44,7 @@ export function ImportTemplateDialog({ onClose }: { onClose: () => void }) {
       )
       .map((file) => ({
         ...file,
-        relPath: file.path.startsWith(projectPath + "/")
+        relPath: file.path.startsWith(`${projectPath}/`)
           ? file.path.slice(projectPath.length + 1)
           : file.path,
       }));
@@ -67,7 +67,11 @@ export function ImportTemplateDialog({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <div role="dialog" aria-label="Import from Project" className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
+    <div
+      role="dialog"
+      aria-label="Import from Project"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm animate-in fade-in duration-200"
+    >
       <div className="w-[640px] rounded-2xl border border-border/50 bg-card shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden">
         <div className="border-b border-border/50 bg-muted/20 px-6 py-4 flex items-center justify-between">
           <h3 className="text-lg font-semibold">Import from Project</h3>
@@ -75,13 +79,23 @@ export function ImportTemplateDialog({ onClose }: { onClose: () => void }) {
         <div className="p-6 flex gap-6">
           <div className="w-[280px] shrink-0 space-y-4">
             <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-muted-foreground/80 uppercase tracking-widest pl-1">Project</label>
+              <label className="text-[11px] font-bold text-muted-foreground/80 uppercase tracking-widest pl-1">
+                Project
+              </label>
               <select
                 value={projectPath}
-                onChange={(event) => { setProjectPath(event.target.value); setTargetAgent(""); setSourcePath(""); }}
+                onChange={(event) => {
+                  setProjectPath(event.target.value);
+                  setTargetAgent("");
+                  setSourcePath("");
+                }}
                 className="h-10 w-full rounded-xl border border-border/60 bg-card/40 px-3 text-sm shadow-sm outline-none backdrop-blur-sm transition-all hover:bg-card/80 focus:border-primary/50 focus:bg-card focus:ring-2 focus:ring-primary/20 appearance-none cursor-pointer"
               >
-                {projects.map((p) => <option key={p.id} value={p.path}>{p.name}</option>)}
+                {projects.map((p) => (
+                  <option key={p.id} value={p.path}>
+                    {p.name}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -91,12 +105,17 @@ export function ImportTemplateDialog({ onClose }: { onClose: () => void }) {
               </div>
             ) : (
               <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-muted-foreground/80 uppercase tracking-widest pl-1">Target Agent</label>
+                <label className="text-[11px] font-bold text-muted-foreground/80 uppercase tracking-widest pl-1">
+                  Target Agent
+                </label>
                 <div className="flex flex-wrap gap-2">
                   {projectAgents.map((agent) => (
                     <button
                       key={agent.name}
-                      onClick={() => { setTargetAgent(agent.name); setSourcePath(""); }}
+                      onClick={() => {
+                        setTargetAgent(agent.name);
+                        setSourcePath("");
+                      }}
                       title={agent.name}
                       aria-label={agent.name}
                       className={clsx(
@@ -115,7 +134,9 @@ export function ImportTemplateDialog({ onClose }: { onClose: () => void }) {
 
             {agentFiles.length > 0 && (
               <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-muted-foreground/80 uppercase tracking-widest pl-1">Configuration File</label>
+                <label className="text-[11px] font-bold text-muted-foreground/80 uppercase tracking-widest pl-1">
+                  Configuration File
+                </label>
                 <div className="max-h-[132px] overflow-y-auto rounded-xl border border-border/60 bg-card/30 shadow-inner p-1">
                   {agentFiles.map((file) => (
                     <button
@@ -126,7 +147,9 @@ export function ImportTemplateDialog({ onClose }: { onClose: () => void }) {
                       }}
                       className={clsx(
                         "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[12px] font-medium leading-tight transition-all",
-                        sourcePath === file.path ? "bg-primary/10 text-primary font-semibold" : "text-muted-foreground/90 hover:bg-accent/50 hover:text-foreground",
+                        sourcePath === file.path
+                          ? "bg-primary/10 text-primary font-semibold"
+                          : "text-muted-foreground/90 hover:bg-accent/50 hover:text-foreground",
                       )}
                     >
                       <span className="truncate">{file.relPath}</span>
@@ -139,7 +162,12 @@ export function ImportTemplateDialog({ onClose }: { onClose: () => void }) {
 
           <div className="min-w-0 flex-1 space-y-4 py-1">
             <div className="space-y-1.5">
-              <label htmlFor="agent-config-file-name" className="block text-[11px] font-bold text-muted-foreground/80 uppercase tracking-widest pl-1">File name</label>
+              <label
+                htmlFor="agent-config-file-name"
+                className="block text-[11px] font-bold text-muted-foreground/80 uppercase tracking-widest pl-1"
+              >
+                File name
+              </label>
               <input
                 id="agent-config-file-name"
                 value={name}
@@ -149,7 +177,12 @@ export function ImportTemplateDialog({ onClose }: { onClose: () => void }) {
               />
             </div>
             <div className="space-y-1.5">
-              <label htmlFor="agent-config-description" className="block text-[11px] font-bold text-muted-foreground/80 uppercase tracking-widest pl-1">Description</label>
+              <label
+                htmlFor="agent-config-description"
+                className="block text-[11px] font-bold text-muted-foreground/80 uppercase tracking-widest pl-1"
+              >
+                Description
+              </label>
               <input
                 id="agent-config-description"
                 value={description}
@@ -159,7 +192,12 @@ export function ImportTemplateDialog({ onClose }: { onClose: () => void }) {
               />
             </div>
             <div className="space-y-1.5">
-              <label htmlFor="agent-config-tag" className="block text-[11px] font-bold text-muted-foreground/80 uppercase tracking-widest pl-1">Tag</label>
+              <label
+                htmlFor="agent-config-tag"
+                className="block text-[11px] font-bold text-muted-foreground/80 uppercase tracking-widest pl-1"
+              >
+                Tag
+              </label>
               <input
                 id="agent-config-tag"
                 value={tag}
@@ -171,7 +209,12 @@ export function ImportTemplateDialog({ onClose }: { onClose: () => void }) {
           </div>
         </div>
         <div className="flex items-center justify-end gap-3 border-t border-border/50 bg-muted/10 px-6 py-4">
-          <button onClick={onClose} className="rounded-xl border border-border/60 bg-card px-5 py-2.5 text-sm font-semibold shadow-sm transition-all hover:bg-accent hover:text-foreground">Cancel</button>
+          <button
+            onClick={onClose}
+            className="rounded-xl border border-border/60 bg-card px-5 py-2.5 text-sm font-semibold shadow-sm transition-all hover:bg-accent hover:text-foreground"
+          >
+            Cancel
+          </button>
           <button
             disabled={!canSubmit}
             onClick={handleSubmit}

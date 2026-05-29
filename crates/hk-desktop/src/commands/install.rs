@@ -221,7 +221,14 @@ pub async fn scan_git_repo(
         let clone_dir = temp.path().join("repo");
 
         let output = std::process::Command::new("git")
-            .args(["clone", "--depth", "1", "--", &url, &clone_dir.to_string_lossy()])
+            .args([
+                "clone",
+                "--depth",
+                "1",
+                "--",
+                &url,
+                &clone_dir.to_string_lossy(),
+            ])
             .output()
             .map_err(|e| HkError::CommandFailed(format!("Failed to run git clone: {}", e)))?;
 
@@ -290,7 +297,9 @@ pub async fn scan_git_repo(
                         checked_at: None,
                         check_error: None,
                     };
-                    let pack = meta.url.as_deref()
+                    let pack = meta
+                        .url
+                        .as_deref()
                         .and_then(hk_core::scanner::extract_pack_from_url);
                     let store = store_clone.lock();
                     service::post_install_sync(
@@ -393,7 +402,11 @@ pub async fn install_scanned_skills(
                         url: Some(pending.url.clone()),
                         url_resolved: None,
                         branch: None,
-                        subpath: if sid.is_empty() { None } else { Some(sid.clone()) },
+                        subpath: if sid.is_empty() {
+                            None
+                        } else {
+                            Some(sid.clone())
+                        },
                         revision: result.revision.clone(),
                         remote_revision: None,
                         checked_at: None,
@@ -466,7 +479,14 @@ pub async fn install_new_repo_skills(
             .map_err(|e| HkError::Internal(format!("Failed to create temp directory: {e}")))?;
         let clone_dir = temp.path().join("repo");
         let output = std::process::Command::new("git")
-            .args(["clone", "--depth", "1", "--", &url, &clone_dir.to_string_lossy()])
+            .args([
+                "clone",
+                "--depth",
+                "1",
+                "--",
+                &url,
+                &clone_dir.to_string_lossy(),
+            ])
             .output()
             .map_err(|e| HkError::CommandFailed(format!("Failed to run git clone: {e}")))?;
         if !output.status.success() {
@@ -492,13 +512,13 @@ pub async fn install_new_repo_skills(
             std::fs::create_dir_all(&target_dir)?;
 
             for sid in &skill_ids {
-                let skill_id_opt = if sid.is_empty() { None } else { Some(sid.as_str()) };
-                let result = manager::install_from_clone(
-                    &clone_dir,
-                    &target_dir,
-                    skill_id_opt,
-                    &url,
-                )?;
+                let skill_id_opt = if sid.is_empty() {
+                    None
+                } else {
+                    Some(sid.as_str())
+                };
+                let result =
+                    manager::install_from_clone(&clone_dir, &target_dir, skill_id_opt, &url)?;
                 results.push((agent_name.clone(), sid.clone(), result));
             }
         }
@@ -515,7 +535,11 @@ pub async fn install_new_repo_skills(
                         url: Some(url.clone()),
                         url_resolved: None,
                         branch: None,
-                        subpath: if sid.is_empty() { None } else { Some(sid.clone()) },
+                        subpath: if sid.is_empty() {
+                            None
+                        } else {
+                            Some(sid.clone())
+                        },
                         revision: result.revision.clone(),
                         remote_revision: None,
                         checked_at: None,
@@ -538,7 +562,11 @@ pub async fn install_new_repo_skills(
                     url: Some(url.clone()),
                     url_resolved: None,
                     branch: None,
-                    subpath: if sid.is_empty() { None } else { Some(sid.clone()) },
+                    subpath: if sid.is_empty() {
+                        None
+                    } else {
+                        Some(sid.clone())
+                    },
                     revision: result.revision.clone(),
                     remote_revision: None,
                     checked_at: None,

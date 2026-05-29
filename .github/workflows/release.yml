@@ -61,11 +61,13 @@ jobs:
         id: create
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_BODY: ${{ steps.changelog.outputs.body }}
         run: |
+          printf '%s' "$RELEASE_BODY" > release-body.md
           RELEASE_ID=$(gh api repos/${{ github.repository }}/releases \
             -f tag_name="${{ github.ref_name }}" \
             -f name="HarnessKit ${{ github.ref_name }}" \
-            -f body="${{ steps.changelog.outputs.body }}" \
+            -F body=@release-body.md \
             -F draft=true \
             --jq '.id')
           echo "release_id=$RELEASE_ID" >> "$GITHUB_OUTPUT"
@@ -190,8 +192,10 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          cp "target/${{ matrix.target }}/release/hk" "hk-cli-macos-${{ matrix.arch }}"
-          gh release upload "${{ github.ref_name }}" "hk-cli-macos-${{ matrix.arch }}" --clobber
+          ASSET="hk-cli-macos-${{ matrix.arch }}"
+          cp "target/${{ matrix.target }}/release/hk" "$ASSET"
+          shasum -a 256 "$ASSET" > "$ASSET.sha256"
+          gh release upload "${{ github.ref_name }}" "$ASSET" "$ASSET.sha256" --clobber
 
   release-desktop-windows:
     needs: create-release
@@ -306,8 +310,10 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          cp target/x86_64-unknown-linux-musl/release/hk hk-cli-linux-x64
-          gh release upload "${{ github.ref_name }}" hk-cli-linux-x64 --clobber
+          ASSET="hk-cli-linux-x64"
+          cp target/x86_64-unknown-linux-musl/release/hk "$ASSET"
+          sha256sum "$ASSET" > "$ASSET.sha256"
+          gh release upload "${{ github.ref_name }}" "$ASSET" "$ASSET.sha256" --clobber
 
   release-cli-windows:
     if: ${{ false }}
@@ -342,5 +348,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
-          cp target/release/hk.exe hk-cli-windows-x64.exe
-          gh release upload "${{ github.ref_name }}" hk-cli-windows-x64.exe --clobber
+          ASSET="hk-cli-windows-x64.exe"
+          cp target/release/hk.exe "$ASSET"
+          sha256sum "$ASSET" > "$ASSET.sha256"
+          gh release upload "${{ github.ref_name }}" "$ASSET" "$ASSET.sha256" --clobber

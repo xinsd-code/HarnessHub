@@ -25,6 +25,7 @@ impl CodexAdapter {
         }
     }
 
+    #[cfg(any(test, target_os = "windows"))]
     pub(crate) fn with_home(home: PathBuf) -> Self {
         Self { home }
     }
@@ -105,10 +106,7 @@ impl AgentAdapter for CodexAdapter {
     }
 
     fn project_settings_patterns(&self) -> Vec<String> {
-        vec![
-            ".codex/config.toml".into(),
-            ".codex/hooks.json".into(),
-        ]
+        vec![".codex/config.toml".into(), ".codex/hooks.json".into()]
     }
 
     fn project_skill_dirs(&self) -> Vec<String> {
@@ -239,21 +237,24 @@ impl AgentAdapter for CodexAdapter {
 
     fn read_plugins(&self) -> Vec<PluginEntry> {
         // Read disabled plugins from config.toml [plugins."name@source"] enabled = false
-        let disabled_plugins: std::collections::HashSet<String> = std::fs::read_to_string(self.mcp_config_path()).ok()
-            .and_then(|content| content.parse::<toml::Table>().ok())
-            .and_then(|doc| doc.get("plugins").and_then(|v| v.as_table()).cloned())
-            .map(|plugins| {
-                plugins.into_iter()
-                    .filter(|(_, v)| {
-                        v.as_table()
-                            .and_then(|t| t.get("enabled"))
-                            .and_then(|e| e.as_bool())
-                            == Some(false)
-                    })
-                    .map(|(k, _)| k)
-                    .collect()
-            })
-            .unwrap_or_default();
+        let disabled_plugins: std::collections::HashSet<String> =
+            std::fs::read_to_string(self.mcp_config_path())
+                .ok()
+                .and_then(|content| content.parse::<toml::Table>().ok())
+                .and_then(|doc| doc.get("plugins").and_then(|v| v.as_table()).cloned())
+                .map(|plugins| {
+                    plugins
+                        .into_iter()
+                        .filter(|(_, v)| {
+                            v.as_table()
+                                .and_then(|t| t.get("enabled"))
+                                .and_then(|e| e.as_bool())
+                                == Some(false)
+                        })
+                        .map(|(k, _)| k)
+                        .collect()
+                })
+                .unwrap_or_default();
 
         // Codex plugins are cached at ~/.codex/plugins/cache/{marketplace}/{plugin}/{version}/
         // Each has .codex-plugin/plugin.json manifest
@@ -315,7 +316,8 @@ impl AgentAdapter for CodexAdapter {
                     entries.push(PluginEntry {
                         name: name.clone(),
                         source: marketplace_name.clone(),
-                        enabled: !disabled_plugins.contains(&format!("{}@{}", name, &marketplace_name)),
+                        enabled: !disabled_plugins
+                            .contains(&format!("{}@{}", name, &marketplace_name)),
                         path: Some(version_dir.path().to_path_buf()), // version level — matches manifest location
                         uri: None,
                         installed_at: None,
@@ -467,7 +469,9 @@ mod tests {
         let adapter = CodexAdapter::with_home(tmp.path().to_path_buf());
 
         // Set up a plugin in cache
-        let plugin_dir = tmp.path().join(".codex/plugins/cache/test-marketplace/my-plugin/1.0.0/.codex-plugin");
+        let plugin_dir = tmp
+            .path()
+            .join(".codex/plugins/cache/test-marketplace/my-plugin/1.0.0/.codex-plugin");
         fs::create_dir_all(&plugin_dir).unwrap();
         fs::write(plugin_dir.join("plugin.json"), r#"{"name":"my-plugin"}"#).unwrap();
 
@@ -478,14 +482,21 @@ mod tests {
 
         // config.toml with plugin disabled
         let config_path = tmp.path().join(".codex/config.toml");
-        fs::write(&config_path, r#"
+        fs::write(
+            &config_path,
+            r#"
 [plugins."my-plugin@test-marketplace"]
 enabled = false
-"#).unwrap();
+"#,
+        )
+        .unwrap();
 
         let entries = adapter.read_plugins();
         assert_eq!(entries.len(), 1);
-        assert!(!entries[0].enabled, "Plugin should be disabled per config.toml");
+        assert!(
+            !entries[0].enabled,
+            "Plugin should be disabled per config.toml"
+        );
     }
 
     #[test]

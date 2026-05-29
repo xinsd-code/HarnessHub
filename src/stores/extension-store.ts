@@ -83,6 +83,7 @@ interface ExtensionState {
     targetAgents: string[],
     targetScope: ConfigScope,
   ) => Promise<void>;
+  deleteExtensionIds: (ids: string[]) => Promise<void>;
   deleteFromAgents: (groupKey: string, agents: string[]) => Promise<void>;
   grouped: () => GroupedExtension[];
   filtered: (ignoreScope?: boolean) => GroupedExtension[];
@@ -479,6 +480,13 @@ export const useExtensionStore = create<ExtensionState>((set, get) => ({
         (s) => !(s.repo_url === url && skillIds.includes(s.skill_id)),
       ),
     });
+    await get().rescanAndFetch();
+  },
+
+  async deleteExtensionIds(ids) {
+    const uniqueIds = Array.from(new Set(ids));
+    if (uniqueIds.length === 0) return;
+    await Promise.all(uniqueIds.map((id) => api.deleteExtension(id)));
     await get().rescanAndFetch();
   },
 

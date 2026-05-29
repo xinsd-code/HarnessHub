@@ -9,7 +9,6 @@ import { KindBadge } from "@/components/shared/kind-badge";
 import { PermissionTags } from "@/components/shared/permission-tags";
 import { TrustBadge } from "@/components/shared/trust-badge";
 import { buildInstallState } from "@/lib/install-surface";
-import { api } from "@/lib/invoke";
 import type { Extension } from "@/lib/types";
 import {
   agentDisplayName,
@@ -27,6 +26,7 @@ function AgentInstallCell({ ext }: { ext: Extension }) {
   const agentOrder = useAgentStore((s) => s.agentOrder);
   const installedExtensions = useExtensionStore((s) => s.extensions);
   const rescanAndFetch = useExtensionStore((s) => s.rescanAndFetch);
+  const deleteExtensionIds = useExtensionStore((s) => s.deleteExtensionIds);
   const installFromHub = useHubStore((s) => s.installFromHub);
   const markInstalled = useHubStore((s) => s.markInstalled);
   const unmarkInstalled = useHubStore((s) => s.unmarkInstalled);
@@ -56,12 +56,11 @@ function AgentInstallCell({ ext }: { ext: Extension }) {
 
       if (globalInstances.length > 0 || markedInstalled) {
         if (globalInstances.length > 0) {
-          await Promise.all(
-            globalInstances.map((instance) => api.deleteExtension(instance.id)),
+          await deleteExtensionIds(
+            globalInstances.map((instance) => instance.id),
           );
         }
         unmarkInstalled(ext.id, globalScope, agentName);
-        await rescanAndFetch();
         toast.success(`已从 ${agentDisplayName(agentName)} 移除`);
         return;
       }

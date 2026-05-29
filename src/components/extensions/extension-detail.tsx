@@ -24,6 +24,7 @@ import {
   resolveProjectSelection,
 } from "@/lib/install-surface";
 import { api } from "@/lib/invoke";
+import { revealPathInFileManager } from "@/lib/platform/desktop-actions";
 import { isDesktop } from "@/lib/transport";
 import type { ConfigScope, ExtensionContent as ExtContent } from "@/lib/types";
 import {
@@ -67,8 +68,8 @@ export function ExtensionDetail({
   const updatePack = useExtensionStore((s) => s.updatePack);
   const installToAgent = useExtensionStore((s) => s.installToAgent);
   const installToProject = useExtensionStore((s) => s.installToProject);
+  const deleteExtensionIds = useExtensionStore((s) => s.deleteExtensionIds);
   const deleteFromAgents = useExtensionStore((s) => s.deleteFromAgents);
-  const rescanAndFetch = useExtensionStore((s) => s.rescanAndFetch);
   const extensions = useExtensionStore((s) => s.extensions);
   const group = grouped().find((g) => g.groupKey === selectedId);
   /** Per-instance content data keyed by instance id */
@@ -268,12 +269,9 @@ export function ExtensionDetail({
                           instance.scope.type === "global" &&
                           instance.agents.includes(agent.name),
                       );
-                      await Promise.all(
-                        globalToDelete.map((instance) =>
-                          api.deleteExtension(instance.id),
-                        ),
+                      await deleteExtensionIds(
+                        globalToDelete.map((instance) => instance.id),
                       );
-                      await rescanAndFetch();
                       toast.success(
                         `已从 ${agentDisplayName(agent.name)} 移除`,
                       );
@@ -357,10 +355,9 @@ export function ExtensionDetail({
                   if (matches.length === 0) {
                     throw new Error("No project install found for this agent");
                   }
-                  await Promise.all(
-                    matches.map((instance) => api.deleteExtension(instance.id)),
+                  await deleteExtensionIds(
+                    matches.map((instance) => instance.id),
                   );
-                  await rescanAndFetch();
                   toast.success(
                     `已从 ${installProjectScope.name} / ${agentDisplayName(agent.name)} 移除`,
                   );
@@ -715,7 +712,7 @@ export function ExtensionDetail({
                 </h4>
                 {isDesktop() && activeInstancePath && (
                   <button
-                    onClick={() => api.revealInFileManager(activeInstancePath)}
+                    onClick={() => revealPathInFileManager(activeInstancePath)}
                     className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
                   >
                     <FolderOpen size={12} />
@@ -790,9 +787,7 @@ export function ExtensionDetail({
                 if (group.kind === "cli") {
                   await deleteFromAgents(group.groupKey, agents);
                 } else {
-                  const ids = Array.from(new Set(instanceIds));
-                  await Promise.all(ids.map((id) => api.deleteExtension(id)));
-                  await rescanAndFetch();
+                  await deleteExtensionIds(instanceIds);
                 }
                 const allInstanceIds = new Set(
                   group.instances.map((instance) => instance.id),

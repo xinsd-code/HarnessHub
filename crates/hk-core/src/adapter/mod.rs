@@ -8,7 +8,7 @@ pub mod hook_events;
 pub mod preset;
 pub mod windsurf;
 
-use crate::models::ConfigScope;
+use crate::{models::ConfigScope, store::AgentSettingsRow};
 use std::path::PathBuf;
 
 /// Represents an MCP server entry parsed from an agent's config
@@ -340,9 +340,7 @@ fn builtin_adapter_with_windows_custom_path(
     }
 }
 
-pub fn runtime_adapters_for_settings(
-    settings: &[(String, Option<String>, bool, Option<i32>, Option<String>)],
-) -> Vec<Box<dyn AgentAdapter>> {
+pub fn runtime_adapters_for_settings(settings: &[AgentSettingsRow]) -> Vec<Box<dyn AgentAdapter>> {
     let mut adapters = all_adapters();
     let builtin_names: std::collections::HashSet<String> =
         adapters.iter().map(|a| a.name().to_string()).collect();
@@ -533,10 +531,7 @@ mod tests {
             5,
             "built-in adapters should be replaced in place, not appended"
         );
-        assert_eq!(
-            adapters.iter().filter(|a| a.name() == "claude").count(),
-            1
-        );
+        assert_eq!(adapters.iter().filter(|a| a.name() == "claude").count(), 1);
         assert_eq!(adapters.iter().filter(|a| a.name() == "codex").count(), 1);
         let by_name: std::collections::HashMap<_, _> =
             adapters.iter().map(|a| (a.name().to_string(), a)).collect();

@@ -27,6 +27,8 @@
 
 # --- Detected directories (uncomment to exclude) ---
 
+.understand-anything/tmp/
+.understand-anything/intermediate/
 # docs/
 # scripts/
 

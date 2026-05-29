@@ -21,6 +21,7 @@ impl AntigravityAdapter {
             home: dirs::home_dir().unwrap_or_default(),
         }
     }
+    #[cfg(any(test, target_os = "windows"))]
     pub(crate) fn with_home(home: PathBuf) -> Self {
         Self { home }
     }

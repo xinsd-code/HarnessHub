@@ -44,6 +44,7 @@ export function ConfigFileEntry({ file }: { file: AgentConfigFile }) {
   const preview = previewCache.get(file.path) ?? null;
   const isPreviewLoading = previewLoading.has(file.path);
   const previewError = previewErrors.get(file.path) ?? null;
+  const customId = file.custom_id;
 
   const [editing, setEditing] = useState(false);
   const [editPath, setEditPath] = useState(file.path);
@@ -160,7 +161,8 @@ export function ConfigFileEntry({ file }: { file: AgentConfigFile }) {
         <div className="border-t border-border/40 bg-muted/20 px-5 py-4 shadow-inner animate-in slide-in-from-top-2 duration-200">
           {!file.exists ? (
             <div className="text-[12px] font-medium text-destructive/90 mb-4 bg-destructive/10 border border-destructive/20 rounded-lg p-3">
-              Path does not exist. Use Edit to update or Remove to delete this entry.
+              Path does not exist. Use Edit to update or Remove to delete this
+              entry.
             </div>
           ) : previewError !== null ? (
             <div className="mb-4 rounded-lg border border-destructive/20 bg-destructive/10 px-3.5 py-3 text-[12px] font-medium text-destructive/90 shadow-sm">
@@ -173,12 +175,15 @@ export function ConfigFileEntry({ file }: { file: AgentConfigFile }) {
                 onWheel={handleNestedWheel}
                 className="text-[12px] leading-relaxed font-mono whitespace-pre-wrap max-h-[240px] overflow-y-auto mb-4 bg-muted/40 dark:bg-black/40 text-foreground dark:text-[#D4D4D4] p-4 rounded-xl shadow-inner border border-border/50 scrollbar-thin scrollbar-thumb-foreground/10 hover:scrollbar-thumb-foreground/20"
               >
-                {preview || (file.is_dir ? "(empty directory)" : "(empty file)")}
+                {preview ||
+                  (file.is_dir ? "(empty directory)" : "(empty file)")}
               </pre>
             </div>
           ) : (
             <div className="text-[12px] font-medium text-muted-foreground mb-4 flex items-center gap-2 px-1">
-              {isPreviewLoading && <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />}
+              {isPreviewLoading && (
+                <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              )}
               {isPreviewLoading ? "Loading preview..." : "Preview unavailable."}
             </div>
           )}
@@ -244,11 +249,12 @@ export function ConfigFileEntry({ file }: { file: AgentConfigFile }) {
                 <X size={13} />
               </button>
               <button
-                disabled={!editPath.trim()}
+                disabled={!editPath.trim() || customId == null}
                 onClick={async (e) => {
                   e.stopPropagation();
+                  if (customId == null) return;
                   await updateCustomPath(
-                    file.custom_id!,
+                    customId,
                     editPath.trim(),
                     "",
                     file.category,
@@ -290,7 +296,8 @@ export function ConfigFileEntry({ file }: { file: AgentConfigFile }) {
                     }}
                     className="inline-flex items-center gap-2 rounded-lg border border-border/60 bg-card/60 px-3.5 py-1.5 text-[12px] font-semibold shadow-sm transition-all hover:-translate-y-0.5 hover:bg-accent hover:border-primary/40 hover:text-foreground"
                   >
-                    <FolderOpen size={14} className="text-primary/70" /> Reveal in Finder
+                    <FolderOpen size={14} className="text-primary/70" /> Reveal
+                    in Finder
                   </button>
                 )}
                 <button
@@ -304,7 +311,7 @@ export function ConfigFileEntry({ file }: { file: AgentConfigFile }) {
                 </button>
               </>
             )}
-            {file.custom_id != null && (
+            {customId != null && (
               <>
                 <button
                   onClick={(e) => {
@@ -319,7 +326,7 @@ export function ConfigFileEntry({ file }: { file: AgentConfigFile }) {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    removeCustomPath(file.custom_id!);
+                    removeCustomPath(customId);
                   }}
                   className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1 text-[11px] font-medium text-destructive transition-colors hover:bg-destructive/10"
                 >

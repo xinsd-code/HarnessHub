@@ -25,6 +25,17 @@ function normalizeSkillDir(path: string | null | undefined): string | null {
   return path.replace(/\/SKILL\.md(\.disabled)?$/, "");
 }
 
+function getCopilotConfigCleanupPath(): string {
+  const platform = navigator.platform.toLowerCase();
+  if (platform.includes("linux")) {
+    return "~/.config/Code/User/globalStorage/state.vscdb";
+  }
+  if (platform.includes("win")) {
+    return "%APPDATA%\\Code\\User\\globalStorage\\state.vscdb";
+  }
+  return "~/Library/Application Support/Code/User/globalStorage/state.vscdb";
+}
+
 /**
  * Build path-based delete items from skill locations.
  * Each item = one physical path, with agent names as the primary label.
@@ -96,7 +107,7 @@ function buildAgentItems(
             : agentName === "gemini"
               ? "~/.gemini/extensions/extension-enablement.json"
               : agentName === "copilot"
-                ? "~/Library/Application Support/Code/User/globalStorage/state.vscdb" // TODO: Linux path differs (~/.config/Code/User/...)
+                ? getCopilotConfigCleanupPath()
                 : null
         : null;
     return {
@@ -293,10 +304,10 @@ export function DeleteDialog({
       : skillLocations;
   const usePathBased =
     isSkill && filteredSkillLocations && filteredSkillLocations.length > 0;
-
-  const items: DeleteItem[] = usePathBased
-    ? buildPathItems(filteredSkillLocations!, group.instances, instanceData)
-    : buildAgentItems(group.instances, instanceData, group.kind, group.name);
+  const items: DeleteItem[] =
+    usePathBased && filteredSkillLocations
+      ? buildPathItems(filteredSkillLocations, group.instances, instanceData)
+      : buildAgentItems(group.instances, instanceData, group.kind, group.name);
 
   const selectedKeys = deleteKeys;
   const allSelected =

@@ -334,14 +334,6 @@ export const api = {
     return transport("list_skill_files", { path });
   },
 
-  openInSystem(path: string): Promise<void> {
-    return transport("open_in_system", { path });
-  },
-
-  revealInFileManager(path: string): Promise<void> {
-    return transport("reveal_in_file_manager", { path });
-  },
-
   listAgentConfigs(): Promise<AgentDetail[]> {
     return transport("list_agent_configs");
   },
@@ -458,7 +450,10 @@ export const api = {
     return transport("get_hub_extension_content", { extensionId: id });
   },
 
-  previewSyncToHub(): Promise<{ to_sync: Extension[]; conflicts: Extension[] }> {
+  previewSyncToHub(): Promise<{
+    to_sync: Extension[];
+    conflicts: Extension[];
+  }> {
     return transport("preview_sync_to_hub");
   },
 
@@ -498,7 +493,10 @@ export const api = {
     });
   },
 
-  updateAgentConfigTemplateTag(id: string, tag: string): Promise<AgentConfigTemplate> {
+  updateAgentConfigTemplateTag(
+    id: string,
+    tag: string,
+  ): Promise<AgentConfigTemplate> {
     validateNonEmpty(id, "Template ID");
     return transport("update_agent_config_template_tag", { id, tag });
   },
@@ -515,7 +513,10 @@ export const api = {
     return transport("create_agent_config_template", params);
   },
 
-  updateAgentConfigTemplateContent(id: string, content: string): Promise<AgentConfigTemplate> {
+  updateAgentConfigTemplateContent(
+    id: string,
+    content: string,
+  ): Promise<AgentConfigTemplate> {
     validateNonEmpty(id, "Template ID");
     return transport("update_agent_config_template_content", { id, content });
   },
@@ -601,7 +602,9 @@ export const api = {
     });
   },
 
-  previewKitProjectConflicts(request: SyncKitToProjectRequest): Promise<KitSyncPreview> {
+  previewKitProjectConflicts(
+    request: SyncKitToProjectRequest,
+  ): Promise<KitSyncPreview> {
     validateNonEmpty(request.kit_id, "Kit ID");
     validateNonEmpty(request.project_path, "Project path");
     validateNonEmpty(request.target_agent, "Target agent");
@@ -612,7 +615,9 @@ export const api = {
     });
   },
 
-  unsyncKitFromProject(request: SyncKitToProjectRequest): Promise<KitSyncResult> {
+  unsyncKitFromProject(
+    request: SyncKitToProjectRequest,
+  ): Promise<KitSyncResult> {
     validateNonEmpty(request.kit_id, "Kit ID");
     validateNonEmpty(request.project_path, "Project path");
     validateNonEmpty(request.target_agent, "Target agent");
@@ -632,7 +637,9 @@ export const api = {
     return transport("list_harness_kit_asset_candidates");
   },
 
-  createHarnessKit(request: CreateHarnessKitRequest): Promise<HarnessKitSummary> {
+  createHarnessKit(
+    request: CreateHarnessKitRequest,
+  ): Promise<HarnessKitSummary> {
     validateNonEmpty(request.name, "Harness Kit name");
     if (
       request.agent_config_template_ids.length === 0 &&
@@ -650,7 +657,9 @@ export const api = {
     });
   },
 
-  updateHarnessKit(request: UpdateHarnessKitRequest): Promise<HarnessKitSummary> {
+  updateHarnessKit(
+    request: UpdateHarnessKitRequest,
+  ): Promise<HarnessKitSummary> {
     validateNonEmpty(request.id, "Harness Kit ID");
     validateNonEmpty(request.name, "Harness Kit name");
     if (
@@ -686,7 +695,14 @@ export const api = {
     validateNonEmpty(request.harness_kit_id, "Harness Kit ID");
     validateNonEmpty(request.project_path, "Project path");
     validateNonEmpty(request.target_agent, "Target agent");
-    return transport("preview_harness_kit_project_conflicts", { request });
+    return transport("preview_harness_kit_project_conflicts", {
+      harnessKitId: request.harness_kit_id,
+      projectPath: request.project_path,
+      targetAgent: request.target_agent,
+      agentConfigPaths: request.agent_config_paths,
+      forceHubExtensionIds: request.force_hub_extension_ids,
+      forceAgentConfigTemplateIds: request.force_agent_config_template_ids,
+    });
   },
 
   listHarnessKitSyncStatuses(
@@ -694,7 +710,10 @@ export const api = {
   ): Promise<HarnessKitSyncStatus[]> {
     validateNonEmpty(request.harness_kit_id, "Harness Kit ID");
     validateNonEmpty(request.project_path, "Project path");
-    return transport("list_harness_kit_sync_statuses", { request });
+    return transport("list_harness_kit_sync_statuses", {
+      harnessKitId: request.harness_kit_id,
+      projectPath: request.project_path,
+    });
   },
 
   syncHarnessKitToProject(
@@ -703,7 +722,14 @@ export const api = {
     validateNonEmpty(request.harness_kit_id, "Harness Kit ID");
     validateNonEmpty(request.project_path, "Project path");
     validateNonEmpty(request.target_agent, "Target agent");
-    return transport("sync_harness_kit_to_project", { request });
+    return transport("sync_harness_kit_to_project", {
+      harnessKitId: request.harness_kit_id,
+      projectPath: request.project_path,
+      targetAgent: request.target_agent,
+      agentConfigPaths: request.agent_config_paths,
+      forceHubExtensionIds: request.force_hub_extension_ids,
+      forceAgentConfigTemplateIds: request.force_agent_config_template_ids,
+    });
   },
 
   unsyncHarnessKitFromProject(
@@ -712,6 +738,13 @@ export const api = {
     validateNonEmpty(request.harness_kit_id, "Harness Kit ID");
     validateNonEmpty(request.project_path, "Project path");
     validateNonEmpty(request.target_agent, "Target agent");
-    return transport("unsync_harness_kit_from_project", { request });
+    return transport("unsync_harness_kit_from_project", {
+      harnessKitId: request.harness_kit_id,
+      projectPath: request.project_path,
+      targetAgent: request.target_agent,
+      agentConfigPaths: request.agent_config_paths,
+      forceHubExtensionIds: request.force_hub_extension_ids,
+      forceAgentConfigTemplateIds: request.force_agent_config_template_ids,
+    });
   },
 };

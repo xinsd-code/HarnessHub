@@ -10,10 +10,7 @@ pub fn list_hub_extensions() -> Result<Vec<Extension>, String> {
 
 /// Backup an extension to the Local Hub
 #[tauri::command]
-pub async fn backup_to_hub(
-    state: State<'_, AppState>,
-    extension_id: String,
-) -> Result<(), String> {
+pub async fn backup_to_hub(state: State<'_, AppState>, extension_id: String) -> Result<(), String> {
     let store = state.store.clone();
     let adapters = state.runtime_adapters();
     // Get projects from store
@@ -46,7 +43,14 @@ pub async fn install_from_hub(
     let store = state.store.clone();
     let adapters = state.runtime_adapters();
     tauri::async_runtime::spawn_blocking(move || {
-        service::install_from_hub(&store, &adapters, &extension_id, &target_agent, &scope, force)
+        service::install_from_hub(
+            &store,
+            &adapters,
+            &extension_id,
+            &target_agent,
+            &scope,
+            force,
+        )
     })
     .await
     .map_err(|e| e.to_string())?
@@ -61,10 +65,7 @@ pub fn delete_from_hub(extension_id: String) -> Result<(), String> {
 
 /// Import an extension from a local path to the Local Hub
 #[tauri::command]
-pub fn import_to_hub(
-    source_path: String,
-    kind: String,
-) -> Result<Extension, String> {
+pub fn import_to_hub(source_path: String, kind: String) -> Result<Extension, String> {
     let kind = kind.parse::<ExtensionKind>().map_err(|e| e.to_string())?;
     let path = std::path::Path::new(&source_path);
     service::import_to_hub(path, kind).map_err(|e| e.to_string())
@@ -78,12 +79,7 @@ pub fn check_hub_install_conflict(
     target_agent: String,
     scope: ConfigScope,
 ) -> Option<Extension> {
-    service::check_hub_install_conflict(
-        &state.store,
-        &extension_id,
-        &target_agent,
-        &scope,
-    )
+    service::check_hub_install_conflict(&state.store, &extension_id, &target_agent, &scope)
 }
 
 /// Get the Local Hub directory path
@@ -94,7 +90,9 @@ pub fn get_hub_path() -> String {
 
 /// Get extension content from Local Hub
 #[tauri::command]
-pub fn get_hub_extension_content(extension_id: String) -> Result<service::ExtensionContent, String> {
+pub fn get_hub_extension_content(
+    extension_id: String,
+) -> Result<service::ExtensionContent, String> {
     let hub_extensions = scanner::scan_local_hub();
     let hub_ext = hub_extensions
         .iter()

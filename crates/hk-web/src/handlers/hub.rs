@@ -1,9 +1,9 @@
-use axum::extract::State;
 use axum::Json;
+use axum::extract::State;
 use hk_core::{models::*, scanner, service};
 use serde::Deserialize;
 
-use crate::router::{blocking, ApiError};
+use crate::router::{ApiError, blocking};
 use crate::state::WebState;
 
 type Result<T> = std::result::Result<Json<T>, ApiError>;
@@ -57,7 +57,12 @@ pub async fn backup_to_hub(
                 .map(|p| (p.name, p.path))
                 .collect()
         };
-        service::backup_to_hub(&state.store, &state.adapters, &projects, &params.extension_id)
+        service::backup_to_hub(
+            &state.store,
+            &state.adapters,
+            &projects,
+            &params.extension_id,
+        )
     })
     .await
 }
@@ -79,15 +84,11 @@ pub async fn install_from_hub(
     .await
 }
 
-pub async fn delete_from_hub(
-    Json(params): Json<ExtensionIdParams>,
-) -> Result<()> {
+pub async fn delete_from_hub(Json(params): Json<ExtensionIdParams>) -> Result<()> {
     blocking(move || service::delete_from_hub(&params.extension_id)).await
 }
 
-pub async fn import_to_hub(
-    Json(params): Json<ImportToHubParams>,
-) -> Result<Extension> {
+pub async fn import_to_hub(Json(params): Json<ImportToHubParams>) -> Result<Extension> {
     blocking(move || {
         let kind = params
             .kind
@@ -157,9 +158,7 @@ pub async fn get_hub_extension_content(
     .await
 }
 
-pub async fn preview_sync_to_hub(
-    State(state): State<WebState>,
-) -> Result<service::SyncPreview> {
+pub async fn preview_sync_to_hub(State(state): State<WebState>) -> Result<service::SyncPreview> {
     blocking(move || {
         let projects: Vec<(String, String)> = {
             let store_guard = state.store.lock();

@@ -208,9 +208,7 @@ describe("HarnessKitInsertDialog", () => {
         projectName="TestProj"
         projectPath="/tmp/test"
         targetAgent="claude"
-        agentConfigs={[
-          { template_id: "tpl-1", template_name: "Rules" },
-        ]}
+        agentConfigs={[{ template_id: "tpl-1", template_name: "Rules" }]}
         preview={preview}
         defaultRelPath="CLAUDE.md"
         pending={false}
@@ -223,9 +221,7 @@ describe("HarnessKitInsertDialog", () => {
     expect(screen.getByText("frontend-design")).toBeInTheDocument();
     expect(screen.getByText("chrome-devtools")).toBeInTheDocument();
     expect(screen.getByText(/File already exists/i)).toBeInTheDocument();
-    expect(
-      screen.getByText(/3 installable assets/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/3 installable assets/i)).toBeInTheDocument();
     expect(screen.getByText(/1 writable config/i)).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /Continue/i }),
@@ -270,9 +266,7 @@ describe("HarnessKitInsertDialog", () => {
         projectName="TestProj"
         projectPath="/tmp/test"
         targetAgent="claude"
-        agentConfigs={[
-          { template_id: "tpl-1", template_name: "Rules" },
-        ]}
+        agentConfigs={[{ template_id: "tpl-1", template_name: "Rules" }]}
         preview={preview}
         defaultRelPath="CLAUDE.md"
         pending={false}
@@ -329,9 +323,7 @@ describe("HarnessKitInsertDialog", () => {
         projectName="TestProj"
         projectPath="/tmp/test"
         targetAgent="claude"
-        agentConfigs={[
-          { template_id: "tpl-1", template_name: "Rules" },
-        ]}
+        agentConfigs={[{ template_id: "tpl-1", template_name: "Rules" }]}
         preview={preview}
         defaultRelPath="CLAUDE.md"
         pending={false}
@@ -376,9 +368,7 @@ describe("HarnessKitInsertDialog", () => {
         projectName="TestProj"
         projectPath="/tmp/test"
         targetAgent="claude"
-        agentConfigs={[
-          { template_id: "tpl-1", template_name: "Rules" },
-        ]}
+        agentConfigs={[{ template_id: "tpl-1", template_name: "Rules" }]}
         preview={preview}
         defaultRelPath="CLAUDE.md"
         pending={true}
@@ -433,9 +423,7 @@ describe("HarnessKitInsertDialog", () => {
         projectName="TestProj"
         projectPath="/tmp/test"
         targetAgent="claude"
-        agentConfigs={[
-          { template_id: "tpl-1", template_name: "Rules" },
-        ]}
+        agentConfigs={[{ template_id: "tpl-1", template_name: "Rules" }]}
         preview={preview}
         defaultRelPath="CLAUDE.md"
         pending={false}
@@ -447,9 +435,7 @@ describe("HarnessKitInsertDialog", () => {
 
     // When there are no conflicts, conflict-related text should not appear
     expect(screen.queryByText("frontend-design")).not.toBeInTheDocument();
-    expect(
-      screen.queryByText(/conflict/i),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/conflict/i)).not.toBeInTheDocument();
   });
 
   it("calls onCancel when backdrop is clicked", () => {

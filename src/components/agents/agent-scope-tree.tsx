@@ -6,7 +6,7 @@ import {
   Folder,
   FolderOpen,
 } from "lucide-react";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import type { Project } from "@/lib/types";
 import { pathSegments, pathsEqual } from "@/lib/types";
 import type { ScopeValue } from "@/stores/scope-store";

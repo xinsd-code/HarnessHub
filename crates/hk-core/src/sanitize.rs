@@ -71,8 +71,14 @@ pub fn validate_binary_name(name: &str) -> Result<()> {
         bail!("Binary name cannot start with '.' or '-': {}", name);
     }
     // Positive allowlist: only safe characters
-    if !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == '.') {
-        bail!("Binary name contains disallowed characters (only alphanumeric, '-', '_', '.' allowed): {}", name);
+    if !name
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == '.')
+    {
+        bail!(
+            "Binary name contains disallowed characters (only alphanumeric, '-', '_', '.' allowed): {}",
+            name
+        );
     }
     Ok(())
 }
@@ -253,7 +259,7 @@ mod tests {
         assert!(!is_windows_abs_path("/usr/bin/env"));
         assert!(!is_windows_abs_path("relative/path"));
         assert!(!is_windows_abs_path("~/foo"));
-        assert!(!is_windows_abs_path("C:"));  // too short
+        assert!(!is_windows_abs_path("C:")); // too short
     }
 
     #[test]
@@ -274,9 +280,6 @@ mod tests {
             strip_windows_extended_path_prefix("//?/UNC/server/share/demo"),
             "//server/share/demo"
         );
-        assert_eq!(
-            strip_windows_extended_path_prefix("/tmp/demo"),
-            "/tmp/demo"
-        );
+        assert_eq!(strip_windows_extended_path_prefix("/tmp/demo"), "/tmp/demo");
     }
 }

@@ -7,6 +7,7 @@ import { Confetti } from "./components/onboarding/confetti";
 import { Onboarding, useOnboarding } from "./components/onboarding/onboarding";
 import { ErrorBoundary } from "./components/shared/error-boundary";
 import { api } from "./lib/invoke";
+import { setDesktopAppIcon } from "./lib/platform/desktop-actions";
 import { listenTauriEvent } from "./lib/platform/event";
 import { onWindowFocusChanged, setWindowTheme } from "./lib/platform/window";
 import { isDesktop } from "./lib/transport";
@@ -139,9 +140,9 @@ export default function App() {
   // Restore app icon from saved preference — desktop only
   useEffect(() => {
     if (isDesktop()) {
-      api
-        .setAppIcon(appIcon)
-        .catch((e) => console.error("Failed to set app icon:", e));
+      setDesktopAppIcon(appIcon).catch((e) =>
+        console.error("Failed to set app icon:", e),
+      );
     }
   }, [appIcon]);
 

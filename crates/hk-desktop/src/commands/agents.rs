@@ -67,10 +67,7 @@ pub fn list_agents(state: State<AppState>) -> Result<Vec<AgentInfo>, HkError> {
         settings
             .iter()
             .map(|(name, path, enabled, _, icon_path)| {
-                (
-                    name.clone(),
-                    (path.clone(), *enabled, icon_path.clone()),
-                )
+                (name.clone(), (path.clone(), *enabled, icon_path.clone()))
             })
             .collect();
     let builtin_names: std::collections::HashSet<String> =
@@ -78,8 +75,9 @@ pub fn list_agents(state: State<AppState>) -> Result<Vec<AgentInfo>, HkError> {
 
     let mut result = Vec::new();
     for a in adapters {
-        let (custom_path, enabled, icon_path) =
-            store.get_agent_setting(a.name()).unwrap_or((None, true, None));
+        let (custom_path, enabled, icon_path) = store
+            .get_agent_setting(a.name())
+            .unwrap_or((None, true, None));
         let path = custom_path.unwrap_or_else(|| a.base_dir().to_string_lossy().to_string());
         result.push(AgentInfo {
             name: a.name().to_string(),
@@ -112,7 +110,8 @@ pub fn list_agents(state: State<AppState>) -> Result<Vec<AgentInfo>, HkError> {
                 .map(|adapter| adapter.base_dir().to_string_lossy().to_string())
                 .unwrap_or_default()
         });
-        let detected = adapter_detected || (!path.is_empty() && std::path::Path::new(&path).exists());
+        let detected =
+            adapter_detected || (!path.is_empty() && std::path::Path::new(&path).exists());
         result.push(AgentInfo {
             name,
             detected,
@@ -219,8 +218,11 @@ pub fn list_agent_configs(state: State<AppState>) -> Result<Vec<AgentDetail>, Hk
     let projects = store.list_project_tuples();
     let settings = store.list_agent_settings().unwrap_or_default();
     let runtime_adapters = adapter::runtime_adapters_for_settings(&settings);
-    let builtin_names: std::collections::HashSet<String> =
-        state.adapters.iter().map(|a| a.name().to_string()).collect();
+    let builtin_names: std::collections::HashSet<String> = state
+        .adapters
+        .iter()
+        .map(|a| a.name().to_string())
+        .collect();
 
     let mut results = Vec::new();
     for a in &runtime_adapters {
@@ -297,10 +299,7 @@ pub fn list_agent_configs(state: State<AppState>) -> Result<Vec<AgentDetail>, Hk
                 .clone()
                 .filter(|e| e.kind == ExtensionKind::Skill)
                 .count(),
-            mcp: all
-                .clone()
-                .filter(|e| e.kind == ExtensionKind::Mcp)
-                .count(),
+            mcp: all.clone().filter(|e| e.kind == ExtensionKind::Mcp).count(),
             plugin: all
                 .clone()
                 .filter(|e| e.kind == ExtensionKind::Plugin)
@@ -332,15 +331,28 @@ pub fn list_agent_configs(state: State<AppState>) -> Result<Vec<AgentDetail>, Hk
             .map(|p| p.exists())
             .unwrap_or(false)
             || config_files.iter().any(|file| file.exists);
-        let extensions = store
-            .list_extensions(None, Some(&name))
-            .unwrap_or_default();
+        let extensions = store.list_extensions(None, Some(&name)).unwrap_or_default();
         let extension_counts = ExtensionCounts {
-            skill: extensions.iter().filter(|e| e.kind == ExtensionKind::Skill).count(),
-            mcp: extensions.iter().filter(|e| e.kind == ExtensionKind::Mcp).count(),
-            plugin: extensions.iter().filter(|e| e.kind == ExtensionKind::Plugin).count(),
-            hook: extensions.iter().filter(|e| e.kind == ExtensionKind::Hook).count(),
-            cli: extensions.iter().filter(|e| e.kind == ExtensionKind::Cli).count(),
+            skill: extensions
+                .iter()
+                .filter(|e| e.kind == ExtensionKind::Skill)
+                .count(),
+            mcp: extensions
+                .iter()
+                .filter(|e| e.kind == ExtensionKind::Mcp)
+                .count(),
+            plugin: extensions
+                .iter()
+                .filter(|e| e.kind == ExtensionKind::Plugin)
+                .count(),
+            hook: extensions
+                .iter()
+                .filter(|e| e.kind == ExtensionKind::Hook)
+                .count(),
+            cli: extensions
+                .iter()
+                .filter(|e| e.kind == ExtensionKind::Cli)
+                .count(),
         };
 
         results.push(AgentDetail {

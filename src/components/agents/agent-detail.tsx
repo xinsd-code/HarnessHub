@@ -1,4 +1,11 @@
-import { FileSearch, FolderPlus, FolderSearch, Package, Settings2, X } from "lucide-react";
+import {
+  FileSearch,
+  FolderPlus,
+  FolderSearch,
+  Package,
+  Settings2,
+  X,
+} from "lucide-react";
 import { useMemo, useState } from "react";
 import { useScope } from "@/hooks/use-scope";
 import {

@@ -9,7 +9,10 @@ import {
   PICKER_UNSUPPORTED_MESSAGE,
   selectedPickerPath,
 } from "@/lib/platform/dialog";
-import { extensionListGroupKey, usesLooseLogicalAssetIdentity } from "@/lib/types";
+import {
+  extensionListGroupKey,
+  usesLooseLogicalAssetIdentity,
+} from "@/lib/types";
 import { useAgentStore } from "@/stores/agent-store";
 import { buildGroups } from "@/stores/extension-helpers";
 import { useExtensionStore } from "@/stores/extension-store";
@@ -48,7 +51,9 @@ export default function LocalHubPage() {
     });
 
     const loose = filtered.filter((ext) => usesLooseLogicalAssetIdentity(ext));
-    const strict = filtered.filter((ext) => !usesLooseLogicalAssetIdentity(ext));
+    const strict = filtered.filter(
+      (ext) => !usesLooseLogicalAssetIdentity(ext),
+    );
     const groupedLoose = buildGroups(loose).map((group) => {
       const representative = group.instances[0];
       return {
@@ -106,9 +111,15 @@ export default function LocalHubPage() {
         let kind = "skill"; // default
         if (selected.includes("/mcp/") || selected.includes("\\mcp\\")) {
           kind = "mcp";
-        } else if (selected.includes("/plugins/") || selected.includes("\\plugins\\")) {
+        } else if (
+          selected.includes("/plugins/") ||
+          selected.includes("\\plugins\\")
+        ) {
           kind = "plugin";
-        } else if (selected.includes("/clis/") || selected.includes("\\clis\\")) {
+        } else if (
+          selected.includes("/clis/") ||
+          selected.includes("\\clis\\")
+        ) {
           kind = "cli";
         }
         await importToHub(selected, kind);
@@ -224,7 +235,10 @@ export default function LocalHubPage() {
         )}
       </div>
 
-      <SyncDialog open={showSyncDialog} onClose={() => setShowSyncDialog(false)} />
+      <SyncDialog
+        open={showSyncDialog}
+        onClose={() => setShowSyncDialog(false)}
+      />
     </div>
   );
 }

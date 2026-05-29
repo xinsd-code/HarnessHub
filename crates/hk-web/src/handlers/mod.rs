@@ -1,14 +1,14 @@
+pub mod agent_config_templates;
 pub mod agents;
 pub mod audit;
 pub mod extensions;
+pub mod harness_kits;
+pub mod hub;
 pub mod install;
+pub mod kits;
 pub mod marketplace;
 pub mod projects;
 pub mod settings;
-pub mod hub;
-pub mod agent_config_templates;
-pub mod kits;
-pub mod harness_kits;
 
 use hk_core::store::Store;
 use std::path::Path;

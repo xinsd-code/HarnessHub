@@ -1,8 +1,5 @@
 import { create } from "zustand";
-import {
-  checkDesktopUpdate,
-  relaunchDesktopApp,
-} from "@/lib/platform/updater";
+import { checkDesktopUpdate, relaunchDesktopApp } from "@/lib/platform/updater";
 
 /** Clean up GitHub auto-generated release notes for in-app display.
  *  - Removes "New Contributors" and "Full Changelog" sections

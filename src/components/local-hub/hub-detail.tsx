@@ -58,6 +58,7 @@ export function HubDetail() {
   const fetchAgents = useAgentStore((s) => s.fetch);
   const installedExtensions = useExtensionStore((s) => s.extensions);
   const rescanAndFetch = useExtensionStore((s) => s.rescanAndFetch);
+  const deleteExtensionIds = useExtensionStore((s) => s.deleteExtensionIds);
   const projects = useProjectStore((s) => s.projects);
   const projectsLoaded = useProjectStore((s) => s.loaded);
   const loadProjects = useProjectStore((s) => s.loadProjects);
@@ -185,12 +186,9 @@ export function HubDetail() {
       const markedInstalled = isHubInstalled(ext.id, scope, agent);
       if (installed.length > 0 || markedInstalled) {
         if (installed.length > 0) {
-          await Promise.all(
-            installed.map((instance) => api.deleteExtension(instance.id)),
-          );
+          await deleteExtensionIds(installed.map((instance) => instance.id));
         }
         unmarkInstalled(ext.id, scope, agent);
-        await rescanAndFetch();
         toast.success(
           scope.type === "project"
             ? `已从 ${scope.name} / ${agentDisplayName(agent)} 移除`

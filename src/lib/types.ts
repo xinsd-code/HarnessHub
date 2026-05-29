@@ -555,9 +555,7 @@ export interface NewKitAsset {
   asset_name: string;
 }
 
-export type KitAssetSourceStatus =
-  | "in_local_hub"
-  | "will_sync_to_local_hub";
+export type KitAssetSourceStatus = "in_local_hub" | "will_sync_to_local_hub";
 
 export interface KitAssetCandidate {
   id: string;

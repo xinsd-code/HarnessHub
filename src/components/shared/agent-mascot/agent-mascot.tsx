@@ -20,7 +20,7 @@ export function AgentMascot({
   const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
-    setHasError(false);
+    if (name || iconPath) setHasError(false);
   }, [name, iconPath]);
 
   if (!iconPath || hasError) {

@@ -28,10 +28,18 @@ interface HarnessKitState {
   updateHarnessKit: (request: UpdateHarnessKitRequest) => Promise<void>;
   deleteHarnessKit: (id: string) => Promise<void>;
   fetchHarnessKitAssets: (id: string) => Promise<HarnessKitAssets>;
-  previewProjectConflicts: (request: HarnessKitSyncRequest) => Promise<HarnessKitSyncPreview>;
-  fetchSyncStatuses: (request: HarnessKitSyncStatusRequest) => Promise<HarnessKitSyncStatus[]>;
-  syncToProject: (request: HarnessKitSyncRequest) => Promise<HarnessKitSyncResult>;
-  unsyncFromProject: (request: HarnessKitSyncRequest) => Promise<HarnessKitSyncResult>;
+  previewProjectConflicts: (
+    request: HarnessKitSyncRequest,
+  ) => Promise<HarnessKitSyncPreview>;
+  fetchSyncStatuses: (
+    request: HarnessKitSyncStatusRequest,
+  ) => Promise<HarnessKitSyncStatus[]>;
+  syncToProject: (
+    request: HarnessKitSyncRequest,
+  ) => Promise<HarnessKitSyncResult>;
+  unsyncFromProject: (
+    request: HarnessKitSyncRequest,
+  ) => Promise<HarnessKitSyncResult>;
 }
 
 const emptyCandidates: HarnessKitAssetCandidates = {

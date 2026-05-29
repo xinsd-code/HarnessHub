@@ -251,13 +251,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
    Step 0: Welcome (unchanged)
    ══════════════════════════════════════════════════════ */
 
-const AGENTS = [
-  "claude",
-  "codex",
-  "gemini",
-  "cursor",
-  "antigravity",
-] as const;
+const AGENTS = ["claude", "codex", "gemini", "cursor", "antigravity"] as const;
 const FLOAT_DELAYS = [0, 0.4, 0.9, 1.3, 0.6];
 const SCATTER_POSITIONS = [
   { x: -140, y: -80, r: -15 },
@@ -280,8 +274,7 @@ function HandAnnotation({
 
   useEffect(() => {
     if (!ref.current) return;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- roughness is supported at runtime but missing from type defs
-    const a = annotate(ref.current, {
+    const config: Parameters<typeof annotate>[1] & { roughness?: number } = {
       type,
       color: "var(--primary)",
       strokeWidth: 1.5,
@@ -292,7 +285,8 @@ function HandAnnotation({
       ...(type === "highlight" && {
         color: "color-mix(in oklch, var(--primary) 15%, transparent)",
       }),
-    } as any);
+    };
+    const a = annotate(ref.current, config);
     const timer = setTimeout(() => a.show(), delay);
     return () => {
       clearTimeout(timer);

@@ -4,7 +4,6 @@ import {
   Check,
   Download,
   FolderKanban,
-  FolderOpen,
   FolderSearch,
   Loader2,
   Palette,
@@ -12,11 +11,12 @@ import {
   Plus,
   RefreshCw,
   Trash2,
-  TriangleAlert,
   X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { AppearanceSettingsSection } from "@/components/settings/appearance-settings-section";
+import { ProjectPathsSection } from "@/components/settings/project-paths-section";
 import {
   AGENT_BASE_CONFIGS,
   type AgentBaseConfigProfile,
@@ -25,7 +25,6 @@ import {
   deriveAgentBasePath,
 } from "@/lib/agent-base-config";
 import { getAgentIconPath } from "@/lib/agent-icons";
-import { api } from "@/lib/invoke";
 import {
   openDirectoryPicker,
   openFilePicker,
@@ -37,46 +36,17 @@ import { isDesktop } from "@/lib/transport";
 import {
   type AgentInfo,
   agentDisplayName,
+  type ConfigScope,
   type DiscoveredProject,
   normalizePathForComparison,
 } from "@/lib/types";
+import { useAgentConfigStore } from "@/stores/agent-config-store";
 import { useAgentStore } from "@/stores/agent-store";
 import { useProjectStore } from "@/stores/project-store";
 import { toast } from "@/stores/toast-store";
-import type { AppIcon, ThemeName } from "@/stores/ui-store";
 import { useUIStore } from "@/stores/ui-store";
 import { useUpdateStore } from "@/stores/update-store";
 import { useWebUpdateStore } from "@/stores/web-update-store";
-
-const THEME_OPTIONS: {
-  value: ThemeName;
-  label: string;
-  colors: [string, string, string];
-}[] = [
-  {
-    value: "tiesen",
-    label: "Tiesen",
-    colors: [
-      "oklch(0.5144 0.1605 267.4400)",
-      "oklch(0.9851 0 0)",
-      "oklch(0 0 0)",
-    ],
-  },
-  {
-    value: "claude",
-    label: "Claude",
-    colors: [
-      "oklch(0.6171 0.1375 39.0427)",
-      "oklch(0.9665 0.0067 97.3521)",
-      "oklch(0.2679 0.0036 106.6427)",
-    ],
-  },
-];
-
-const ICON_OPTIONS: { value: AppIcon; label: string; src: string }[] = [
-  { value: "icon-1", label: "Tiesen", src: "/icons/app-icon-1.png" },
-  { value: "icon-2", label: "Claude", src: "/icons/app-icon-2.png" },
-];
 
 const SETTINGS_SECTIONS = [
   { id: "appearance", label: "Appearance", icon: Palette },
@@ -299,8 +269,15 @@ export default function SettingsPage() {
     setMode,
     setAppIcon: setAppIconState,
   } = useUIStore();
-  const { projects, loading, loadProjects, addProject, removeProject } =
-    useProjectStore();
+  const {
+    projects,
+    loading,
+    loadProjects,
+    addProject,
+    discoverProjects,
+    removeProject,
+  } = useProjectStore();
+  const addCustomPaths = useAgentConfigStore((s) => s.addCustomPaths);
 
   const {
     agents,
@@ -379,7 +356,7 @@ export default function SettingsPage() {
       toast.success("Project added");
     } catch {
       try {
-        const results = await api.discoverProjects(path);
+        const results = await discoverProjects(path);
         if (results.length > 0) {
           setDiscoveredProjects(results);
           setDiscoveredSelected(new Set());
@@ -512,44 +489,57 @@ export default function SettingsPage() {
     agentName: string,
     preset: AgentBaseConfigProfile,
   ) => {
-    await api.addCustomConfigPath(
-      agentName,
-      buildHomeRelativePath(preset.globalSkillsPath),
-      "Global Skills",
-      "settings",
-      { type: "global" },
-    );
+    const configPaths: Array<{
+      agent: string;
+      path: string;
+      label: string;
+      category: string;
+      targetScope: ConfigScope;
+    }> = [
+      {
+        agent: agentName,
+        path: buildHomeRelativePath(preset.globalSkillsPath),
+        label: "Global Skills",
+        category: "settings",
+        targetScope: { type: "global" },
+      },
+    ];
 
     for (const project of projects) {
-      await api.addCustomConfigPath(
-        agentName,
-        buildProjectRelativePath(project.path, preset.projectSkillsPath),
-        "Project Skills",
-        "settings",
-        { type: "project", name: project.name, path: project.path },
-      );
+      configPaths.push({
+        agent: agentName,
+        path: buildProjectRelativePath(project.path, preset.projectSkillsPath),
+        label: "Project Skills",
+        category: "settings",
+        targetScope: {
+          type: "project",
+          name: project.name,
+          path: project.path,
+        },
+      });
     }
 
     if (preset.mcpConfigPath) {
-      await api.addCustomConfigPath(
-        agentName,
-        buildHomeRelativePath(preset.mcpConfigPath),
-        "MCP Config",
-        "settings",
-        { type: "global" },
-      );
+      configPaths.push({
+        agent: agentName,
+        path: buildHomeRelativePath(preset.mcpConfigPath),
+        label: "MCP Config",
+        category: "settings",
+        targetScope: { type: "global" },
+      });
     }
 
     if (preset.hooksConfigPath) {
-      await api.addCustomConfigPath(
-        agentName,
-        buildHomeRelativePath(preset.hooksConfigPath),
-        "Hooks Config",
-        "settings",
-        { type: "global" },
-      );
+      configPaths.push({
+        agent: agentName,
+        path: buildHomeRelativePath(preset.hooksConfigPath),
+        label: "Hooks Config",
+        category: "settings",
+        targetScope: { type: "global" },
+      });
     }
 
+    await addCustomPaths(configPaths);
     await fetchAgents();
   };
 
@@ -636,150 +626,16 @@ export default function SettingsPage() {
             </div>
 
             <div className="py-1">
-              {/* Appearance */}
               {activeSection === "appearance" && (
-                <section id="appearance" className="space-y-4">
-                  <div>
-                    <h3 className="text-sm font-semibold text-foreground tracking-tight">
-                      Appearance Settings
-                    </h3>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Personalize theme, color mode, and desktop app icon.
-                    </p>
-                  </div>
-
-                  <div className="rounded-xl border border-border/40 bg-card/45 p-5 backdrop-blur-xs shadow-xs space-y-5">
-                    {/* Theme */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                      <div>
-                        <span className="text-sm font-semibold text-foreground">
-                          Color Theme
-                        </span>
-                        <p className="text-[11px] text-muted-foreground mt-0.5">
-                          Select a design theme for the dashboard
-                        </p>
-                      </div>
-                      <div className="flex rounded-lg border border-border bg-muted/20 p-1">
-                        {THEME_OPTIONS.map((t, _i) => (
-                          <button
-                            key={t.value}
-                            onClick={() => {
-                              setThemeName(t.value);
-                              toast.success(`Theme: ${t.label}`);
-                            }}
-                            aria-pressed={themeName === t.value}
-                            className={clsx(
-                              "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200",
-                              themeName === t.value
-                                ? "bg-primary text-primary-foreground shadow-sm animate-scale-in"
-                                : "text-muted-foreground hover:bg-card/40 hover:text-foreground",
-                            )}
-                          >
-                            <span
-                              className="h-2.5 w-2.5 rounded-full border border-primary-foreground/20 transition-transform duration-300"
-                              style={{
-                                backgroundColor:
-                                  themeName === t.value
-                                    ? "oklch(1 0 0 / 0.9)"
-                                    : t.colors[0],
-                              }}
-                            />
-                            {t.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="border-t border-border/40" />
-
-                    {/* Mode */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                      <div>
-                        <span className="text-sm font-semibold text-foreground">
-                          Interface Mode
-                        </span>
-                        <p className="text-[11px] text-muted-foreground mt-0.5">
-                          Toggle between light, dark, or system preference
-                        </p>
-                      </div>
-                      <div className="flex rounded-lg border border-border bg-muted/20 p-1">
-                        {(["system", "light", "dark"] as const).map((m, _i) => (
-                          <button
-                            key={m}
-                            onClick={() => {
-                              setMode(m);
-                              toast.success(
-                                `Mode: ${m === "system" ? "System" : m === "light" ? "Light" : "Dark"}`,
-                              );
-                            }}
-                            aria-pressed={mode === m}
-                            className={clsx(
-                              "px-3.5 py-1.5 rounded-md text-xs font-medium transition-all duration-200",
-                              mode === m
-                                ? "bg-primary text-primary-foreground shadow-sm animate-scale-in"
-                                : "text-muted-foreground hover:bg-card/40 hover:text-foreground",
-                            )}
-                          >
-                            {m === "system"
-                              ? "System"
-                              : m === "light"
-                                ? "Light"
-                                : "Dark"}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {isDesktop() && (
-                      <>
-                        <div className="border-t border-border/40" />
-
-                        {/* App Icon — desktop only */}
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                          <div>
-                            <span className="text-sm font-semibold text-foreground">
-                              App Launcher Icon
-                            </span>
-                            <p className="text-[11px] text-muted-foreground mt-0.5">
-                              Customize the app icon of your desktop client
-                            </p>
-                          </div>
-                          <div className="flex gap-3">
-                            {ICON_OPTIONS.map((icon) => (
-                              <button
-                                key={icon.value}
-                                onClick={() => {
-                                  setAppIconState(icon.value);
-                                  api
-                                    .setAppIcon(icon.value)
-                                    .then(() => {
-                                      toast.success(`Icon: ${icon.label}`);
-                                    })
-                                    .catch(() => {
-                                      toast.error("Failed to set icon");
-                                    });
-                                }}
-                                aria-pressed={appIcon === icon.value}
-                                className={clsx(
-                                  "rounded-xl p-0.5 transition-all duration-200 active:scale-95",
-                                  appIcon === icon.value
-                                    ? "ring-2 ring-primary ring-offset-2 ring-offset-card"
-                                    : "ring-1 ring-border hover:ring-primary/50",
-                                )}
-                              >
-                                <img
-                                  src={icon.src}
-                                  alt={icon.label}
-                                  className="h-10 w-10 rounded-lg"
-                                />
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </section>
+                <AppearanceSettingsSection
+                  appIcon={appIcon}
+                  mode={mode}
+                  onAppIconChange={setAppIconState}
+                  onModeChange={setMode}
+                  onThemeNameChange={setThemeName}
+                  showDesktopIcon={isDesktop()}
+                  themeName={themeName}
+                />
               )}
 
               {/* Agent Paths */}
@@ -962,201 +818,26 @@ export default function SettingsPage() {
 
               {/* Project Paths */}
               {activeSection === "project-paths" && (
-                <section id="project-paths" className="space-y-4">
-                  <div>
-                    <h3 className="text-sm font-semibold text-foreground tracking-tight">
-                      Projects Configuration
-                    </h3>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Add project directories to scan their local extensions
-                      (.claude/skills, .mcp.json, hooks).
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      placeholder={
-                        isDesktop()
-                          ? "Paste a project path or browse..."
-                          : "Paste a project path..."
-                      }
-                      value={projectPathInput}
-                      onChange={(e) => setProjectPathInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && projectPathInput.trim())
-                          handleAddPath(projectPathInput.trim());
-                      }}
-                      className="flex-1 rounded-lg border border-border bg-card px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                    />
-                    {isDesktop() && (
-                      <button
-                        type="button"
-                        disabled={adding}
-                        onClick={handleBrowseProject}
-                        className="shrink-0 rounded-lg border border-border bg-card p-2 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-40 active:scale-95"
-                        title="Browse..."
-                      >
-                        <FolderSearch size={15} />
-                      </button>
-                    )}
-                    <button
-                      onClick={() => handleAddPath(projectPathInput.trim())}
-                      disabled={adding || !projectPathInput.trim()}
-                      className="flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground shadow-sm transition-[color,background-color,box-shadow] duration-200 hover:bg-primary/90 hover:shadow-md disabled:opacity-50 active:scale-95"
-                    >
-                      {adding ? (
-                        <Loader2 size={12} className="animate-spin" />
-                      ) : (
-                        <Plus size={12} />
-                      )}
-                      <span>Add Project</span>
-                    </button>
-                  </div>
-
-                  {/* Discovered projects (shown when user selected a non-project root dir) */}
-                  {discoveredProjects !== null && (
-                    <div className="space-y-3 rounded-lg bg-muted/30 p-4">
-                      <p className="text-xs text-muted-foreground">
-                        The selected directory is not a project. Found{" "}
-                        {discoveredProjects.length} project(s) inside:
-                      </p>
-                      {discoveredProjects.length === 0 ? (
-                        <p className="text-xs text-muted-foreground italic">
-                          No projects found.
-                        </p>
-                      ) : (
-                        <>
-                          <div className="space-y-1 max-h-48 overflow-y-auto overscroll-contain">
-                            {discoveredProjects.map((dp) => {
-                              const already = existingPaths.has(
-                                normalizePathForComparison(dp.path),
-                              );
-                              return (
-                                <label
-                                  key={dp.path}
-                                  className={clsx(
-                                    "flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm cursor-pointer transition-colors",
-                                    already
-                                      ? "opacity-50 cursor-not-allowed"
-                                      : "hover:bg-muted",
-                                  )}
-                                >
-                                  <input
-                                    type="checkbox"
-                                    disabled={already}
-                                    checked={discoveredSelected.has(dp.path)}
-                                    onChange={() => toggleDiscovered(dp.path)}
-                                    className="rounded border-border"
-                                  />
-                                  <div className="min-w-0 flex-1">
-                                    <span className="font-medium text-foreground">
-                                      {dp.name}
-                                    </span>
-                                    <span className="ml-2 text-xs text-muted-foreground truncate">
-                                      {dp.path}
-                                    </span>
-                                  </div>
-                                  {already && (
-                                    <span className="text-xs text-muted-foreground">
-                                      Added
-                                    </span>
-                                  )}
-                                </label>
-                              );
-                            })}
-                          </div>
-                          <div className="flex justify-end gap-2">
-                            <button
-                              onClick={() => setDiscoveredProjects(null)}
-                              className="rounded-lg border border-border px-3 py-1 text-xs text-muted-foreground hover:bg-muted"
-                            >
-                              Cancel
-                            </button>
-                            <button
-                              onClick={handleAddDiscovered}
-                              disabled={discoveredSelected.size === 0 || adding}
-                              className="rounded-lg bg-primary px-3 py-1 text-xs text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-                            >
-                              Add Selected ({discoveredSelected.size})
-                            </button>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Project list */}
-                  {loading ? (
-                    <p className="text-xs text-muted-foreground">Loading...</p>
-                  ) : projects.length === 0 ? (
-                    <div className="rounded-xl border border-dashed border-border bg-card/25 p-8 text-center">
-                      <FolderOpen
-                        size={24}
-                        className="mx-auto text-muted-foreground/45"
-                      />
-                      <h4 className="mt-3 text-sm font-semibold text-foreground">
-                        No projects yet
-                      </h4>
-                      <p className="mt-1.5 text-xs text-muted-foreground max-w-sm mx-auto">
-                        Add a project directory to scan for local extensions and
-                        manage their settings.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {projects.map((project) => (
-                        <div
-                          key={project.id}
-                          className={clsx(
-                            "group flex w-full items-center justify-between gap-3 rounded-xl border p-4 transition-all duration-300 hover:border-border/90 hover:bg-card/75 hover:shadow-xs",
-                            project.exists
-                              ? "border-border/50 bg-card/45"
-                              : "border-destructive/20 bg-destructive/[0.015] hover:border-destructive/40 hover:bg-destructive/[0.03]",
-                          )}
-                        >
-                          <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted/60 text-muted-foreground group-hover:scale-105 group-hover:bg-primary/5 group-hover:text-primary transition-all duration-300">
-                              <FolderOpen size={15} />
-                            </span>
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-2">
-                                <span
-                                  className={clsx(
-                                    "font-semibold text-sm tracking-tight",
-                                    project.exists
-                                      ? "text-foreground"
-                                      : "text-muted-foreground/75 line-through",
-                                  )}
-                                >
-                                  {project.name}
-                                </span>
-                                {!project.exists && (
-                                  <span className="text-[9px] font-bold tracking-wide uppercase px-1.5 py-0.5 rounded bg-destructive/10 text-destructive inline-flex items-center gap-1">
-                                    <TriangleAlert size={9} /> Missing
-                                  </span>
-                                )}
-                              </div>
-                              <span className="block text-xs text-muted-foreground mt-0.5 truncate">
-                                {project.path}
-                              </span>
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              removeProject(project.id);
-                              toast.success("Project removed");
-                            }}
-                            className="text-muted-foreground hover:text-destructive p-1.5 rounded-md hover:bg-destructive/10 transition-all duration-200 cursor-pointer focus:outline-none active:scale-90"
-                            aria-label={`Remove ${project.name}`}
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </section>
+                <ProjectPathsSection
+                  adding={adding}
+                  discoveredProjects={discoveredProjects}
+                  discoveredSelected={discoveredSelected}
+                  existingPaths={existingPaths}
+                  isDesktop={isDesktop()}
+                  loading={loading}
+                  onAddDiscovered={handleAddDiscovered}
+                  onAddPath={handleAddPath}
+                  onBrowseProject={handleBrowseProject}
+                  onCancelDiscovered={() => setDiscoveredProjects(null)}
+                  onInputChange={setProjectPathInput}
+                  onRemoveProject={(id) => {
+                    removeProject(id);
+                    toast.success("Project removed");
+                  }}
+                  onToggleDiscovered={toggleDiscovered}
+                  projectPathInput={projectPathInput}
+                  projects={projects}
+                />
               )}
             </div>
 

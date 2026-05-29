@@ -48,14 +48,16 @@ pub fn safe_segment(input: &str, fallback: &str) -> Result<String, HkError> {
     for ch in input.trim().chars() {
         if ch.is_ascii_alphanumeric() {
             out.push(ch.to_ascii_lowercase());
-        } else if matches!(ch, '-' | '_' | ' ' | '.') {
-            if !out.ends_with('-') {
-                out.push('-');
-            }
+        } else if matches!(ch, '-' | '_' | ' ' | '.') && !out.ends_with('-') {
+            out.push('-');
         }
     }
     let out = out.trim_matches('-').to_string();
-    let segment = if out.is_empty() { fallback.to_string() } else { out };
+    let segment = if out.is_empty() {
+        fallback.to_string()
+    } else {
+        out
+    };
     if segment == "." || segment == ".." || segment.contains('/') || segment.contains('\\') {
         return Err(HkError::Validation("Invalid template path segment".into()));
     }
@@ -64,7 +66,11 @@ pub fn safe_segment(input: &str, fallback: &str) -> Result<String, HkError> {
 
 fn normalize_tag(tag: &str) -> String {
     let trimmed = tag.trim();
-    if trimmed.is_empty() { "default".into() } else { trimmed.into() }
+    if trimmed.is_empty() {
+        "default".into()
+    } else {
+        trimmed.into()
+    }
 }
 
 fn now() -> DateTime<Utc> {
@@ -77,7 +83,10 @@ fn template_dir(hub_dir: &Path, tag: &str, name: &str) -> Result<PathBuf, HkErro
     Ok(hub_dir.join(tag_dir).join(name_dir))
 }
 
-fn metadata_to_template(dir: &Path, meta: AgentConfigTemplateMetadata) -> Result<AgentConfigTemplate, HkError> {
+fn metadata_to_template(
+    dir: &Path,
+    meta: AgentConfigTemplateMetadata,
+) -> Result<AgentConfigTemplate, HkError> {
     let content_path = dir.join(PROMPT_FILE);
     let size_bytes = fs::metadata(&content_path)?.len();
     let id = format!(
@@ -125,7 +134,11 @@ pub fn list_templates(hub_dir: &Path) -> Result<Vec<AgentConfigTemplate>, HkErro
             templates.push(metadata_to_template(&dir, meta)?);
         }
     }
-    templates.sort_by(|a, b| b.updated_at.cmp(&a.updated_at).then_with(|| a.name.cmp(&b.name)));
+    templates.sort_by(|a, b| {
+        b.updated_at
+            .cmp(&a.updated_at)
+            .then_with(|| a.name.cmp(&b.name))
+    });
     Ok(templates)
 }
 
@@ -151,10 +164,15 @@ pub fn import_template(
     tag: &str,
 ) -> Result<AgentConfigTemplate, HkError> {
     if !source_path.is_file() {
-        return Err(HkError::NotFound(format!("Source file does not exist: {}", source_path.display())));
+        return Err(HkError::NotFound(format!(
+            "Source file does not exist: {}",
+            source_path.display()
+        )));
     }
     if !source_path.starts_with(source_project_path) {
-        return Err(HkError::PathNotAllowed("Source file must be inside the selected project".into()));
+        return Err(HkError::PathNotAllowed(
+            "Source file must be inside the selected project".into(),
+        ));
     }
     if name.trim().is_empty() {
         return Err(HkError::Validation("Template name cannot be empty".into()));
@@ -162,7 +180,9 @@ pub fn import_template(
     let tag = normalize_tag(tag);
     let dir = template_dir(hub_dir, &tag, name)?;
     if dir.exists() {
-        return Err(HkError::Conflict("Template already exists in this tag".into()));
+        return Err(HkError::Conflict(
+            "Template already exists in this tag".into(),
+        ));
     }
     fs::create_dir_all(&dir)?;
     let content_path = dir.join(PROMPT_FILE);
@@ -175,15 +195,26 @@ pub fn import_template(
         source_project_name: source_project_name.into(),
         source_project_path: source_project_path.to_string_lossy().to_string(),
         source_path: source_path.to_string_lossy().to_string(),
-        original_file_name: source_path.file_name().unwrap_or_default().to_string_lossy().to_string(),
+        original_file_name: source_path
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string(),
         created_at: timestamp,
         updated_at: timestamp,
     };
-    fs::write(dir.join(METADATA_FILE), serde_json::to_string_pretty(&meta)?)?;
+    fs::write(
+        dir.join(METADATA_FILE),
+        serde_json::to_string_pretty(&meta)?,
+    )?;
     metadata_to_template(&dir, meta)
 }
 
-pub fn update_template_tag(hub_dir: &Path, id: &str, tag: &str) -> Result<AgentConfigTemplate, HkError> {
+pub fn update_template_tag(
+    hub_dir: &Path,
+    id: &str,
+    tag: &str,
+) -> Result<AgentConfigTemplate, HkError> {
     let current = get_template(hub_dir, id)?;
     let next_tag = normalize_tag(tag);
     if current.tag == next_tag {
@@ -195,15 +226,24 @@ pub fn update_template_tag(hub_dir: &Path, id: &str, tag: &str) -> Result<AgentC
         .to_path_buf();
     let next_dir = template_dir(hub_dir, &next_tag, &current.name)?;
     if next_dir.exists() {
-        return Err(HkError::Conflict("Template already exists in the target tag".into()));
+        return Err(HkError::Conflict(
+            "Template already exists in the target tag".into(),
+        ));
     }
-    fs::create_dir_all(next_dir.parent().ok_or_else(|| HkError::Internal("Template target has no parent".into()))?)?;
+    fs::create_dir_all(
+        next_dir
+            .parent()
+            .ok_or_else(|| HkError::Internal("Template target has no parent".into()))?,
+    )?;
     fs::rename(&current_dir, &next_dir)?;
     let mut meta: AgentConfigTemplateMetadata =
         serde_json::from_str(&fs::read_to_string(next_dir.join(METADATA_FILE))?)?;
     meta.tag = next_tag;
     meta.updated_at = now();
-    fs::write(next_dir.join(METADATA_FILE), serde_json::to_string_pretty(&meta)?)?;
+    fs::write(
+        next_dir.join(METADATA_FILE),
+        serde_json::to_string_pretty(&meta)?,
+    )?;
     metadata_to_template(&next_dir, meta)
 }
 
@@ -231,7 +271,9 @@ pub fn create_template(
     let tag = normalize_tag(tag);
     let dir = template_dir(hub_dir, &tag, name)?;
     if dir.exists() {
-        return Err(HkError::Conflict("Template already exists in this tag".into()));
+        return Err(HkError::Conflict(
+            "Template already exists in this tag".into(),
+        ));
     }
     fs::create_dir_all(&dir)?;
     let content_path = dir.join(PROMPT_FILE);
@@ -249,11 +291,18 @@ pub fn create_template(
         created_at: timestamp,
         updated_at: timestamp,
     };
-    fs::write(dir.join(METADATA_FILE), serde_json::to_string_pretty(&meta)?)?;
+    fs::write(
+        dir.join(METADATA_FILE),
+        serde_json::to_string_pretty(&meta)?,
+    )?;
     metadata_to_template(&dir, meta)
 }
 
-pub fn update_template_content(hub_dir: &Path, id: &str, content: &str) -> Result<AgentConfigTemplate, HkError> {
+pub fn update_template_content(
+    hub_dir: &Path,
+    id: &str,
+    content: &str,
+) -> Result<AgentConfigTemplate, HkError> {
     let template = get_template(hub_dir, id)?;
     let dir = Path::new(&template.content_path)
         .parent()
@@ -262,17 +311,28 @@ pub fn update_template_content(hub_dir: &Path, id: &str, content: &str) -> Resul
     let mut meta: AgentConfigTemplateMetadata =
         serde_json::from_str(&fs::read_to_string(dir.join(METADATA_FILE))?)?;
     meta.updated_at = now();
-    fs::write(dir.join(METADATA_FILE), serde_json::to_string_pretty(&meta)?)?;
-    metadata_to_template(&dir, meta)
+    fs::write(
+        dir.join(METADATA_FILE),
+        serde_json::to_string_pretty(&meta)?,
+    )?;
+    metadata_to_template(dir, meta)
 }
 
 pub fn validate_project_relpath(relpath: &str) -> Result<(), HkError> {
     let rel = Path::new(relpath);
     if relpath.trim().is_empty() {
-        return Err(HkError::Validation("Target rules path cannot be empty".into()));
+        return Err(HkError::Validation(
+            "Target rules path cannot be empty".into(),
+        ));
     }
-    if rel.is_absolute() || rel.components().any(|c| matches!(c, std::path::Component::ParentDir)) {
-        return Err(HkError::PathNotAllowed("Target rules path must stay inside the project".into()));
+    if rel.is_absolute()
+        || rel
+            .components()
+            .any(|c| matches!(c, std::path::Component::ParentDir))
+    {
+        return Err(HkError::PathNotAllowed(
+            "Target rules path must stay inside the project".into(),
+        ));
     }
     Ok(())
 }
@@ -294,16 +354,26 @@ pub fn sync_template_to_project(
     force: bool,
 ) -> Result<PathBuf, HkError> {
     if !project_path.is_dir() {
-        return Err(HkError::NotFound(format!("Project directory not found: {}", project_path.display())));
+        return Err(HkError::NotFound(format!(
+            "Project directory not found: {}",
+            project_path.display()
+        )));
     }
     let relpath = target_relpath
         .filter(|value| !value.trim().is_empty())
-        .ok_or_else(|| HkError::Validation(format!("Agent does not support project rules sync: {target_agent}")))?;
+        .ok_or_else(|| {
+            HkError::Validation(format!(
+                "Agent does not support project rules sync: {target_agent}"
+            ))
+        })?;
     validate_project_relpath(relpath)?;
     let template = get_template(hub_dir, id)?;
     let target = project_path.join(relpath);
     if target.exists() && !force {
-        return Err(HkError::Conflict(format!("Target file already exists: {}", target.display())));
+        return Err(HkError::Conflict(format!(
+            "Target file already exists: {}",
+            target.display()
+        )));
     }
     if let Some(parent) = target.parent() {
         fs::create_dir_all(parent)?;
@@ -365,8 +435,26 @@ mod tests {
         let project = tmp.path().join("project");
         let source = write_source(&project, "CLAUDE.md", "claude rules");
 
-        import_template(&hub, &source, &project, "Alpha", "Review Policy", "", "default").unwrap();
-        import_template(&hub, &source, &project, "Alpha", "Review Policy", "", "review").unwrap();
+        import_template(
+            &hub,
+            &source,
+            &project,
+            "Alpha",
+            "Review Policy",
+            "",
+            "default",
+        )
+        .unwrap();
+        import_template(
+            &hub,
+            &source,
+            &project,
+            "Alpha",
+            "Review Policy",
+            "",
+            "review",
+        )
+        .unwrap();
 
         assert!(hub.join("default/review-policy/prompt.md").is_file());
         assert!(hub.join("review/review-policy/prompt.md").is_file());
@@ -378,7 +466,8 @@ mod tests {
         let hub = tmp.path().join("hub");
         let project = tmp.path().join("project");
         let source = write_source(&project, ".codex/AGENTS.md", "codex rules");
-        let template = import_template(&hub, &source, &project, "Alpha", "Rules", "", "default").unwrap();
+        let template =
+            import_template(&hub, &source, &project, "Alpha", "Rules", "", "default").unwrap();
 
         let moved = update_template_tag(&hub, &template.id, "frontend").unwrap();
 
@@ -393,7 +482,8 @@ mod tests {
         let hub = tmp.path().join("hub");
         let project = tmp.path().join("project");
         let source = write_source(&project, "AGENTS.md", "rules");
-        let template = import_template(&hub, &source, &project, "Alpha", "Rules", "", "default").unwrap();
+        let template =
+            import_template(&hub, &source, &project, "Alpha", "Rules", "", "default").unwrap();
         import_template(&hub, &source, &project, "Alpha", "Rules", "", "review").unwrap();
 
         let err = update_template_tag(&hub, &template.id, "review").unwrap_err();
@@ -404,7 +494,9 @@ mod tests {
 #[cfg(test)]
 mod sync_tests {
     use super::*;
-    use crate::adapter::{claude::ClaudeAdapter, codex::CodexAdapter, gemini::GeminiAdapter, AgentAdapter};
+    use crate::adapter::{
+        AgentAdapter, claude::ClaudeAdapter, codex::CodexAdapter, gemini::GeminiAdapter,
+    };
     use std::fs;
 
     fn source_template(tmp: &tempfile::TempDir) -> (PathBuf, AgentConfigTemplate) {
@@ -413,15 +505,31 @@ mod sync_tests {
         let source = project.join("AGENTS.md");
         fs::create_dir_all(&project).unwrap();
         fs::write(&source, "shared prompt").unwrap();
-        let template = import_template(&hub, &source, &project, "Source", "Shared", "", "default").unwrap();
+        let template =
+            import_template(&hub, &source, &project, "Source", "Shared", "", "default").unwrap();
         (hub, template)
     }
 
     #[test]
     fn canonical_rules_targets_are_explicit_for_primary_agents() {
-        assert_eq!(CodexAdapter::new().project_rules_target_relpath().as_deref(), Some(".codex/AGENTS.md"));
-        assert_eq!(ClaudeAdapter::new().project_rules_target_relpath().as_deref(), Some(".claude/CLAUDE.md"));
-        assert_eq!(GeminiAdapter::new().project_rules_target_relpath().as_deref(), Some(".gemini/GEMINI.md"));
+        assert_eq!(
+            CodexAdapter::new()
+                .project_rules_target_relpath()
+                .as_deref(),
+            Some(".codex/AGENTS.md")
+        );
+        assert_eq!(
+            ClaudeAdapter::new()
+                .project_rules_target_relpath()
+                .as_deref(),
+            Some(".claude/CLAUDE.md")
+        );
+        assert_eq!(
+            GeminiAdapter::new()
+                .project_rules_target_relpath()
+                .as_deref(),
+            Some(".gemini/GEMINI.md")
+        );
     }
 
     #[test]
@@ -432,14 +540,38 @@ mod sync_tests {
         fs::create_dir_all(&target_project).unwrap();
         let adapter = CodexAdapter::new();
 
-        let target = sync_template_to_project(&hub, &template.id, &target_project, adapter.name(), adapter.project_rules_target_relpath().as_deref(), false).unwrap();
+        let target = sync_template_to_project(
+            &hub,
+            &template.id,
+            &target_project,
+            adapter.name(),
+            adapter.project_rules_target_relpath().as_deref(),
+            false,
+        )
+        .unwrap();
         assert_eq!(target, target_project.join(".codex/AGENTS.md"));
         assert_eq!(fs::read_to_string(&target).unwrap(), "shared prompt");
 
-        let err = sync_template_to_project(&hub, &template.id, &target_project, adapter.name(), adapter.project_rules_target_relpath().as_deref(), false).unwrap_err();
+        let err = sync_template_to_project(
+            &hub,
+            &template.id,
+            &target_project,
+            adapter.name(),
+            adapter.project_rules_target_relpath().as_deref(),
+            false,
+        )
+        .unwrap_err();
         assert!(matches!(err, HkError::Conflict(_)));
 
-        sync_template_to_project(&hub, &template.id, &target_project, adapter.name(), adapter.project_rules_target_relpath().as_deref(), true).unwrap();
+        sync_template_to_project(
+            &hub,
+            &template.id,
+            &target_project,
+            adapter.name(),
+            adapter.project_rules_target_relpath().as_deref(),
+            true,
+        )
+        .unwrap();
     }
 
     #[test]
@@ -449,7 +581,9 @@ mod sync_tests {
         let target_project = tmp.path().join("target");
         fs::create_dir_all(&target_project).unwrap();
 
-        let err = sync_template_to_project(&hub, &template.id, &target_project, "unknown", None, false).unwrap_err();
+        let err =
+            sync_template_to_project(&hub, &template.id, &target_project, "unknown", None, false)
+                .unwrap_err();
         assert!(matches!(err, HkError::Validation(_)));
     }
 }

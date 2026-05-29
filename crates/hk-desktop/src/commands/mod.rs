@@ -1,15 +1,15 @@
+pub mod agent_config_templates;
 pub mod agents;
 pub mod audit;
 pub mod extensions;
+pub mod harness_kits;
 mod helpers;
 pub mod hub;
 pub mod install;
+pub mod kits;
 pub mod marketplace;
 pub mod projects;
 pub mod settings;
-pub mod agent_config_templates;
-pub mod kits;
-pub mod harness_kits;
 
 // Re-export shared types that appear in Tauri command signatures.
 // The Tauri proc macro requires these types to be publicly reachable.
@@ -17,24 +17,24 @@ pub mod harness_kits;
 pub use helpers::{FileEntry, list_dir_entries};
 
 // Re-export all commands at top level so main.rs doesn't need to change
+pub use agent_config_templates::*;
 pub use agents::*;
 pub use audit::*;
 pub use extensions::*;
+pub use harness_kits::*;
 pub use hub::*;
 pub use install::*;
+pub use kits::*;
 pub use marketplace::*;
 pub use projects::*;
 pub use settings::*;
-pub use agent_config_templates::*;
-pub use kits::*;
-pub use harness_kits::*;
 
 use hk_core::adapter;
 use hk_core::sanitize::strip_windows_extended_path_prefix;
 use hk_core::store::Store;
 use parking_lot::Mutex;
-use std::path::{Path, PathBuf};
 use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 pub(super) fn normalize(p: &Path) -> PathBuf {
@@ -57,11 +57,7 @@ pub struct AppState {
 impl AppState {
     /// Build the full runtime adapter list including preset agents from the DB.
     pub fn runtime_adapters(&self) -> Vec<Box<dyn adapter::AgentAdapter>> {
-        let settings = self
-            .store
-            .lock()
-            .list_agent_settings()
-            .unwrap_or_default();
+        let settings = self.store.lock().list_agent_settings().unwrap_or_default();
         adapter::runtime_adapters_for_settings(&settings)
     }
 }

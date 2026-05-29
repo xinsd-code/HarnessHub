@@ -8,17 +8,24 @@ const templateStore = {
 };
 
 vi.mock("@/stores/agent-config-template-store", () => ({
-  useAgentConfigTemplateStore: (selector: (state: typeof templateStore) => unknown) =>
-    selector(templateStore),
+  useAgentConfigTemplateStore: (
+    selector: (state: typeof templateStore) => unknown,
+  ) => selector(templateStore),
 }));
 
 describe("CreateTemplateDialog", () => {
   it("shows only the four manual entry fields", () => {
     render(<CreateTemplateDialog onClose={vi.fn()} />);
 
-    expect(screen.getByLabelText("File name", { selector: "input" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Description", { selector: "input" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Tag", { selector: "input" })).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("File name", { selector: "input" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Description", { selector: "input" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Tag", { selector: "input" }),
+    ).toBeInTheDocument();
     expect(screen.getByLabelText("File content")).toBeInTheDocument();
     expect(screen.queryByText("Project")).not.toBeInTheDocument();
     expect(screen.queryByText("Target Agent")).not.toBeInTheDocument();
@@ -28,12 +35,18 @@ describe("CreateTemplateDialog", () => {
   it("submits manual template content", () => {
     render(<CreateTemplateDialog onClose={vi.fn()} />);
 
-    fireEvent.change(screen.getByLabelText("File name", { selector: "input" }), {
-      target: { value: "AGENTS.md" },
-    });
-    fireEvent.change(screen.getByLabelText("Description", { selector: "input" }), {
-      target: { value: "my rules" },
-    });
+    fireEvent.change(
+      screen.getByLabelText("File name", { selector: "input" }),
+      {
+        target: { value: "AGENTS.md" },
+      },
+    );
+    fireEvent.change(
+      screen.getByLabelText("Description", { selector: "input" }),
+      {
+        target: { value: "my rules" },
+      },
+    );
     fireEvent.change(screen.getByLabelText("Tag", { selector: "input" }), {
       target: { value: "default" },
     });

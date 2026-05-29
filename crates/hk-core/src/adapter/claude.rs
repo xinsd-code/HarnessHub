@@ -27,6 +27,7 @@ impl ClaudeAdapter {
         }
     }
 
+    #[cfg(any(test, target_os = "windows"))]
     pub(crate) fn with_home(home: PathBuf) -> Self {
         Self { home }
     }
