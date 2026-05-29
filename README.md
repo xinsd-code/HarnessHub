@@ -1,3 +1,5 @@
+**fork from https://github.com/RealZST/HarnessKit**
+
 <p align="center">
   <img src="public/icons/harnesskit-icons.png" alt="HarnessKit" width="160" />
 </p>
@@ -17,14 +19,6 @@
 <p align="center">
   <a href="#为什么选择-harnesskit">为什么</a>&nbsp;&nbsp;&bull;&nbsp;&nbsp;<a href="#核心特性">核心特性</a>&nbsp;&nbsp;&bull;&nbsp;&nbsp;<a href="#快速开始">快速开始</a>&nbsp;&nbsp;&bull;&nbsp;&nbsp;<a href="#项目结构">项目结构</a>&nbsp;&nbsp;&bull;&nbsp;&nbsp;<a href="#未来计划">未来计划</a>
 </p>
-
-<br/>
-
-<p align="center">
-  <img src="media/agents-animation.gif" alt="HarnessKit Agents Animation" width="800" />
-</p>
-
-<br/>
 
 ## 为什么选择 HarnessKit？
 
@@ -262,7 +256,3 @@ cargo test --workspace      # Rust 测试
 ## 许可证
 
 [Apache License 2.0](LICENSE)
-
----
-
-*fork from https://github.com/RealZST/HarnessKit*
