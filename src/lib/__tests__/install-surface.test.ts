@@ -130,7 +130,9 @@ describe("buildInstallState", () => {
   it("treats Local Hub project-only installs as install in the list", () => {
     const state = buildInstallState({
       agentName: "claude",
-      instances: [makeExtension({ id: "alpha", scope: alphaScope, agents: ["claude"] })],
+      instances: [
+        makeExtension({ id: "alpha", scope: alphaScope, agents: ["claude"] }),
+      ],
       surface: "local-hub",
     });
 
@@ -143,7 +145,9 @@ describe("buildInstallState", () => {
   it("treats extension-list project-only installs as install in the list", () => {
     const state = buildInstallState({
       agentName: "claude",
-      instances: [makeExtension({ id: "alpha", scope: alphaScope, agents: ["claude"] })],
+      instances: [
+        makeExtension({ id: "alpha", scope: alphaScope, agents: ["claude"] }),
+      ],
       surface: "extension-list",
     });
 
@@ -174,7 +178,9 @@ describe("buildInstallState", () => {
   it("treats extension-detail project installs as installed", () => {
     const state = buildInstallState({
       agentName: "claude",
-      instances: [makeExtension({ id: "alpha", scope: alphaScope, agents: ["claude"] })],
+      instances: [
+        makeExtension({ id: "alpha", scope: alphaScope, agents: ["claude"] }),
+      ],
       projectScope: alphaScope,
       surface: "extension-detail",
     });

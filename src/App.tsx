@@ -1,5 +1,3 @@
-import { listen } from "@tauri-apps/api/event";
-import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useEffect, useRef, useState } from "react";
 import { HashRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AppShell } from "./components/layout/app-shell";
@@ -9,11 +7,14 @@ import { Confetti } from "./components/onboarding/confetti";
 import { Onboarding, useOnboarding } from "./components/onboarding/onboarding";
 import { ErrorBoundary } from "./components/shared/error-boundary";
 import { api } from "./lib/invoke";
+import { setDesktopAppIcon } from "./lib/platform/desktop-actions";
+import { listenTauriEvent } from "./lib/platform/event";
+import { onWindowFocusChanged, setWindowTheme } from "./lib/platform/window";
 import { isDesktop } from "./lib/transport";
 import AgentsPage from "./pages/agents";
-import HarnessKitPage from "./pages/harnesskit";
 import AuditPage from "./pages/audit";
 import ExtensionsPage from "./pages/extensions";
+import HarnessKitPage from "./pages/harnesskit";
 import LocalHubPage from "./pages/local-hub";
 import MarketplacePage from "./pages/marketplace";
 import OverviewPage from "./pages/overview";
@@ -93,17 +94,15 @@ export default function App() {
 
     // Re-scan when the window regains focus (catches external installs) — desktop only
     const unlistenFocus = isDesktop()
-      ? getCurrentWindow().onFocusChanged(({ payload: focused }) => {
+      ? onWindowFocusChanged((focused) => {
           if (focused) runScan();
         })
       : null;
 
     // Refresh when background marketplace matching completes — desktop only
-    const unlistenChanged = isDesktop()
-      ? listen("extensions-changed", () => {
-          fetchExtensions();
-        })
-      : null;
+    const unlistenChanged = listenTauriEvent("extensions-changed", () => {
+      fetchExtensions();
+    });
 
     return () => {
       unlistenFocus?.then((fn) => fn());
@@ -132,20 +131,18 @@ export default function App() {
     }
     // Force macOS vibrancy to match — "light" | "dark" | null (system)
     if (isDesktop()) {
-      getCurrentWindow()
-        .setTheme(
-          showOnboarding ? "light" : mode === "system" ? null : resolved,
-        )
-        .catch((e) => console.error("Failed to set window theme:", e));
+      void setWindowTheme(
+        showOnboarding ? "light" : mode === "system" ? null : resolved,
+      );
     }
   }, [themeName, mode, resolved, showOnboarding]);
 
   // Restore app icon from saved preference — desktop only
   useEffect(() => {
     if (isDesktop()) {
-      api
-        .setAppIcon(appIcon)
-        .catch((e) => console.error("Failed to set app icon:", e));
+      setDesktopAppIcon(appIcon).catch((e) =>
+        console.error("Failed to set app icon:", e),
+      );
     }
   }, [appIcon]);
 

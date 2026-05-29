@@ -1,11 +1,18 @@
 import { FolderPlus, HardDrive, RefreshCw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { open } from "@tauri-apps/plugin-dialog";
 import { HubDetail } from "@/components/local-hub/hub-detail";
 import { HubFilters } from "@/components/local-hub/hub-filters";
 import { HubTable } from "@/components/local-hub/hub-table";
 import { SyncDialog } from "@/components/local-hub/sync-dialog";
-import { extensionListGroupKey, usesLooseLogicalAssetIdentity } from "@/lib/types";
+import {
+  openDirectoryPicker,
+  PICKER_UNSUPPORTED_MESSAGE,
+  selectedPickerPath,
+} from "@/lib/platform/dialog";
+import {
+  extensionListGroupKey,
+  usesLooseLogicalAssetIdentity,
+} from "@/lib/types";
 import { useAgentStore } from "@/stores/agent-store";
 import { buildGroups } from "@/stores/extension-helpers";
 import { useExtensionStore } from "@/stores/extension-store";
@@ -44,7 +51,9 @@ export default function LocalHubPage() {
     });
 
     const loose = filtered.filter((ext) => usesLooseLogicalAssetIdentity(ext));
-    const strict = filtered.filter((ext) => !usesLooseLogicalAssetIdentity(ext));
+    const strict = filtered.filter(
+      (ext) => !usesLooseLogicalAssetIdentity(ext),
+    );
     const groupedLoose = buildGroups(loose).map((group) => {
       const representative = group.instances[0];
       return {
@@ -89,19 +98,28 @@ export default function LocalHubPage() {
 
   const handleImport = async () => {
     try {
-      const selected = await open({
-        directory: true,
-        multiple: false,
+      const result = await openDirectoryPicker({
         title: "Select directory to import",
       });
+      if (result.status === "unsupported") {
+        toast.info(PICKER_UNSUPPORTED_MESSAGE);
+        return;
+      }
+      const selected = selectedPickerPath(result);
       if (selected && typeof selected === "string") {
         // Detect kind from directory contents
         let kind = "skill"; // default
         if (selected.includes("/mcp/") || selected.includes("\\mcp\\")) {
           kind = "mcp";
-        } else if (selected.includes("/plugins/") || selected.includes("\\plugins\\")) {
+        } else if (
+          selected.includes("/plugins/") ||
+          selected.includes("\\plugins\\")
+        ) {
           kind = "plugin";
-        } else if (selected.includes("/clis/") || selected.includes("\\clis\\")) {
+        } else if (
+          selected.includes("/clis/") ||
+          selected.includes("\\clis\\")
+        ) {
           kind = "cli";
         }
         await importToHub(selected, kind);
@@ -217,7 +235,10 @@ export default function LocalHubPage() {
         )}
       </div>
 
-      <SyncDialog open={showSyncDialog} onClose={() => setShowSyncDialog(false)} />
+      <SyncDialog
+        open={showSyncDialog}
+        onClose={() => setShowSyncDialog(false)}
+      />
     </div>
   );
 }

@@ -4,10 +4,14 @@ import { AnimatedEllipsis } from "@/components/shared/animated-ellipsis";
 import { ScopeTargetField } from "@/components/shared/scope-target-field";
 import { useFocusTrap } from "@/hooks/use-focus-trap";
 import { useScope } from "@/hooks/use-scope";
-import { openDirectoryPicker } from "@/lib/dialog";
 import { humanizeError } from "@/lib/errors";
-import { isDesktop } from "@/lib/transport";
 import { api } from "@/lib/invoke";
+import {
+  openDirectoryPicker,
+  PICKER_UNSUPPORTED_MESSAGE,
+  selectedPickerPath,
+} from "@/lib/platform/dialog";
+import { isDesktop } from "@/lib/transport";
 import type { ConfigScope, DiscoveredSkill } from "@/lib/types";
 import { agentDisplayName, sortAgents } from "@/lib/types";
 import { useAgentStore } from "@/stores/agent-store";
@@ -132,9 +136,14 @@ export function InstallDialog({ open, mode, onClose }: InstallDialogProps) {
   };
 
   const handleBrowse = async () => {
-    const selected = await openDirectoryPicker({
+    const result = await openDirectoryPicker({
       title: "Select a skill directory containing SKILL.md",
     });
+    if (result.status === "unsupported") {
+      toast.info(PICKER_UNSUPPORTED_MESSAGE);
+      return;
+    }
+    const selected = selectedPickerPath(result);
     if (selected) setSource(selected);
   };
 

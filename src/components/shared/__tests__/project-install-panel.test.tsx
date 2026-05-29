@@ -89,9 +89,7 @@ describe("ProjectInstallPanel", () => {
       />,
     );
 
-    expect(
-      screen.getByText("No project-capable agents detected"),
-    ).toBeTruthy();
+    expect(screen.getByText("No project-capable agents detected")).toBeTruthy();
   });
 
   it("hides missing projects from the selector", () => {
@@ -120,9 +118,7 @@ describe("ProjectInstallPanel", () => {
       />,
     );
 
-    expect(
-      screen.queryByRole("option", { name: "beta" }),
-    ).toBeNull();
+    expect(screen.queryByRole("option", { name: "beta" })).toBeNull();
     expect(
       screen.getAllByRole("option").map((option) => option.textContent),
     ).toEqual(["Select an existing project", "alpha"]);

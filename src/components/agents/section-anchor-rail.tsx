@@ -27,6 +27,7 @@ export function SectionAnchorRail({ revisionKey }: { revisionKey: string }) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [presentIds, setPresentIds] = useState<Set<string>>(new Set());
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: revisionKey intentionally rewires the observer when visible sections change.
   useEffect(() => {
     const present = new Set<string>();
     for (const section of SECTION_CATALOG) {

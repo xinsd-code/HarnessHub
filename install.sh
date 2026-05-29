@@ -17,14 +17,14 @@ ARCH=$(uname -m)
 case "$OS" in
   Darwin)
     case "$ARCH" in
-      arm64|aarch64) BINARY="hk-macos-arm64" ;;
-      x86_64)        BINARY="hk-macos-x64" ;;
+      arm64|aarch64) BINARY="hk-cli-macos-arm64" ;;
+      x86_64)        BINARY="hk-cli-macos-x64" ;;
       *)             echo "Error: unsupported architecture: $ARCH"; exit 1 ;;
     esac
     ;;
   Linux)
     case "$ARCH" in
-      x86_64) BINARY="hk-linux-x64" ;;
+      x86_64) BINARY="hk-cli-linux-x64" ;;
       *)      echo "Error: unsupported architecture: $ARCH"; exit 1 ;;
     esac
     ;;
@@ -42,12 +42,31 @@ if [ -z "$TAG" ]; then
 fi
 
 URL="https://github.com/$REPO/releases/download/$TAG/$BINARY"
+CHECKSUM_URL="$URL.sha256"
 
 echo "Installing HarnessKit CLI $TAG ($ARCH)..."
 
-# Download
+# Download and verify
 mkdir -p "$INSTALL_DIR"
-curl -fsSL "$URL" -o "$INSTALL_DIR/hk"
+TMP_DIR=$(mktemp -d)
+trap 'rm -rf "$TMP_DIR"' EXIT
+curl -fsSL "$URL" -o "$TMP_DIR/hk"
+curl -fsSL "$CHECKSUM_URL" -o "$TMP_DIR/hk.sha256"
+EXPECTED_HASH=$(awk '{print $1}' "$TMP_DIR/hk.sha256")
+if [ -z "$EXPECTED_HASH" ]; then
+  echo "Error: release checksum is empty"
+  exit 1
+fi
+if command -v sha256sum >/dev/null 2>&1; then
+  ACTUAL_HASH=$(sha256sum "$TMP_DIR/hk" | awk '{print $1}')
+else
+  ACTUAL_HASH=$(shasum -a 256 "$TMP_DIR/hk" | awk '{print $1}')
+fi
+if [ "$ACTUAL_HASH" != "$EXPECTED_HASH" ]; then
+  echo "Error: checksum verification failed for $BINARY"
+  exit 1
+fi
+mv "$TMP_DIR/hk" "$INSTALL_DIR/hk"
 chmod +x "$INSTALL_DIR/hk"
 
 echo "Installed hk to $INSTALL_DIR/hk"

@@ -44,6 +44,16 @@ export function setAuthToken(token: string): void {
 
 export function getAuthToken(): string | null {
   if (authToken) return authToken;
+  if (typeof window !== "undefined") {
+    const url = new URL(window.location.href);
+    const urlToken = url.searchParams.get("token");
+    if (urlToken) {
+      setAuthToken(urlToken);
+      url.searchParams.delete("token");
+      window.history.replaceState({}, "", url.toString());
+      return urlToken;
+    }
+  }
   authToken = sessionStorage.getItem("hk_token");
   return authToken;
 }
@@ -67,7 +77,7 @@ async function httpInvoke<T>(
   };
   const token = getAuthToken();
   if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
+    headers.Authorization = `Bearer ${token}`;
   }
 
   const response = await fetch(`/api/${command}`, {

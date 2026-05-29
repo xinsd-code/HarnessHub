@@ -54,6 +54,7 @@ export function AgentExtensionsPanel({
   const grouped = useExtensionStore((s) => s.grouped);
   const extensions = useExtensionStore((s) => s.extensions);
   const rescanAndFetch = useExtensionStore((s) => s.rescanAndFetch);
+  const deleteExtensionIds = useExtensionStore((s) => s.deleteExtensionIds);
   const [pendingDeleteKey, setPendingDeleteKey] = useState<string | null>(null);
   const [deletingKey, setDeletingKey] = useState<string | null>(null);
 
@@ -70,7 +71,8 @@ export function AgentExtensionsPanel({
         const relevantInstances = group.instances.filter((instance) => {
           if (!instance.agents.includes(agentName)) return false;
           if (scope.type === "all") return true;
-          if (scope.type === "project" && instance.scope.type === "global") return true;
+          if (scope.type === "project" && instance.scope.type === "global")
+            return true;
           return scopeKey(instance.scope) === scopeKey(scope);
         });
         if (relevantInstances.length === 0) return null;
@@ -126,7 +128,7 @@ export function AgentExtensionsPanel({
           return scopeKey(instance.scope) === scopeKey(scope);
         });
         const ids = new Set(relevantChildren.map((instance) => instance.id));
-        await Promise.all([...ids].map((id) => api.deleteExtension(id)));
+        await deleteExtensionIds([...ids]);
 
         const remainingChildren = childExtensions.filter(
           (instance) => !ids.has(instance.id),
@@ -141,8 +143,8 @@ export function AgentExtensionsPanel({
           }
         }
       } else {
-        await Promise.all(
-          relevantInstances.map((instance) => api.deleteExtension(instance.id)),
+        await deleteExtensionIds(
+          relevantInstances.map((instance) => instance.id),
         );
       }
       await rescanAndFetch();

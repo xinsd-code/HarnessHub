@@ -170,43 +170,43 @@ describe("buildGroups", () => {
     ]);
   });
 
-  it.each(["mcp", "plugin"] as const)(
-    "merges same-name %s rows across different source metadata",
-    (kind) => {
-      const a = {
-        ...baseExt,
-        id: `${kind}-a`,
-        kind,
-        name: "asset-one",
-        source: {
-          origin: "git" as const,
-          url: "https://github.com/acme/asset-one.git",
-          version: null,
-          commit_hash: null,
-        },
-        pack: "acme/asset-one",
-      };
-      const b = {
-        ...baseExt,
-        id: `${kind}-b`,
-        kind,
-        name: "asset-one",
-        source: {
-          origin: "agent" as const,
-          url: null,
-          version: null,
-          commit_hash: null,
-        },
-        pack: null,
-        scope: alphaScope,
-      };
+  it.each([
+    "mcp",
+    "plugin",
+  ] as const)("merges same-name %s rows across different source metadata", (kind) => {
+    const a = {
+      ...baseExt,
+      id: `${kind}-a`,
+      kind,
+      name: "asset-one",
+      source: {
+        origin: "git" as const,
+        url: "https://github.com/acme/asset-one.git",
+        version: null,
+        commit_hash: null,
+      },
+      pack: "acme/asset-one",
+    };
+    const b = {
+      ...baseExt,
+      id: `${kind}-b`,
+      kind,
+      name: "asset-one",
+      source: {
+        origin: "agent" as const,
+        url: null,
+        version: null,
+        commit_hash: null,
+      },
+      pack: null,
+      scope: alphaScope,
+    };
 
-      const groups = buildGroups([a, b]);
+    const groups = buildGroups([a, b]);
 
-      expect(groups).toHaveLength(1);
-      expect(groups[0].instances).toHaveLength(2);
-    },
-  );
+    expect(groups).toHaveLength(1);
+    expect(groups[0].instances).toHaveLength(2);
+  });
 
   it("keeps same-name cli rows separated by current strict identity", () => {
     const a = {

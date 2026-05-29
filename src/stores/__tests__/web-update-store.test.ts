@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { RELEASES_URL } from "@/lib/release";
 
-const RELEASES_URL =
-  "https://api.github.com/repos/RealZST/HarnessKit/releases/latest";
 const CACHE_KEY = "hk-web-update-cache";
 const DISMISS_KEY_PREFIX = "hk-update-dismissed-v";
 
@@ -36,7 +35,7 @@ describe("web-update-store", () => {
   it("does not flag update when current version matches latest", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue(mockReleasesResponse("v1.2.1")),
+      vi.fn().mockResolvedValue(mockReleasesResponse("v1.0.0")),
     );
 
     const { useWebUpdateStore } = await import("../web-update-store");
@@ -62,7 +61,7 @@ describe("web-update-store", () => {
   it("does not flag update when latest is older (downgrade)", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue(mockReleasesResponse("v1.0.0")),
+      vi.fn().mockResolvedValue(mockReleasesResponse("v0.9.0")),
     );
 
     const { useWebUpdateStore } = await import("../web-update-store");

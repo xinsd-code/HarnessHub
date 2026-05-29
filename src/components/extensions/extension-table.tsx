@@ -54,6 +54,7 @@ function AgentMembershipCell({
   const agents = useAgentStore((s) => s.agents);
   const installToAgent = useExtensionStore((s) => s.installToAgent);
   const rescanAndFetch = useExtensionStore((s) => s.rescanAndFetch);
+  const deleteExtensionIds = useExtensionStore((s) => s.deleteExtensionIds);
   const extensions = useExtensionStore((s) => s.extensions);
   const [pendingAgents, setPendingAgents] = useState<Set<string>>(new Set());
 
@@ -108,12 +109,9 @@ function AgentMembershipCell({
           }
           await rescanAndFetch();
         } else {
-          await Promise.all(
-            state.globalInstances.map((instance) =>
-              api.deleteExtension(instance.id),
-            ),
+          await deleteExtensionIds(
+            state.globalInstances.map((instance) => instance.id),
           );
-          await rescanAndFetch();
         }
         toast.success(`${agentDisplayName(agentName)} 已移除 ${name}`);
         return;

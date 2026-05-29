@@ -55,12 +55,10 @@ export function HarnessKitInsertDialog({
 
   const hasPreview = preview !== null;
 
-  function validateUniquePaths(): boolean {
-    const values = paths
-      .map((p) => p.rel_path.trim())
-      .filter(Boolean);
+  const validateUniquePaths = useCallback((): boolean => {
+    const values = paths.map((p) => p.rel_path.trim()).filter(Boolean);
     return new Set(values).size === values.length;
-  }
+  }, [paths]);
 
   const handlePreview = useCallback(() => {
     if (pending) return;
@@ -72,7 +70,7 @@ export function HarnessKitInsertDialog({
       return;
     }
     void onPreview(paths);
-  }, [paths, onPreview, pending]);
+  }, [paths, onPreview, pending, validateUniquePaths]);
 
   const handleConfirm = useCallback(() => {
     if (pending) return;
@@ -83,7 +81,13 @@ export function HarnessKitInsertDialog({
       forceHubExtensionIds,
       forceAgentConfigTemplateIds,
     });
-  }, [paths, selectedAssetConflicts, selectedConfigConflicts, onConfirm, pending]);
+  }, [
+    paths,
+    selectedAssetConflicts,
+    selectedConfigConflicts,
+    onConfirm,
+    pending,
+  ]);
 
   const handlePathChange = (templateId: string, relPath: string) => {
     setPaths((prev) =>
@@ -258,9 +262,7 @@ export function HarnessKitInsertDialog({
                               {conflict.asset_name}
                             </p>
                             <p className="mt-0.5 text-xs text-muted-foreground">
-                              {conflict.kind === "skill"
-                                ? "Skill"
-                                : "MCP"}{" "}
+                              {conflict.kind === "skill" ? "Skill" : "MCP"}{" "}
                               already installed — check to force replace
                             </p>
                           </div>

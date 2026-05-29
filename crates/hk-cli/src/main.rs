@@ -2,14 +2,7 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use colored::Colorize;
 use comfy_table::{ContentArrangement, Table, presets::UTF8_FULL_CONDENSED};
-use hk_core::{
-    adapter,
-    manager,
-    models::*,
-    scanner,
-    service,
-    store::Store,
-};
+use hk_core::{adapter, manager, models::*, scanner, service, store::Store};
 use std::path::PathBuf;
 
 #[derive(Parser)]
@@ -96,15 +89,7 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
 
     if let Commands::Serve { port, host, token } = cli.command {
-        let effective_token = if host != "127.0.0.1" {
-            Some(token.unwrap_or_else(|| {
-                use rand::Rng;
-                let token_value: u128 = rand::rng().random();
-                format!("{token_value:032x}")
-            }))
-        } else {
-            token
-        };
+        let effective_token = effective_serve_token(&host, token);
 
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(hk_web::serve(hk_web::ServeOptions {
@@ -176,6 +161,32 @@ fn hk_data_dir() -> PathBuf {
     dirs::home_dir().unwrap_or_default().join(".harnesskit")
 }
 
+fn effective_serve_token(_host: &str, token: Option<String>) -> Option<String> {
+    Some(token.unwrap_or_else(|| {
+        use rand::Rng;
+        let token_value: u128 = rand::rng().random();
+        format!("{token_value:032x}")
+    }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn local_serve_generates_token_by_default() {
+        assert!(effective_serve_token("127.0.0.1", None).is_some());
+    }
+
+    #[test]
+    fn serve_preserves_explicit_token() {
+        assert_eq!(
+            effective_serve_token("127.0.0.1", Some("secret".into())),
+            Some("secret".into())
+        );
+    }
+}
+
 /// Build a grouping key matching the desktop's `extensionGroupKey`:
 /// `kind \0 name \0 origin \0 developer`
 /// For hooks, strip event/matcher prefix and keep only the command part.
@@ -183,19 +194,36 @@ fn group_key(ext: &Extension) -> String {
     let name = if ext.kind == ExtensionKind::Hook {
         // Hook name format: "event:matcher:command" — extract just the command
         let parts: Vec<&str> = ext.name.splitn(3, ':').collect();
-        if parts.len() >= 3 { parts[2].to_string() } else { ext.name.clone() }
+        if parts.len() >= 3 {
+            parts[2].to_string()
+        } else {
+            ext.name.clone()
+        }
     } else {
         ext.name.clone()
     };
-    let developer = ext.source.url.as_deref()
+    let developer = ext
+        .source
+        .url
+        .as_deref()
         .and_then(|u| {
             // Extract "owner/repo" from URL
             let u = u.trim_end_matches('/').trim_end_matches(".git");
             let parts: Vec<&str> = u.rsplitn(3, '/').collect();
-            if parts.len() >= 2 { Some(format!("{}/{}", parts[1], parts[0])) } else { None }
+            if parts.len() >= 2 {
+                Some(format!("{}/{}", parts[1], parts[0]))
+            } else {
+                None
+            }
         })
         .unwrap_or_default();
-    format!("{}\0{}\0{}\0{}", ext.kind.as_str(), name, ext.source.origin.as_str(), developer)
+    format!(
+        "{}\0{}\0{}\0{}",
+        ext.kind.as_str(),
+        name,
+        ext.source.origin.as_str(),
+        developer
+    )
 }
 
 fn cmd_status(
@@ -294,7 +322,11 @@ fn cmd_list(
             &status,
         ]);
     }
-    println!("\n  {} {}", filtered.len().to_string().bold(), "results".dimmed());
+    println!(
+        "\n  {} {}",
+        filtered.len().to_string().bold(),
+        "results".dimmed()
+    );
     println!("{table}");
     Ok(())
 }
@@ -401,7 +433,7 @@ fn cmd_audit(
 
     // Sort by trust score ascending (worst first)
     let mut sorted: Vec<_> = groups.into_values().collect();
-    sorted.sort_by(|a, b| a.trust_score.cmp(&b.trust_score));
+    sorted.sort_by_key(|extension| extension.trust_score);
 
     // Filter by name if specified
     if let Some(n) = name {
@@ -411,7 +443,10 @@ fn cmd_audit(
     // Summary
     let total = sorted.len();
     let safe = sorted.iter().filter(|g| g.trust_score >= 80).count();
-    let low_risk = sorted.iter().filter(|g| g.trust_score >= 60 && g.trust_score < 80).count();
+    let low_risk = sorted
+        .iter()
+        .filter(|g| g.trust_score >= 60 && g.trust_score < 80)
+        .count();
     let needs_review = sorted.iter().filter(|g| g.trust_score < 60).count();
     println!();
     println!(

@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => {
     toggle: vi.fn(),
     setSelectedId: vi.fn(),
     installToAgent: vi.fn(),
+    deleteExtensionIds: vi.fn(),
     deleteFromAgents: vi.fn(),
     rescanAndFetch: vi.fn(),
     extensions: [] as unknown[],
@@ -68,22 +69,23 @@ vi.mock("@/lib/install-surface", () => ({
   resolveProjectSelection: vi.fn(),
 }));
 vi.mock("react-router-dom", async () => {
-  const actual = await vi.importActual<typeof import("react-router-dom")>(
-    "react-router-dom",
-  );
+  const actual =
+    await vi.importActual<typeof import("react-router-dom")>(
+      "react-router-dom",
+    );
   return {
     ...actual,
     useNavigate: () => mocks.navigate,
   };
 });
 vi.mock("@/stores/agent-store", () => ({
-  useAgentStore: (
-    selector: (state: typeof mocks.agentStoreState) => unknown,
-  ) => selector(mocks.agentStoreState),
+  useAgentStore: (selector: (state: typeof mocks.agentStoreState) => unknown) =>
+    selector(mocks.agentStoreState),
 }));
 vi.mock("@/stores/extension-store", () => {
-  const store = (selector: (state: typeof mocks.extensionStoreState) => unknown) =>
-    selector(mocks.extensionStoreState);
+  const store = (
+    selector: (state: typeof mocks.extensionStoreState) => unknown,
+  ) => selector(mocks.extensionStoreState);
   return {
     useExtensionStore: Object.assign(store, {
       getState: () => mocks.extensionStoreState,
@@ -112,6 +114,7 @@ describe("ExtensionTable agent install state", () => {
     );
     mocks.extensionStoreState.setSelectedId.mockClear();
     mocks.extensionStoreState.installToAgent.mockClear();
+    mocks.extensionStoreState.deleteExtensionIds.mockClear();
     mocks.extensionStoreState.deleteFromAgents.mockClear();
     mocks.extensionStoreState.rescanAndFetch.mockClear();
     vi.mocked(api.deleteExtension).mockReset();
@@ -314,10 +317,11 @@ describe("ExtensionTable agent install state", () => {
     });
 
     await waitFor(() => {
-      expect(api.deleteExtension).toHaveBeenCalledWith("global-claude");
+      expect(mocks.extensionStoreState.deleteExtensionIds).toHaveBeenCalledWith(
+        ["global-claude"],
+      );
     });
-    expect(api.deleteExtension).toHaveBeenCalledTimes(1);
+    expect(api.deleteExtension).not.toHaveBeenCalled();
     expect(mocks.extensionStoreState.deleteFromAgents).not.toHaveBeenCalled();
-    expect(mocks.extensionStoreState.rescanAndFetch).toHaveBeenCalledTimes(1);
   });
 });

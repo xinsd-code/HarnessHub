@@ -1,5 +1,5 @@
 use axum::body::Body;
-use axum::http::{Request, StatusCode};
+use axum::http::{Method, Request, StatusCode, header};
 use hk_core::{adapter, store::Store};
 use hk_web::state::WebState;
 use parking_lot::Mutex;
@@ -36,6 +36,26 @@ async fn health_returns_ok() {
 
 #[tokio::test]
 async fn list_extensions_returns_array() {
+    let (mut state, _tmp) = test_state();
+    state.token = Some("secret123".into());
+    let app = hk_web::router::build_router(state);
+
+    let response = app
+        .oneshot(
+            Request::post("/api/list_extensions")
+                .header("content-type", "application/json")
+                .header("authorization", "Bearer secret123")
+                .body(Body::from("{}"))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+}
+
+#[tokio::test]
+async fn api_requests_are_rejected_when_no_token_is_configured() {
     let (state, _tmp) = test_state();
     let app = hk_web::router::build_router(state);
 
@@ -49,7 +69,7 @@ async fn list_extensions_returns_array() {
         .await
         .unwrap();
 
-    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
 }
 
 #[tokio::test]
@@ -86,14 +106,71 @@ async fn auth_required_when_token_set() {
 }
 
 #[tokio::test]
+async fn cors_rejects_untrusted_origins() {
+    let (mut state, _tmp) = test_state();
+    state.token = Some("secret123".into());
+    let app = hk_web::router::build_router(state);
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method(Method::OPTIONS)
+                .uri("/api/list_extensions")
+                .header(header::ORIGIN, "https://example.com")
+                .header(header::ACCESS_CONTROL_REQUEST_METHOD, "POST")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert!(
+        response
+            .headers()
+            .get(header::ACCESS_CONTROL_ALLOW_ORIGIN)
+            .is_none()
+    );
+}
+
+#[tokio::test]
+async fn cors_allows_local_dev_origin() {
+    let (mut state, _tmp) = test_state();
+    state.token = Some("secret123".into());
+    let app = hk_web::router::build_router(state);
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method(Method::OPTIONS)
+                .uri("/api/list_extensions")
+                .header(header::ORIGIN, "http://localhost:1420")
+                .header(header::ACCESS_CONTROL_REQUEST_METHOD, "POST")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(
+        response
+            .headers()
+            .get(header::ACCESS_CONTROL_ALLOW_ORIGIN)
+            .unwrap(),
+        "http://localhost:1420"
+    );
+}
+
+#[tokio::test]
 async fn dashboard_stats_returns_valid_json() {
-    let (state, _tmp) = test_state();
+    let (mut state, _tmp) = test_state();
+    state.token = Some("secret123".into());
     let app = hk_web::router::build_router(state);
 
     let response = app
         .oneshot(
             Request::post("/api/get_dashboard_stats")
                 .header("content-type", "application/json")
+                .header("authorization", "Bearer secret123")
                 .body(Body::from("{}"))
                 .unwrap(),
         )

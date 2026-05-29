@@ -25,7 +25,6 @@ import { Hint } from "@/components/shared/hint";
 import { useScrollPassthrough } from "@/hooks/use-scroll-passthrough";
 import { canInstallAtScope } from "@/lib/agent-capabilities";
 import { humanizeError } from "@/lib/errors";
-import { api } from "@/lib/invoke";
 import {
   type ConfigScope,
   type MarketplaceItem,
@@ -248,8 +247,8 @@ export default function MarketplacePage() {
   } = useMarketplaceStore();
   const { agents, fetch: fetchAgents, agentOrder } = useAgentStore();
   const projects = useProjectStore((s) => s.projects);
-  const rescanAndFetch = useExtensionStore((s) => s.rescanAndFetch);
   const extensions = useExtensionStore((s) => s.extensions);
+  const deleteExtensionIds = useExtensionStore((s) => s.deleteExtensionIds);
   const [marketplaceProjectScope, setMarketplaceProjectScope] =
     useState<ConfigScope | null>(null);
   const [installed, setInstalled] = useState<Set<string>>(new Set());
@@ -427,13 +426,12 @@ export default function MarketplacePage() {
 
     setError(null);
     try {
-      await Promise.all(matches.map((ext) => api.deleteExtension(ext.id)));
+      await deleteExtensionIds(matches.map((ext) => ext.id));
       setInstalled((prev) => {
         const next = new Set(prev);
         next.delete(marketplaceInstallKey(item.id, agentName, targetScope));
         return next;
       });
-      await rescanAndFetch();
       toast.success(`${item.name} 已从 ${agentName} 卸载`);
     } catch (e) {
       setError(String(e));

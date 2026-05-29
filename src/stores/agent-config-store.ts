@@ -1,6 +1,10 @@
 import { create } from "zustand";
 import { humanizeError } from "@/lib/errors";
 import { api } from "@/lib/invoke";
+import {
+  openPathInSystem,
+  revealPathInFileManager,
+} from "@/lib/platform/desktop-actions";
 import type { AgentDetail, ConfigScope } from "@/lib/types";
 import { useAgentStore } from "@/stores/agent-store";
 import { toast } from "@/stores/toast-store";
@@ -34,6 +38,15 @@ interface AgentConfigState {
     label: string,
     category: string,
     targetScope: ConfigScope,
+  ) => Promise<void>;
+  addCustomPaths: (
+    paths: Array<{
+      agent: string;
+      path: string;
+      label: string;
+      category: string;
+      targetScope: ConfigScope;
+    }>,
   ) => Promise<void>;
   updateCustomPath: (
     id: number,
@@ -114,8 +127,9 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => ({
   },
 
   async fetchPreview(path: string) {
-    if (get().previewCache.has(path)) {
-      return get().previewCache.get(path)!;
+    const cachedPreview = get().previewCache.get(path);
+    if (cachedPreview !== undefined) {
+      return cachedPreview;
     }
     if (get().previewLoading.has(path)) {
       return "";
@@ -147,7 +161,7 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => ({
 
   async openInEditor(path: string) {
     try {
-      await api.openInSystem(path);
+      await openPathInSystem(path);
     } catch {
       toast.error("Failed to open file");
     }
@@ -155,7 +169,7 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => ({
 
   async revealInFinder(path: string) {
     try {
-      await api.revealInFileManager(path);
+      await revealPathInFileManager(path);
     } catch {
       toast.error("Failed to reveal in Finder");
     }
@@ -196,6 +210,19 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => ({
     } catch {
       toast.error("Failed to add custom path");
     }
+  },
+
+  async addCustomPaths(paths) {
+    for (const path of paths) {
+      await api.addCustomConfigPath(
+        path.agent,
+        path.path,
+        path.label,
+        path.category,
+        path.targetScope,
+      );
+    }
+    await get().fetch();
   },
 
   async updateCustomPath(id, path, label, category) {

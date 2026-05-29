@@ -68,7 +68,13 @@ fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), HkError> {
 /// with `-` so that names like `microsoft/markitdown` become `microsoft-markitdown`.
 pub fn sanitize_mcp_name(name: &str) -> String {
     name.chars()
-        .map(|c| if c.is_ascii_alphanumeric() || c == '_' || c == '-' { c } else { '-' })
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '_' || c == '-' {
+                c
+            } else {
+                '-'
+            }
+        })
         .collect()
 }
 
@@ -218,10 +224,7 @@ fn deploy_mcp_server_toml(config_path: &Path, entry: &McpServerEntry) -> Result<
     // consistent grouping with other agents that use the unsanitized name.
     let safe_name = sanitize_mcp_name(&entry.name);
     if safe_name != entry.name {
-        server_table.insert(
-            "_hk_name".into(),
-            toml::Value::String(entry.name.clone()),
-        );
+        server_table.insert("_hk_name".into(), toml::Value::String(entry.name.clone()));
     }
     mcp_servers.insert(safe_name, toml::Value::Table(server_table));
 
@@ -683,7 +686,9 @@ pub fn set_codex_plugin_enabled(
     let mut doc: toml::Table = if content.is_empty() {
         toml::Table::new()
     } else {
-        content.parse::<toml::Table>().map_err(|e| HkError::ConfigCorrupted(e.to_string()))?
+        content
+            .parse::<toml::Table>()
+            .map_err(|e| HkError::ConfigCorrupted(e.to_string()))?
     };
     let plugins = doc
         .entry("plugins")
@@ -708,10 +713,7 @@ pub fn set_codex_plugin_enabled(
 }
 
 /// Remove a [plugins."plugin_key"] entry from Codex config.toml.
-pub fn remove_codex_plugin_entry(
-    config_path: &Path,
-    plugin_key: &str,
-) -> Result<(), HkError> {
+pub fn remove_codex_plugin_entry(config_path: &Path, plugin_key: &str) -> Result<(), HkError> {
     if !config_path.exists() {
         return Ok(());
     }
@@ -749,9 +751,7 @@ pub fn set_vscode_plugin_enabled(
     plugin_uri: &str,
     enabled: bool,
 ) -> Result<(), HkError> {
-    let db_path = vscode_user_dir
-        .join("globalStorage")
-        .join("state.vscdb");
+    let db_path = vscode_user_dir.join("globalStorage").join("state.vscdb");
     let conn = rusqlite::Connection::open(&db_path)
         .map_err(|e| HkError::Internal(format!("Failed to open VS Code state DB: {}", e)))?;
 
@@ -764,8 +764,7 @@ pub fn set_vscode_plugin_enabled(
         )
         .unwrap_or_else(|_| "[]".to_string());
 
-    let mut entries: Vec<(String, bool)> =
-        serde_json::from_str(&current).unwrap_or_default();
+    let mut entries: Vec<(String, bool)> = serde_json::from_str(&current).unwrap_or_default();
 
     // Update or insert the entry
     let mut found = false;
@@ -780,8 +779,8 @@ pub fn set_vscode_plugin_enabled(
         entries.push((plugin_uri.to_string(), enabled));
     }
 
-    let new_value = serde_json::to_string(&entries)
-        .map_err(|e| HkError::Internal(e.to_string()))?;
+    let new_value =
+        serde_json::to_string(&entries).map_err(|e| HkError::Internal(e.to_string()))?;
 
     conn.execute(
         "INSERT INTO ItemTable (key, value) VALUES ('agentPlugins.enablement', ?1)
@@ -794,10 +793,7 @@ pub fn set_vscode_plugin_enabled(
 }
 
 /// Remove a plugin entry from VS Code's state.vscdb enablement array.
-pub fn remove_vscode_plugin_entry(
-    vscode_user_dir: &Path,
-    plugin_uri: &str,
-) -> Result<(), HkError> {
+pub fn remove_vscode_plugin_entry(vscode_user_dir: &Path, plugin_uri: &str) -> Result<(), HkError> {
     let db_path = vscode_user_dir.join("globalStorage").join("state.vscdb");
     if !db_path.exists() {
         return Ok(());
@@ -813,13 +809,12 @@ pub fn remove_vscode_plugin_entry(
         )
         .unwrap_or_else(|_| "[]".to_string());
 
-    let mut entries: Vec<(String, bool)> =
-        serde_json::from_str(&current).unwrap_or_default();
+    let mut entries: Vec<(String, bool)> = serde_json::from_str(&current).unwrap_or_default();
 
     entries.retain(|e| e.0 != plugin_uri);
 
-    let new_value = serde_json::to_string(&entries)
-        .map_err(|e| HkError::Internal(e.to_string()))?;
+    let new_value =
+        serde_json::to_string(&entries).map_err(|e| HkError::Internal(e.to_string()))?;
 
     conn.execute(
         "INSERT INTO ItemTable (key, value) VALUES ('agentPlugins.enablement', ?1)
@@ -908,8 +903,8 @@ fn modify_gemini_enablement(
 
     modify(&mut config)?;
 
-    let output = serde_json::to_string_pretty(&config)
-        .map_err(|e| HkError::Internal(e.to_string()))?;
+    let output =
+        serde_json::to_string_pretty(&config).map_err(|e| HkError::Internal(e.to_string()))?;
     (&file).seek(SeekFrom::Start(0))?;
     file.set_len(0)?;
     (&file).write_all(output.as_bytes())?;
@@ -1309,7 +1304,10 @@ mod tests {
 
     #[test]
     fn test_sanitize_mcp_name_replaces_slash() {
-        assert_eq!(sanitize_mcp_name("microsoft/markitdown"), "microsoft-markitdown");
+        assert_eq!(
+            sanitize_mcp_name("microsoft/markitdown"),
+            "microsoft-markitdown"
+        );
     }
 
     #[test]
@@ -1369,7 +1367,10 @@ mod tests {
     fn test_resolve_command_path_resolves_known_command() {
         // "ls" should resolve to an absolute path on any Unix system.
         let resolved = resolve_command_path("ls");
-        assert!(resolved.starts_with('/'), "expected absolute path, got: {resolved}");
+        assert!(
+            resolved.starts_with('/'),
+            "expected absolute path, got: {resolved}"
+        );
     }
 
     #[test]
@@ -1441,8 +1442,8 @@ mod tests {
         deploy_mcp_server(&config, &entry, McpFormat::Toml).unwrap();
 
         // Read using the original (unsanitized) name
-        let result = read_mcp_server_config(&config, "microsoft/markitdown", McpFormat::Toml)
-            .unwrap();
+        let result =
+            read_mcp_server_config(&config, "microsoft/markitdown", McpFormat::Toml).unwrap();
         assert!(result.is_some(), "should find entry via original name");
         assert_eq!(result.unwrap()["command"], "uvx");
     }
@@ -1465,8 +1466,8 @@ mod tests {
         remove_mcp_server(&config, "microsoft/markitdown", McpFormat::Toml).unwrap();
 
         // Verify it's gone
-        let result = read_mcp_server_config(&config, "microsoft/markitdown", McpFormat::Toml)
-            .unwrap();
+        let result =
+            read_mcp_server_config(&config, "microsoft/markitdown", McpFormat::Toml).unwrap();
         assert!(result.is_none(), "entry should be removed");
     }
 
@@ -1848,7 +1849,9 @@ mod tests {
 
         let content: serde_json::Value =
             serde_json::from_str(&std::fs::read_to_string(&config).unwrap()).unwrap();
-        let hooks = content["hooks"]["post_cascade_response"].as_array().unwrap();
+        let hooks = content["hooks"]["post_cascade_response"]
+            .as_array()
+            .unwrap();
         assert_eq!(hooks.len(), 1);
         assert_eq!(hooks[0]["command"], "echo other");
     }
@@ -1918,7 +1921,8 @@ mod tests {
 
         let content: serde_json::Value = serde_json::from_str(
             &std::fs::read_to_string(ext_dir.join("extension-enablement.json")).unwrap(),
-        ).unwrap();
+        )
+        .unwrap();
         let overrides = content["my-ext"]["overrides"].as_array().unwrap();
         assert_eq!(overrides.len(), 1);
         let expected = format!("!{}/*", home.to_string_lossy());
@@ -1937,7 +1941,8 @@ mod tests {
 
         let content: serde_json::Value = serde_json::from_str(
             &std::fs::read_to_string(ext_dir.join("extension-enablement.json")).unwrap(),
-        ).unwrap();
+        )
+        .unwrap();
         let overrides = content["my-ext"]["overrides"].as_array().unwrap();
         assert_eq!(overrides.len(), 1);
         let expected = format!("{}/*", home.to_string_lossy());
@@ -1954,13 +1959,15 @@ mod tests {
         std::fs::write(
             ext_dir.join("extension-enablement.json"),
             r#"{"other-ext": {"overrides": ["!/some/workspace/*"]}}"#,
-        ).unwrap();
+        )
+        .unwrap();
 
         set_gemini_extension_enabled(&ext_dir, "my-ext", false, home).unwrap();
 
         let content: serde_json::Value = serde_json::from_str(
             &std::fs::read_to_string(ext_dir.join("extension-enablement.json")).unwrap(),
-        ).unwrap();
+        )
+        .unwrap();
         assert!(content["other-ext"]["overrides"].as_array().unwrap().len() == 1);
         assert!(content["my-ext"]["overrides"].as_array().unwrap().len() == 1);
     }
@@ -1981,13 +1988,15 @@ mod tests {
         std::fs::write(
             ext_dir.join("extension-enablement.json"),
             initial.to_string(),
-        ).unwrap();
+        )
+        .unwrap();
 
         set_gemini_extension_enabled(&ext_dir, "my-ext", false, home).unwrap();
 
         let content: serde_json::Value = serde_json::from_str(
             &std::fs::read_to_string(ext_dir.join("extension-enablement.json")).unwrap(),
-        ).unwrap();
+        )
+        .unwrap();
         let overrides = content["my-ext"]["overrides"].as_array().unwrap();
         assert_eq!(overrides.len(), 2);
         assert_eq!(overrides[0].as_str().unwrap(), "!/some/workspace/*");
@@ -2010,7 +2019,8 @@ mod tests {
 
         let content: serde_json::Value = serde_json::from_str(
             &std::fs::read_to_string(ext_dir.join("extension-enablement.json")).unwrap(),
-        ).unwrap();
+        )
+        .unwrap();
         assert!(content.get("ext-a").is_none(), "ext-a should be removed");
         assert!(content.get("ext-b").is_some(), "ext-b should remain");
     }
@@ -2027,10 +2037,7 @@ mod tests {
         // Remove one
         remove_codex_plugin_entry(&config, "pluginA@marketplace").unwrap();
 
-        let content: toml::Table = std::fs::read_to_string(&config)
-            .unwrap()
-            .parse()
-            .unwrap();
+        let content: toml::Table = std::fs::read_to_string(&config).unwrap().parse().unwrap();
         let plugins = content["plugins"].as_table().unwrap();
         assert!(!plugins.contains_key("pluginA@marketplace"));
         assert!(plugins.contains_key("pluginB@marketplace"));
@@ -2048,7 +2055,8 @@ mod tests {
         conn.execute(
             "CREATE TABLE IF NOT EXISTS ItemTable (key TEXT UNIQUE, value TEXT)",
             [],
-        ).unwrap();
+        )
+        .unwrap();
 
         // Add two entries
         set_vscode_plugin_enabled(dir.path(), "file:///plugin-a", false).unwrap();

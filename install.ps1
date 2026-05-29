@@ -10,7 +10,7 @@ $ErrorActionPreference = "Stop"
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 $Repo = "RealZST/HarnessKit"
-$Binary = "hk-windows-x64.exe"
+$Binary = "hk-cli-windows-x64.exe"
 $InstallDir = Join-Path $env:USERPROFILE ".local\bin"
 
 # Get latest release tag
@@ -23,13 +23,30 @@ if (-not $Tag) {
 }
 
 $Url = "https://github.com/$Repo/releases/download/$Tag/$Binary"
+$ChecksumUrl = "$Url.sha256"
 
 Write-Host "Installing HarnessKit CLI $Tag..."
 
-# Download
+# Download and verify
 New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
 $OutPath = Join-Path $InstallDir "hk.exe"
-Invoke-WebRequest -Uri $Url -OutFile $OutPath -UseBasicParsing
+$TempPath = Join-Path ([System.IO.Path]::GetTempPath()) ([System.IO.Path]::GetRandomFileName())
+$ChecksumPath = "$TempPath.sha256"
+Invoke-WebRequest -Uri $Url -OutFile $TempPath -UseBasicParsing
+Invoke-WebRequest -Uri $ChecksumUrl -OutFile $ChecksumPath -UseBasicParsing
+$ExpectedHash = ((Get-Content $ChecksumPath -Raw).Trim() -split "\s+")[0].ToLowerInvariant()
+if (-not $ExpectedHash) {
+    Write-Error "Release checksum is empty"
+    exit 1
+}
+$ActualHash = (Get-FileHash -Algorithm SHA256 $TempPath).Hash.ToLowerInvariant()
+if ($ActualHash -ne $ExpectedHash) {
+    Remove-Item -Force $TempPath, $ChecksumPath -ErrorAction SilentlyContinue
+    Write-Error "Checksum verification failed for $Binary"
+    exit 1
+}
+Move-Item -Force $TempPath $OutPath
+Remove-Item -Force $ChecksumPath -ErrorAction SilentlyContinue
 
 Write-Host "Installed hk to $OutPath"
 

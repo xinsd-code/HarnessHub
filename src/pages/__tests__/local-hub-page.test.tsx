@@ -65,13 +65,20 @@ const stores = vi.hoisted(() => ({
   toast: {
     success: vi.fn(),
     error: vi.fn(),
+    info: vi.fn(),
   },
   extensionListGroupKey: vi.fn(
     (ext: Pick<Extension, "kind" | "name">) => `${ext.kind}\0${ext.name}`,
   ),
 }));
 
-vi.mock("@tauri-apps/plugin-dialog", () => ({ open: vi.fn() }));
+vi.mock("@/lib/platform/dialog", () => ({
+  openDirectoryPicker: vi.fn().mockResolvedValue({ status: "cancelled" }),
+  PICKER_UNSUPPORTED_MESSAGE:
+    "Local file selection is only available in the desktop app",
+  selectedPickerPath: (result: { status: string; path?: string }) =>
+    result.status === "selected" ? result.path : null,
+}));
 vi.mock("@/lib/types", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/types")>();
   return {
@@ -81,8 +88,12 @@ vi.mock("@/lib/types", async (importOriginal) => {
   };
 });
 vi.mock("@/components/local-hub/hub-detail", () => ({ HubDetail: () => null }));
-vi.mock("@/components/local-hub/hub-filters", () => ({ HubFilters: () => null }));
-vi.mock("@/components/local-hub/sync-dialog", () => ({ SyncDialog: () => null }));
+vi.mock("@/components/local-hub/hub-filters", () => ({
+  HubFilters: () => null,
+}));
+vi.mock("@/components/local-hub/sync-dialog", () => ({
+  SyncDialog: () => null,
+}));
 vi.mock("@/components/local-hub/hub-table", () => ({
   HubTable: (props: { data: Extension[] }) => {
     capturedHubTableData.push(props.data);
@@ -134,6 +145,7 @@ describe("LocalHubPage asset grouping", () => {
     stores.extensionState.checkUpdates.mockClear();
     stores.toast.success.mockClear();
     stores.toast.error.mockClear();
+    stores.toast.info.mockClear();
     stores.extensionListGroupKey.mockClear();
   });
 
@@ -147,17 +159,21 @@ describe("LocalHubPage asset grouping", () => {
       makeHubExtension({
         id: "hub-b",
         name: "frontend-design",
-        source: { origin: "agent", url: null, version: null, commit_hash: null },
+        source: {
+          origin: "agent",
+          url: null,
+          version: null,
+          commit_hash: null,
+        },
         pack: null,
       }),
     ];
 
     render(<LocalHubPage />);
 
-    const tableData = capturedHubTableData[capturedHubTableData.length - 1] ?? [];
-    expect(tableData.map((item) => item.name)).toEqual([
-      "frontend-design",
-    ]);
+    const tableData =
+      capturedHubTableData[capturedHubTableData.length - 1] ?? [];
+    expect(tableData.map((item) => item.name)).toEqual(["frontend-design"]);
   });
 
   it("counts updates by logical identity when hub and installed metadata differ", async () => {
@@ -176,7 +192,12 @@ describe("LocalHubPage asset grouping", () => {
     stores.extensionState.extensions = [
       makeHubExtension({
         id: "installed-frontend-design",
-        source: { origin: "agent", url: null, version: null, commit_hash: null },
+        source: {
+          origin: "agent",
+          url: null,
+          version: null,
+          commit_hash: null,
+        },
         pack: null,
       }),
     ];

@@ -5,8 +5,8 @@ import type {
   CreateKitRequest,
   KitAssetCandidate,
   KitSummary,
-  KitSyncResult,
   KitSyncPreview,
+  KitSyncResult,
   NewKitAsset,
   SyncKitToProjectRequest,
   UpdateKitRequest,
@@ -27,8 +27,12 @@ interface KitState {
   updateKit: (request: UpdateKitRequest) => Promise<void>;
   deleteKit: (id: string) => Promise<void>;
   fetchKitAssets: (kitId: string) => Promise<NewKitAsset[]>;
-  previewKitProjectConflicts: (request: SyncKitToProjectRequest) => Promise<KitSyncPreview>;
-  syncKitToProject: (request: SyncKitToProjectRequest) => Promise<KitSyncResult>;
+  previewKitProjectConflicts: (
+    request: SyncKitToProjectRequest,
+  ) => Promise<KitSyncPreview>;
+  syncKitToProject: (
+    request: SyncKitToProjectRequest,
+  ) => Promise<KitSyncResult>;
   unsyncKitFromProject: (request: SyncKitToProjectRequest) => Promise<void>;
 }
 
@@ -119,7 +123,9 @@ export const useKitStore = create<KitState>((set, get) => ({
     try {
       const result = await api.syncKitToProject(request);
       await useExtensionStore.getState().fetch();
-      toast.success(`Synced ${result.installed_count} asset(s) to project agent`);
+      toast.success(
+        `Synced ${result.installed_count} asset(s) to project agent`,
+      );
       return result;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -142,7 +148,9 @@ export const useKitStore = create<KitState>((set, get) => ({
     try {
       const result = await api.unsyncKitFromProject(request);
       await useExtensionStore.getState().fetch();
-      toast.success(`Removed ${result.installed_count} asset(s) from project agent`);
+      toast.success(
+        `Removed ${result.installed_count} asset(s) from project agent`,
+      );
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       toast.error(`Failed to remove kit: ${msg}`);

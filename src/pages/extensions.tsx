@@ -6,11 +6,11 @@ import { ExtensionFilters } from "@/components/extensions/extension-filters";
 import { ExtensionTable } from "@/components/extensions/extension-table";
 import { NewSkillsDialog } from "@/components/extensions/new-skills-dialog";
 import { useScope } from "@/hooks/use-scope";
+import type { ConfigScope } from "@/lib/types";
 import { useAgentStore } from "@/stores/agent-store";
 import { useExtensionStore } from "@/stores/extension-store";
 import { useScopeStore } from "@/stores/scope-store";
 import { toast } from "@/stores/toast-store";
-import type { ConfigScope } from "@/lib/types";
 
 export default function ExtensionsPage() {
   const hydrated = useScopeStore((s) => s.hydrated);
@@ -45,7 +45,7 @@ export default function ExtensionsPage() {
       }
       setScope({ type: "all" });
     }
-  }, [scope.type, setScope]);
+  }, [scope, setScope]);
 
   // Apply filter overrides synchronously on first render to avoid an initial
   // filter-change flash. Scope + selection are handled by the deep-link
@@ -61,7 +61,7 @@ export default function ExtensionsPage() {
       setPackFilter(null);
       setSearchQuery("");
     }
-      didApplyFiltersRef.current = true;
+    didApplyFiltersRef.current = true;
   }
 
   // Cleanup: when the user manually changes scope (e.g. via Sidebar
@@ -108,7 +108,6 @@ export default function ExtensionsPage() {
     allGrouped,
     scope,
     setScope,
-    searchParams,
     setSearchParams,
     groupKeyParam,
     nameParam,

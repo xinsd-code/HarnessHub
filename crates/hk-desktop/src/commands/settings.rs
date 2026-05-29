@@ -328,7 +328,13 @@ mod tests {
         state
             .store
             .lock()
-            .add_custom_config_path("claude", &custom_dir.to_string_lossy(), "", "settings", None)
+            .add_custom_config_path(
+                "claude",
+                &custom_dir.to_string_lossy(),
+                "",
+                "settings",
+                None,
+            )
             .unwrap();
 
         assert!(is_path_within_allowed_dirs(&custom_dir, &state).unwrap());

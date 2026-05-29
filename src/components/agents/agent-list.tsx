@@ -1,8 +1,8 @@
 import {
   closestCenter,
   DndContext,
-  type DraggableAttributes,
   type DragEndEvent,
+  type DraggableAttributes,
   KeyboardSensor,
   PointerSensor,
   useSensor,
@@ -25,7 +25,9 @@ import type { AgentDetail } from "@/lib/types";
 import { agentDisplayName } from "@/lib/types";
 import { useAgentStore } from "@/stores/agent-store";
 
-type SortableListeners = NonNullable<ReturnType<typeof useSortable>["listeners"]>;
+type SortableListeners = NonNullable<
+  ReturnType<typeof useSortable>["listeners"]
+>;
 
 function AgentItem({
   agent,

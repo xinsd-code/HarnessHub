@@ -1,8 +1,7 @@
 import { create } from "zustand";
+import { RELEASES_URL } from "@/lib/release";
 import { cleanChangelog, DISMISS_KEY_PREFIX } from "./update-store";
 
-const RELEASES_URL =
-  "https://api.github.com/repos/RealZST/HarnessKit/releases/latest";
 const CACHE_KEY = "hk-web-update-cache";
 const CACHE_TTL_MS = 60 * 60 * 1000;
 

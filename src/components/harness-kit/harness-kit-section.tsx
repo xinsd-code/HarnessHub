@@ -1,8 +1,8 @@
 import { Blocks, Layers3, Plus, Search, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { HarnessKitDetailDrawer } from "@/components/harness-kit/harness-kit-detail-drawer";
-import { HarnessKitInsertDialog } from "@/components/harness-kit/harness-kit-insert-dialog";
 import HarnessKitEditor from "@/components/harness-kit/harness-kit-editor";
+import { HarnessKitInsertDialog } from "@/components/harness-kit/harness-kit-insert-dialog";
 import type { AgentInstallIconItem } from "@/components/shared/agent-install-icon-row";
 import type {
   CreateHarnessKitRequest,
@@ -138,7 +138,8 @@ export function HarnessKitSection({
   );
 
   const agentItems: AgentInstallIconItem[] = useMemo(() => {
-    if (!selectedProjectPath) return [];
+    const selectedKitId = selectedKit?.id;
+    if (!selectedProjectPath || !selectedKitId) return [];
     const orderedAgents = [...agents].sort((a, b) => {
       const idx = (name: string) => agentOrder.indexOf(name);
       return (idx(a.name) ?? 99) - (idx(b.name) ?? 99);
@@ -149,29 +150,23 @@ export function HarnessKitSection({
       );
       return {
         name: agent.name,
-        title: synced
-          ? `Remove ${agent.name} sync`
-          : `Sync to ${agent.name}`,
+        title: synced ? `Remove ${agent.name} sync` : `Sync to ${agent.name}`,
         installed: synced,
         pending: syncingAgent === agent.name,
         disabled: !agent.detected,
         onClick: synced
           ? () => {
-              if (
-                window.confirm(
-                  `Remove Harness Kit from ${agent.name}?`,
-                )
-              ) {
+              if (window.confirm(`Remove Harness Kit from ${agent.name}?`)) {
                 setSyncingAgent(agent.name);
                 unsyncFromProject({
-                  harness_kit_id: selectedKit!.id,
+                  harness_kit_id: selectedKitId,
                   project_path: selectedProjectPath,
                   target_agent: agent.name,
                 })
                   .then(() => {
                     setSyncingAgent(null);
                     return fetchSyncStatuses({
-                      harness_kit_id: selectedKit!.id,
+                      harness_kit_id: selectedKitId,
                       project_path: selectedProjectPath,
                     });
                   })
@@ -182,7 +177,7 @@ export function HarnessKitSection({
           : () => {
               setInsertDialog({
                 agentName: agent.name,
-                harnessKitId: selectedKit!.id,
+                harnessKitId: selectedKitId,
               });
               setInsertPreview(null);
             },
@@ -262,7 +257,8 @@ export function HarnessKitSection({
             Harness Kit
           </h2>
           <p className="mt-1.5 text-[14px] text-muted-foreground/80 leading-relaxed">
-            将 Agent Config、Extensions Kit、Skill 和 MCP 组合为可追踪的 Harness Kit，其中 Skill 和 MCP 将同步至 Local Hub。
+            将 Agent Config、Extensions Kit、Skill 和 MCP 组合为可追踪的 Harness
+            Kit，其中 Skill 和 MCP 将同步至 Local Hub。
           </p>
         </div>
         <button
@@ -413,7 +409,8 @@ export function HarnessKitSection({
                   New Harness Kit
                 </h3>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  将 Agent Config、Extensions Kit、Skill 和 MCP 组合为可追踪的 Harness Kit，其中 Skill 和 MCP 将同步至 Local Hub。
+                  将 Agent Config、Extensions Kit、Skill 和 MCP 组合为可追踪的
+                  Harness Kit，其中 Skill 和 MCP 将同步至 Local Hub。
                 </p>
               </div>
               <button
@@ -505,11 +502,11 @@ export function HarnessKitSection({
       )}
 
       {/* Insert dialog */}
-      {insertDialog && selectedKit && kitAssets &&
+      {insertDialog &&
+        selectedKit &&
+        kitAssets &&
         (() => {
-          const project = projects.find(
-            (p) => p.path === selectedProjectPath,
-          );
+          const project = projects.find((p) => p.path === selectedProjectPath);
           return (
             <HarnessKitInsertDialog
               projectName={project?.name ?? selectedProjectPath}

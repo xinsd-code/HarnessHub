@@ -49,6 +49,7 @@ const stores = vi.hoisted(() => {
       } as Extension,
     ] as Extension[],
     rescanAndFetch: vi.fn(),
+    deleteExtensionIds: vi.fn(),
   };
   const agentState = {
     agents: [
@@ -107,6 +108,7 @@ describe("HubTable local hub install state", () => {
     stores.hubState.isHubInstalled.mockReturnValue(false);
     vi.mocked(api.deleteExtension).mockReset();
     stores.extensionState.rescanAndFetch.mockClear();
+    stores.extensionState.deleteExtensionIds.mockClear();
     stores.extensionState.extensions = [
       {
         id: "project-instance",
@@ -419,10 +421,11 @@ describe("HubTable local hub install state", () => {
     });
 
     await waitFor(() => {
-      expect(api.deleteExtension).toHaveBeenCalledWith("global-instance");
+      expect(stores.extensionState.deleteExtensionIds).toHaveBeenCalledWith([
+        "global-instance",
+      ]);
     });
-    expect(api.deleteExtension).toHaveBeenCalledTimes(1);
+    expect(api.deleteExtension).not.toHaveBeenCalled();
     expect(stores.hubState.installFromHub).not.toHaveBeenCalled();
-    expect(stores.extensionState.rescanAndFetch).toHaveBeenCalledTimes(1);
   });
 });

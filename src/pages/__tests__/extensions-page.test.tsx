@@ -1,5 +1,5 @@
-import { useEffect } from "react";
 import { render, waitFor } from "@testing-library/react";
+import { useEffect } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import ExtensionsPage from "@/pages/extensions";
 
@@ -134,7 +134,9 @@ const mocks = vi.hoisted(() => {
   const setSearchParams = vi.fn();
   const navigate = vi.fn();
 
-  let currentScope: { type: "project"; name: string; path: string } | { type: "all" } = {
+  let currentScope:
+    | { type: "project"; name: string; path: string }
+    | { type: "all" } = {
     type: "project",
     name: "alpha",
     path: "/projects/alpha",
@@ -179,7 +181,10 @@ vi.mock("@/components/extensions/extension-detail", () => ({
   }) => {
     capturedScopes.push(props.installProjectScope);
     useEffect(() => {
-      if (props.installProjectScope?.type === "project" && !mocks.getClearRequested()) {
+      if (
+        props.installProjectScope?.type === "project" &&
+        !mocks.getClearRequested()
+      ) {
         mocks.setClearRequested(true);
         props.onInstallProjectScopeChange(null);
       }
@@ -194,9 +199,10 @@ vi.mock("@/hooks/use-scope", () => ({
   }),
 }));
 vi.mock("react-router-dom", async () => {
-  const actual = await vi.importActual<typeof import("react-router-dom")>(
-    "react-router-dom",
-  );
+  const actual =
+    await vi.importActual<typeof import("react-router-dom")>(
+      "react-router-dom",
+    );
   return {
     ...actual,
     useNavigate: () => mocks.navigate,
@@ -204,15 +210,13 @@ vi.mock("react-router-dom", async () => {
   };
 });
 vi.mock("@/stores/agent-store", () => ({
-  useAgentStore: (
-    selector: (state: typeof mocks.agentStoreState) => unknown,
-  ) => selector(mocks.agentStoreState),
+  useAgentStore: (selector: (state: typeof mocks.agentStoreState) => unknown) =>
+    selector(mocks.agentStoreState),
 }));
 vi.mock("@/stores/extension-store", () => ({
   useExtensionStore: Object.assign(
-    (
-      selector: (state: typeof mocks.extensionStoreState) => unknown,
-    ) => selector(mocks.extensionStoreState),
+    (selector: (state: typeof mocks.extensionStoreState) => unknown) =>
+      selector(mocks.extensionStoreState),
     {
       setState: vi.fn(),
       getState: () => mocks.extensionStoreState,
@@ -220,9 +224,8 @@ vi.mock("@/stores/extension-store", () => ({
   ),
 }));
 vi.mock("@/stores/scope-store", () => ({
-  useScopeStore: (
-    selector: (state: typeof mocks.scopeStoreState) => unknown,
-  ) => selector(mocks.scopeStoreState),
+  useScopeStore: (selector: (state: typeof mocks.scopeStoreState) => unknown) =>
+    selector(mocks.scopeStoreState),
 }));
 vi.mock("@/stores/toast-store", () => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },

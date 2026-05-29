@@ -16,6 +16,6 @@ pub struct WebState {
     pub store: Arc<Mutex<Store>>,
     pub adapters: Arc<Vec<Box<dyn adapter::AgentAdapter>>>,
     pub pending_clones: Arc<Mutex<HashMap<String, PendingClone>>>,
-    /// None means no auth required (localhost-only mode)
+    /// Bearer token required for non-health API requests.
     pub token: Option<String>,
 }

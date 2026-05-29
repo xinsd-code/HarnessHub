@@ -4,7 +4,9 @@ import { describe, expect, it, vi } from "vitest";
 import { ImportTemplateDialog } from "@/components/agent-config-hub/import-template-dialog";
 
 const projectState = {
-  projects: [{ id: "p1", name: "HarnessKit", path: "/workspace/hk", exists: true }],
+  projects: [
+    { id: "p1", name: "HarnessKit", path: "/workspace/hk", exists: true },
+  ],
 };
 
 const agentConfigState = {
@@ -51,13 +53,15 @@ vi.mock("@/stores/project-store", () => ({
 }));
 
 vi.mock("@/stores/agent-config-store", () => ({
-  useAgentConfigStore: (selector: (state: typeof agentConfigState) => unknown) =>
-    selector(agentConfigState),
+  useAgentConfigStore: (
+    selector: (state: typeof agentConfigState) => unknown,
+  ) => selector(agentConfigState),
 }));
 
 vi.mock("@/stores/agent-config-template-store", () => ({
-  useAgentConfigTemplateStore: (selector: (state: typeof templateStore) => unknown) =>
-    selector(templateStore),
+  useAgentConfigTemplateStore: (
+    selector: (state: typeof templateStore) => unknown,
+  ) => selector(templateStore),
 }));
 
 describe("ImportTemplateDialog", () => {

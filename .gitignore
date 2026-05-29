@@ -1,6 +1,9 @@
 /target
 /dist
 /node_modules
+.codegraph/
+.understand-anything/tmp/
+.understand-anything/intermediate/
 /social
 *.swp
 *.swo

@@ -1,9 +1,9 @@
-use axum::extract::State;
 use axum::Json;
+use axum::extract::State;
 use hk_core::{agent_config_templates, models::*, service};
 use serde::Deserialize;
 
-use crate::router::{blocking, ApiError};
+use crate::router::{ApiError, blocking};
 use crate::state::WebState;
 
 type Result<T> = std::result::Result<Json<T>, ApiError>;
@@ -100,20 +100,14 @@ pub async fn preview_harness_kit_project_conflicts(
     State(state): State<WebState>,
     Json(request): Json<HarnessKitSyncRequest>,
 ) -> Result<HarnessKitSyncPreview> {
-    blocking(move || {
-        service::preview_harness_kit_project_conflicts(&state.store, request)
-    })
-    .await
+    blocking(move || service::preview_harness_kit_project_conflicts(&state.store, request)).await
 }
 
 pub async fn list_harness_kit_sync_statuses(
     State(state): State<WebState>,
     Json(request): Json<HarnessKitSyncStatusRequest>,
 ) -> Result<Vec<HarnessKitSyncStatus>> {
-    blocking(move || {
-        service::list_harness_kit_sync_statuses(&state.store, request)
-    })
-    .await
+    blocking(move || service::list_harness_kit_sync_statuses(&state.store, request)).await
 }
 
 pub async fn sync_harness_kit_to_project(

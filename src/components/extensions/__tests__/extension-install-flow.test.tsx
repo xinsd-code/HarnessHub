@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => {
     updatePack: vi.fn(),
     installToAgent: vi.fn(),
     installToProject: vi.fn(),
+    deleteExtensionIds: vi.fn(),
     deleteFromAgents: vi.fn(),
     rescanAndFetch: vi.fn(),
     extensions: [] as unknown[],
@@ -241,6 +242,7 @@ beforeEach(() => {
   });
   vi.mocked(mocks.api.getSkillLocations).mockResolvedValue([]);
   vi.mocked(mocks.api.deleteExtension).mockResolvedValue(undefined);
+  mocks.extensionStoreState.deleteExtensionIds.mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -451,7 +453,8 @@ describe("ExtensionDetail agent install state", () => {
     items[0].onClick?.();
 
     await waitFor(() => {
-      const pendingItems = capturedAgentItems[capturedAgentItems.length - 1] ?? [];
+      const pendingItems =
+        capturedAgentItems[capturedAgentItems.length - 1] ?? [];
       expect(pendingItems.find((item) => item.name === "claude")?.pending).toBe(
         true,
       );
@@ -466,7 +469,8 @@ describe("ExtensionDetail agent install state", () => {
     );
 
     await waitFor(() => {
-      const rerenderedItems = capturedAgentItems[capturedAgentItems.length - 1] ?? [];
+      const rerenderedItems =
+        capturedAgentItems[capturedAgentItems.length - 1] ?? [];
       expect(rerenderedItems.every((item) => !item.pending)).toBe(true);
     });
 
@@ -512,11 +516,11 @@ describe("ExtensionDetail delete flow", () => {
     fireEvent.click(screen.getByRole("button", { name: "Remove 1 item" }));
 
     await waitFor(() => {
-      expect(mocks.api.deleteExtension).toHaveBeenCalledWith(
-        "global-frontend-design-claude",
+      expect(mocks.extensionStoreState.deleteExtensionIds).toHaveBeenCalledWith(
+        ["global-frontend-design-claude"],
       );
     });
-    expect(mocks.api.deleteExtension).toHaveBeenCalledTimes(1);
+    expect(mocks.api.deleteExtension).not.toHaveBeenCalled();
     expect(mocks.api.deleteExtension).not.toHaveBeenCalledWith(
       "project-frontend-design",
     );

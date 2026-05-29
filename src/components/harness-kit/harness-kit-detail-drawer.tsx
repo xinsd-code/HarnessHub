@@ -10,6 +10,8 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import type { AgentInstallIconItem } from "@/components/shared/agent-install-icon-row";
+import { ProjectInstallPanel } from "@/components/shared/project-install-panel";
 import { api } from "@/lib/invoke";
 import type {
   HarnessKitAssets,
@@ -17,8 +19,6 @@ import type {
   NewHarnessKitAgentConfig,
   Project,
 } from "@/lib/types";
-import { ProjectInstallPanel } from "@/components/shared/project-install-panel";
-import type { AgentInstallIconItem } from "@/components/shared/agent-install-icon-row";
 
 const AGENT_CONFIG_PREVIEW_MAX_LINES = 9;
 const AGENT_CONFIG_PREVIEW_MAX_CHARS = 520;

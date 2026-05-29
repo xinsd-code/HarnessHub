@@ -85,6 +85,8 @@ describe("HarnessKitDetailDrawer insert panel", () => {
       />,
     );
 
-    expect(screen.queryByTestId("project-install-panel")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("project-install-panel"),
+    ).not.toBeInTheDocument();
   });
 });

@@ -16,7 +16,6 @@ fn main() {
     std::fs::create_dir_all(&data_dir).expect("Failed to create data dir");
     let store = Store::open(&data_dir.join("metadata.db")).expect("Failed to open database");
 
-
     // NOTE: tauri.conf.json sets `macOSPrivateApi: true`. This is required for:
     // 1. Window transparency (`"transparent": true` in window config)
     // 2. Sidebar vibrancy effect (`"windowEffects": {"effects": ["sidebar"]}`)
@@ -128,10 +127,11 @@ fn main() {
             commands::unsync_harness_kit_from_project,
             icon::set_app_icon,
         ])
-        .on_window_event(|window, event| {
-            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+        .on_window_event(|_window, _event| {
+            #[cfg(target_os = "macos")]
+            if let tauri::WindowEvent::CloseRequested { api, .. } = _event {
                 // Hide instead of quit on macOS red X
-                window.hide().unwrap_or_default();
+                _window.hide().unwrap_or_default();
                 api.prevent_close();
             }
         })

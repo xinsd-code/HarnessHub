@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { api } from "@/lib/invoke";
-import type { Project } from "@/lib/types";
+import type { DiscoveredProject, Project } from "@/lib/types";
 import { pathsEqual } from "@/lib/types";
 import { useExtensionStore } from "./extension-store";
 import { useScopeStore } from "./scope-store";
@@ -13,6 +13,7 @@ interface ProjectState {
 
   loadProjects: () => Promise<void>;
   addProject: (path: string) => Promise<void>;
+  discoverProjects: (path: string) => Promise<DiscoveredProject[]>;
   removeProject: (id: string) => Promise<void>;
 }
 
@@ -45,6 +46,10 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       console.error("Failed to scan after adding project:", e);
     }
     await useExtensionStore.getState().fetch();
+  },
+
+  async discoverProjects(path: string) {
+    return api.discoverProjects(path);
   },
 
   async removeProject(id: string) {

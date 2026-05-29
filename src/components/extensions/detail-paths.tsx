@@ -25,6 +25,20 @@ export function DetailPaths({
 }: DetailPathsProps) {
   if (group.kind === "cli" || group.instances.length === 0) return null;
 
+  return (
+    <DetailPathsBody
+      group={group}
+      instanceData={instanceData}
+      skillLocations={skillLocations}
+    />
+  );
+}
+
+function DetailPathsBody({
+  group,
+  instanceData,
+  skillLocations,
+}: DetailPathsProps) {
   const instanceDirs = new Set(
     group.instances
       .map((inst) => inst.source_path)
@@ -89,7 +103,9 @@ export function DetailPaths({
       rows: agentRows,
     }));
   }, [rows]);
-  const [activeAgent, setActiveAgent] = useState(agentGroups[0]?.agentName ?? "");
+  const [activeAgent, setActiveAgent] = useState(
+    agentGroups[0]?.agentName ?? "",
+  );
 
   useEffect(() => {
     setActiveAgent((current) =>

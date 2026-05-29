@@ -1,6 +1,6 @@
 use crate::HkError;
 use chrono::{DateTime, Utc};
-use rusqlite::{params, Connection, OptionalExtension};
+use rusqlite::{Connection, OptionalExtension, params};
 use std::path::{Path, PathBuf};
 
 use crate::models::*;
@@ -12,6 +12,7 @@ const LATEST_SCHEMA_VERSION: i64 = 8;
 /// One row of `custom_config_paths`: (id, path, label, category, scope_json).
 /// `scope_json` is `None` for legacy rows that predate v4 schema migration.
 pub type CustomConfigPathRow = (i64, String, String, String, Option<String>);
+pub type AgentSettingsRow = (String, Option<String>, bool, Option<i32>, Option<String>);
 
 /// Upsert SQL for scanner-derived extensions (18 columns, no install meta).
 /// Used by `sync_extensions` and `sync_extensions_for_agent`.
@@ -64,8 +65,15 @@ pub struct Store {
 impl Store {
     pub fn open(path: &Path) -> Result<Self, HkError> {
         let conn = Connection::open(path)?;
-        conn.execute_batch("PRAGMA foreign_keys = ON")?;
-        let store = Self { conn, db_path: path.to_path_buf() };
+        conn.execute_batch(
+            "PRAGMA foreign_keys = ON;
+             PRAGMA journal_mode = WAL;
+             PRAGMA busy_timeout = 5000;",
+        )?;
+        let store = Self {
+            conn,
+            db_path: path.to_path_buf(),
+        };
         store.migrate()?;
 
         // Set file permissions to owner-only on Unix (0o600) to protect
@@ -106,11 +114,12 @@ impl Store {
     /// Errors are logged but do not abort the migration — a failed backup
     /// should not prevent the app from starting.
     fn backup_before_migrate(&self, current_version: i64) {
-        let backup_path = self.db_path.with_extension(
-            format!("db.backup-v{}", current_version),
-        );
+        let backup_path = self
+            .db_path
+            .with_extension(format!("db.backup-v{}", current_version));
         // Only create a backup if the DB file actually exists (skip for in-memory / new DBs)
-        if self.db_path.exists() && !backup_path.exists()
+        if self.db_path.exists()
+            && !backup_path.exists()
             && let Err(e) = std::fs::copy(&self.db_path, &backup_path)
         {
             eprintln!(
@@ -138,14 +147,30 @@ impl Store {
             self.backup_before_migrate(current_version);
         }
 
-        if current_version < 1 { self.migrate_v1()?; }
-        if current_version < 2 { self.migrate_v2()?; }
-        if current_version < 3 { self.migrate_v3()?; }
-        if current_version < 4 { self.migrate_v4()?; }
-        if current_version < 5 { self.migrate_v5()?; }
-        if current_version < 6 { self.migrate_v6()?; }
-        if current_version < 7 { self.migrate_v7()?; }
-        if current_version < 8 { self.migrate_v8()?; }
+        if current_version < 1 {
+            self.migrate_v1()?;
+        }
+        if current_version < 2 {
+            self.migrate_v2()?;
+        }
+        if current_version < 3 {
+            self.migrate_v3()?;
+        }
+        if current_version < 4 {
+            self.migrate_v4()?;
+        }
+        if current_version < 5 {
+            self.migrate_v5()?;
+        }
+        if current_version < 6 {
+            self.migrate_v6()?;
+        }
+        if current_version < 7 {
+            self.migrate_v7()?;
+        }
+        if current_version < 8 {
+            self.migrate_v8()?;
+        }
 
         // Update schema version to latest
         if current_version < LATEST_SCHEMA_VERSION {
@@ -194,7 +219,7 @@ impl Store {
 
             CREATE INDEX IF NOT EXISTS idx_extensions_kind ON extensions(kind);
             CREATE INDEX IF NOT EXISTS idx_audit_results_ext ON audit_results(extension_id);
-            "
+            ",
         )?;
         // Migration: add category column for existing databases
         self.migrate_add_column("ALTER TABLE extensions ADD COLUMN category TEXT");
@@ -221,16 +246,15 @@ impl Store {
         self.migrate_add_column("ALTER TABLE extensions ADD COLUMN checked_at TEXT");
         self.migrate_add_column("ALTER TABLE extensions ADD COLUMN check_error TEXT");
         // Migration: hidden_extensions table for surviving re-scans
-        self.conn.execute_batch(
-            "CREATE TABLE IF NOT EXISTS hidden_extensions (id TEXT PRIMARY KEY)"
-        )?;
+        self.conn
+            .execute_batch("CREATE TABLE IF NOT EXISTS hidden_extensions (id TEXT PRIMARY KEY)")?;
         // Migration: agent_settings table for custom paths and enabled state
         self.conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS agent_settings (
                 name TEXT PRIMARY KEY,
                 custom_path TEXT,
                 enabled INTEGER NOT NULL DEFAULT 1
-            )"
+            )",
         )?;
         // Migration: add sort_order to agent_settings
         self.migrate_add_column("ALTER TABLE agent_settings ADD COLUMN sort_order INTEGER");
@@ -245,7 +269,7 @@ impl Store {
                 label TEXT NOT NULL,
                 category TEXT NOT NULL DEFAULT 'settings',
                 UNIQUE(agent, path)
-            )"
+            )",
         )?;
         Ok(())
     }
@@ -261,9 +285,7 @@ impl Store {
     /// custom paths surface under the scope they were added in. NULL is
     /// interpreted as Global (legacy rows added before scope tracking).
     fn migrate_v4(&self) -> Result<(), HkError> {
-        self.migrate_add_column(
-            "ALTER TABLE custom_config_paths ADD COLUMN scope_json TEXT",
-        );
+        self.migrate_add_column("ALTER TABLE custom_config_paths ADD COLUMN scope_json TEXT");
         Ok(())
     }
 
@@ -387,7 +409,8 @@ impl Store {
 
     /// Schema v2: extension_agents join table for efficient agent-based filtering.
     fn migrate_v2(&self) -> Result<(), HkError> {
-        self.conn.execute_batch("
+        self.conn.execute_batch(
+            "
             CREATE TABLE IF NOT EXISTS extension_agents (
                 extension_id TEXT NOT NULL,
                 agent_name TEXT NOT NULL,
@@ -395,14 +418,17 @@ impl Store {
                 FOREIGN KEY (extension_id) REFERENCES extensions(id) ON DELETE CASCADE
             );
             CREATE INDEX IF NOT EXISTS idx_ext_agents_agent ON extension_agents(agent_name);
-        ")?;
+        ",
+        )?;
         // Backfill from existing agents_json (OR IGNORE for idempotency)
-        self.conn.execute_batch("
+        self.conn.execute_batch(
+            "
             INSERT OR IGNORE INTO extension_agents (extension_id, agent_name)
             SELECT e.id, json_each.value
             FROM extensions e, json_each(e.agents_json)
             WHERE e.agents_json IS NOT NULL AND e.agents_json != '[]';
-        ")?;
+        ",
+        )?;
         Ok(())
     }
 
@@ -419,10 +445,13 @@ impl Store {
 
     // --- Agent settings ---
 
-    pub fn get_agent_setting(&self, name: &str) -> Result<(Option<String>, bool, Option<String>), HkError> {
-        let mut stmt = self
-            .conn
-            .prepare("SELECT custom_path, enabled, icon_path FROM agent_settings WHERE name = ?1")?;
+    pub fn get_agent_setting(
+        &self,
+        name: &str,
+    ) -> Result<(Option<String>, bool, Option<String>), HkError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT custom_path, enabled, icon_path FROM agent_settings WHERE name = ?1",
+        )?;
         let result = stmt.query_row(params![name], |row| {
             Ok((
                 row.get::<_, Option<String>>(0)?,
@@ -467,7 +496,12 @@ impl Store {
         Ok(())
     }
 
-    pub fn create_agent(&self, name: &str, path: &str, icon_path: Option<&str>) -> Result<(), HkError> {
+    pub fn create_agent(
+        &self,
+        name: &str,
+        path: &str,
+        icon_path: Option<&str>,
+    ) -> Result<(), HkError> {
         self.conn.execute(
             "INSERT INTO agent_settings (name, custom_path, enabled, icon_path)
              VALUES (?1, ?2, 1, ?3)",
@@ -482,13 +516,11 @@ impl Store {
         Ok(())
     }
 
-    pub fn list_agent_settings(
-        &self,
-    ) -> Result<Vec<(String, Option<String>, bool, Option<i32>, Option<String>)>, HkError> {
+    pub fn list_agent_settings(&self) -> Result<Vec<AgentSettingsRow>, HkError> {
         let mut stmt = self.conn.prepare(
             "SELECT name, custom_path, enabled, sort_order, icon_path
              FROM agent_settings
-             ORDER BY COALESCE(sort_order, 999), name"
+             ORDER BY COALESCE(sort_order, 999), name",
         )?;
         let rows = stmt
             .query_map([], |row| {
@@ -634,7 +666,9 @@ impl Store {
                 Option::<String>::None,
                 ext.source_path,
                 ext.cli_parent_id,
-                ext.cli_meta.as_ref().map(|m| serde_json::to_string(m).unwrap_or_default()),
+                ext.cli_meta
+                    .as_ref()
+                    .map(|m| serde_json::to_string(m).unwrap_or_default()),
                 im.map(|m| m.install_type.as_str()),
                 im.and_then(|m| m.url.as_deref()),
                 im.and_then(|m| m.url_resolved.as_deref()),
@@ -852,10 +886,14 @@ impl Store {
     }
 
     /// Find all extension IDs with the same name and kind.
-    pub fn find_ids_by_name_and_kind(&self, name: &str, kind: &str) -> Result<Vec<String>, HkError> {
-        let mut stmt = self.conn.prepare(
-            "SELECT id FROM extensions WHERE name = ?1 AND kind = ?2",
-        )?;
+    pub fn find_ids_by_name_and_kind(
+        &self,
+        name: &str,
+        kind: &str,
+    ) -> Result<Vec<String>, HkError> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT id FROM extensions WHERE name = ?1 AND kind = ?2")?;
         let rows = stmt.query_map(params![name, kind], |row| row.get::<_, String>(0))?;
         rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
     }
@@ -907,8 +945,15 @@ impl Store {
 
     /// Sync the extension_agents join table for a single extension.
     /// Deletes existing rows and re-inserts from the provided agent list.
-    fn sync_extension_agents(conn: &rusqlite::Connection, ext_id: &str, agents: &[String]) -> Result<(), HkError> {
-        conn.execute("DELETE FROM extension_agents WHERE extension_id = ?1", params![ext_id])?;
+    fn sync_extension_agents(
+        conn: &rusqlite::Connection,
+        ext_id: &str,
+        agents: &[String],
+    ) -> Result<(), HkError> {
+        conn.execute(
+            "DELETE FROM extension_agents WHERE extension_id = ?1",
+            params![ext_id],
+        )?;
         for agent in agents {
             conn.execute(
                 "INSERT INTO extension_agents (extension_id, agent_name) VALUES (?1, ?2)",
@@ -919,7 +964,8 @@ impl Store {
     }
 
     pub fn delete_extension(&self, id: &str) -> Result<(), HkError> {
-        self.conn.execute("DELETE FROM extensions WHERE id = ?1", params![id])?;
+        self.conn
+            .execute("DELETE FROM extensions WHERE id = ?1", params![id])?;
         Ok(())
     }
 
@@ -951,7 +997,9 @@ impl Store {
                     Option::<String>::None,
                     ext.source_path,
                     ext.cli_parent_id,
-                    ext.cli_meta.as_ref().map(|m| serde_json::to_string(m).unwrap_or_default()),
+                    ext.cli_meta
+                        .as_ref()
+                        .map(|m| serde_json::to_string(m).unwrap_or_default()),
                     ext.pack,
                     serde_json::to_string(&ext.scope)?,
                 ],
@@ -981,10 +1029,14 @@ impl Store {
             extensions.iter().map(|e| e.id.as_str()).collect();
         let stale_ids: Vec<(String, bool, bool)> = {
             let mut stmt = tx.prepare(
-                "SELECT id, enabled, (install_type IS NOT NULL) as has_meta FROM extensions"
+                "SELECT id, enabled, (install_type IS NOT NULL) as has_meta FROM extensions",
             )?;
             stmt.query_map([], |row| {
-                Ok((row.get::<_, String>(0)?, row.get::<_, bool>(1)?, row.get::<_, bool>(2)?))
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, bool>(1)?,
+                    row.get::<_, bool>(2)?,
+                ))
             })?
             .filter_map(|r| r.map_err(|e| eprintln!("[hk] row error: {e}")).ok())
             .collect()
@@ -1056,7 +1108,9 @@ impl Store {
                     Option::<String>::None,
                     ext.source_path,
                     ext.cli_parent_id,
-                    ext.cli_meta.as_ref().map(|m| serde_json::to_string(m).unwrap_or_default()),
+                    ext.cli_meta
+                        .as_ref()
+                        .map(|m| serde_json::to_string(m).unwrap_or_default()),
                     ext.pack,
                     serde_json::to_string(&ext.scope)?,
                 ],
@@ -1074,13 +1128,17 @@ impl Store {
                 "SELECT DISTINCT e.id, e.enabled, (e.install_type IS NOT NULL) as has_meta
                  FROM extensions e
                  INNER JOIN extension_agents ea ON e.id = ea.extension_id
-                 WHERE ea.agent_name = ?1"
+                 WHERE ea.agent_name = ?1",
             )?;
             stmt.query_map(params![agent], |row| {
-                Ok((row.get::<_, String>(0)?, row.get::<_, bool>(1)?, row.get::<_, bool>(2)?))
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, bool>(1)?,
+                    row.get::<_, bool>(2)?,
+                ))
             })?
-                .filter_map(|r| r.ok())
-                .collect()
+            .filter_map(|r| r.ok())
+            .collect()
         };
         for (id, enabled, has_install_meta) in &stale_ids {
             if !scanned_ids.contains(id.as_str()) && *enabled && !has_install_meta {
@@ -1090,7 +1148,8 @@ impl Store {
                 // the next full scan_and_sync, losing user tags/pack assignments.
                 let is_cli = {
                     let mut stmt2 = tx.prepare("SELECT kind FROM extensions WHERE id = ?1")?;
-                    stmt2.query_row(params![id], |row| row.get::<_, String>(0))
+                    stmt2
+                        .query_row(params![id], |row| row.get::<_, String>(0))
                         .ok()
                         .is_some_and(|k| k == "cli")
                 };
@@ -1266,12 +1325,16 @@ impl Store {
     /// Count audit findings by severity across all latest audit results.
     /// Uses a single SQL query (list_latest_audit_results) then aggregates
     /// in Rust, replacing the previous N+1 pattern of querying per-extension.
-    pub fn count_latest_findings_by_severity(&self) -> Result<std::collections::HashMap<String, usize>, HkError> {
+    pub fn count_latest_findings_by_severity(
+        &self,
+    ) -> Result<std::collections::HashMap<String, usize>, HkError> {
         let results = self.list_latest_audit_results()?;
         let mut counts = std::collections::HashMap::new();
         for result in &results {
             for finding in &result.findings {
-                *counts.entry(finding.severity.as_str().to_string()).or_insert(0) += 1;
+                *counts
+                    .entry(finding.severity.as_str().to_string())
+                    .or_insert(0) += 1;
             }
         }
         Ok(counts)
@@ -1546,25 +1609,30 @@ impl Store {
                 description: row.get(2)?,
                 created_at: DateTime::parse_from_rfc3339(&created_at)
                     .map(|dt| dt.with_timezone(&Utc))
-                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(
-                        3,
-                        rusqlite::types::Type::Text,
-                        Box::new(e),
-                    ))?,
+                    .map_err(|e| {
+                        rusqlite::Error::FromSqlConversionFailure(
+                            3,
+                            rusqlite::types::Type::Text,
+                            Box::new(e),
+                        )
+                    })?,
                 updated_at: DateTime::parse_from_rfc3339(&updated_at)
                     .map(|dt| dt.with_timezone(&Utc))
-                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(
-                        4,
-                        rusqlite::types::Type::Text,
-                        Box::new(e),
-                    ))?,
+                    .map_err(|e| {
+                        rusqlite::Error::FromSqlConversionFailure(
+                            4,
+                            rusqlite::types::Type::Text,
+                            Box::new(e),
+                        )
+                    })?,
                 skills_count: row.get::<_, i64>(5)?.max(0) as usize,
                 mcp_count: row.get::<_, i64>(6)?.max(0) as usize,
                 cli_count: row.get::<_, i64>(7)?.max(0) as usize,
             })
         })?;
 
-        rows.collect::<std::result::Result<Vec<_>, _>>().map_err(Into::into)
+        rows.collect::<std::result::Result<Vec<_>, _>>()
+            .map_err(Into::into)
     }
 
     fn get_kit_summary(&self, id: &str) -> Result<Option<KitSummary>, HkError> {
@@ -1591,7 +1659,10 @@ impl Store {
                 rusqlite::Error::FromSqlConversionFailure(
                     1,
                     rusqlite::types::Type::Text,
-                    Box::new(std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string())),
+                    Box::new(std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        e.to_string(),
+                    )),
                 )
             })?;
             Ok(NewKitAsset {
@@ -1615,10 +1686,14 @@ impl Store {
     ) -> Result<HarnessKitSummary, HkError> {
         let trimmed_name = name.trim();
         if trimmed_name.is_empty() {
-            return Err(HkError::Validation("Harness Kit name cannot be empty".into()));
+            return Err(HkError::Validation(
+                "Harness Kit name cannot be empty".into(),
+            ));
         }
         if agent_configs.is_empty() && extension_kits.is_empty() && extra_assets.is_empty() {
-            return Err(HkError::Validation("Select at least one Harness Kit asset".into()));
+            return Err(HkError::Validation(
+                "Select at least one Harness Kit asset".into(),
+            ));
         }
 
         let now = Utc::now();
@@ -1627,7 +1702,13 @@ impl Store {
         tx.execute(
             "INSERT INTO harness_kits (id, name, description, created_at, updated_at)
              VALUES (?1, ?2, ?3, ?4, ?5)",
-            params![id, trimmed_name, description.trim(), now.to_rfc3339(), now.to_rfc3339()],
+            params![
+                id,
+                trimmed_name,
+                description.trim(),
+                now.to_rfc3339(),
+                now.to_rfc3339()
+            ],
         )?;
         insert_harness_kit_children(&tx, &id, agent_configs, extension_kits, extra_assets)?;
         tx.commit()?;
@@ -1647,10 +1728,14 @@ impl Store {
     ) -> Result<HarnessKitSummary, HkError> {
         let trimmed_name = name.trim();
         if trimmed_name.is_empty() {
-            return Err(HkError::Validation("Harness Kit name cannot be empty".into()));
+            return Err(HkError::Validation(
+                "Harness Kit name cannot be empty".into(),
+            ));
         }
         if agent_configs.is_empty() && extension_kits.is_empty() && extra_assets.is_empty() {
-            return Err(HkError::Validation("Select at least one Harness Kit asset".into()));
+            return Err(HkError::Validation(
+                "Select at least one Harness Kit asset".into(),
+            ));
         }
 
         let now = Utc::now();
@@ -1664,9 +1749,18 @@ impl Store {
         if updated == 0 {
             return Err(HkError::NotFound("Harness Kit not found".into()));
         }
-        tx.execute("DELETE FROM harness_kit_agent_configs WHERE harness_kit_id = ?1", params![id])?;
-        tx.execute("DELETE FROM harness_kit_extension_kits WHERE harness_kit_id = ?1", params![id])?;
-        tx.execute("DELETE FROM harness_kit_assets WHERE harness_kit_id = ?1", params![id])?;
+        tx.execute(
+            "DELETE FROM harness_kit_agent_configs WHERE harness_kit_id = ?1",
+            params![id],
+        )?;
+        tx.execute(
+            "DELETE FROM harness_kit_extension_kits WHERE harness_kit_id = ?1",
+            params![id],
+        )?;
+        tx.execute(
+            "DELETE FROM harness_kit_assets WHERE harness_kit_id = ?1",
+            params![id],
+        )?;
         insert_harness_kit_children(&tx, id, agent_configs, extension_kits, extra_assets)?;
         tx.commit()?;
 
@@ -1699,10 +1793,22 @@ impl Store {
                 description: row.get(2)?,
                 created_at: DateTime::parse_from_rfc3339(&created_at)
                     .map(|dt| dt.with_timezone(&Utc))
-                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(3, rusqlite::types::Type::Text, Box::new(e)))?,
+                    .map_err(|e| {
+                        rusqlite::Error::FromSqlConversionFailure(
+                            3,
+                            rusqlite::types::Type::Text,
+                            Box::new(e),
+                        )
+                    })?,
                 updated_at: DateTime::parse_from_rfc3339(&updated_at)
                     .map(|dt| dt.with_timezone(&Utc))
-                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(4, rusqlite::types::Type::Text, Box::new(e)))?,
+                    .map_err(|e| {
+                        rusqlite::Error::FromSqlConversionFailure(
+                            4,
+                            rusqlite::types::Type::Text,
+                            Box::new(e),
+                        )
+                    })?,
                 agent_config_count: row.get::<_, i64>(5)?.max(0) as usize,
                 extensions_kit_count: row.get::<_, i64>(6)?.max(0) as usize,
                 skills_count: row.get::<_, i64>(7)?.max(0) as usize,
@@ -1710,29 +1816,45 @@ impl Store {
             })
         })?;
 
-        rows.collect::<std::result::Result<Vec<_>, _>>().map_err(Into::into)
+        rows.collect::<std::result::Result<Vec<_>, _>>()
+            .map_err(Into::into)
     }
 
     fn get_harness_kit_summary(&self, id: &str) -> Result<Option<HarnessKitSummary>, HkError> {
-        Ok(self.list_harness_kits()?.into_iter().find(|kit| kit.id == id))
+        Ok(self
+            .list_harness_kits()?
+            .into_iter()
+            .find(|kit| kit.id == id))
     }
 
-    pub fn list_harness_kit_assets(&self, harness_kit_id: &str) -> Result<HarnessKitAssets, HkError> {
+    pub fn list_harness_kit_assets(
+        &self,
+        harness_kit_id: &str,
+    ) -> Result<HarnessKitAssets, HkError> {
         let agent_configs = self.list_harness_kit_agent_configs(harness_kit_id)?;
         let extension_kits = self.list_harness_kit_extension_kits(harness_kit_id)?;
         let extra_assets = self.list_harness_kit_extra_assets(harness_kit_id)?;
-        Ok(HarnessKitAssets { agent_configs, extension_kits, extra_assets })
+        Ok(HarnessKitAssets {
+            agent_configs,
+            extension_kits,
+            extra_assets,
+        })
     }
 
     pub fn delete_harness_kit(&self, id: &str) -> Result<(), HkError> {
-        let affected = self.conn.execute("DELETE FROM harness_kits WHERE id = ?1", params![id])?;
+        let affected = self
+            .conn
+            .execute("DELETE FROM harness_kits WHERE id = ?1", params![id])?;
         if affected == 0 {
             return Err(HkError::NotFound("Harness Kit not found".into()));
         }
         Ok(())
     }
 
-    fn list_harness_kit_agent_configs(&self, harness_kit_id: &str) -> Result<Vec<NewHarnessKitAgentConfig>, HkError> {
+    fn list_harness_kit_agent_configs(
+        &self,
+        harness_kit_id: &str,
+    ) -> Result<Vec<NewHarnessKitAgentConfig>, HkError> {
         let mut stmt = self.conn.prepare(
             "SELECT agent_config_template_id, template_name
              FROM harness_kit_agent_configs
@@ -1748,7 +1870,10 @@ impl Store {
         rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
     }
 
-    fn list_harness_kit_extension_kits(&self, harness_kit_id: &str) -> Result<Vec<NewHarnessKitExtensionKit>, HkError> {
+    fn list_harness_kit_extension_kits(
+        &self,
+        harness_kit_id: &str,
+    ) -> Result<Vec<NewHarnessKitExtensionKit>, HkError> {
         let mut stmt = self.conn.prepare(
             "SELECT kit_id, kit_name
              FROM harness_kit_extension_kits
@@ -1764,7 +1889,10 @@ impl Store {
         rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
     }
 
-    fn list_harness_kit_extra_assets(&self, harness_kit_id: &str) -> Result<Vec<NewKitAsset>, HkError> {
+    fn list_harness_kit_extra_assets(
+        &self,
+        harness_kit_id: &str,
+    ) -> Result<Vec<NewKitAsset>, HkError> {
         let mut stmt = self.conn.prepare(
             "SELECT hub_extension_id, kind, asset_name
              FROM harness_kit_assets
@@ -1777,7 +1905,10 @@ impl Store {
                 rusqlite::Error::FromSqlConversionFailure(
                     1,
                     rusqlite::types::Type::Text,
-                    Box::new(std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string())),
+                    Box::new(std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        e.to_string(),
+                    )),
                 )
             })?;
             Ok(NewKitAsset {
@@ -1814,8 +1945,14 @@ impl Store {
              DO UPDATE SET updated_at = excluded.updated_at",
             params![id, harness_kit_id, project_path, target_agent, now.to_rfc3339()],
         )?;
-        tx.execute("DELETE FROM harness_kit_sync_record_assets WHERE record_id = ?1", params![id])?;
-        tx.execute("DELETE FROM harness_kit_sync_record_configs WHERE record_id = ?1", params![id])?;
+        tx.execute(
+            "DELETE FROM harness_kit_sync_record_assets WHERE record_id = ?1",
+            params![id],
+        )?;
+        tx.execute(
+            "DELETE FROM harness_kit_sync_record_configs WHERE record_id = ?1",
+            params![id],
+        )?;
         for (position, asset) in assets.iter().enumerate() {
             tx.execute(
                 "INSERT INTO harness_kit_sync_record_assets (record_id, hub_extension_id, kind, asset_name, position)
@@ -1846,10 +1983,11 @@ impl Store {
              FROM harness_kit_sync_records
              WHERE harness_kit_id = ?1 AND project_path = ?2 AND target_agent = ?3",
         )?;
-        let mut rows = stmt.query_map(params![harness_kit_id, project_path, target_agent], |row| {
-            let id: String = row.get(0)?;
-            Ok((id, row.get(1)?, row.get(2)?, row.get(3)?))
-        })?;
+        let mut rows =
+            stmt.query_map(params![harness_kit_id, project_path, target_agent], |row| {
+                let id: String = row.get(0)?;
+                Ok((id, row.get(1)?, row.get(2)?, row.get(3)?))
+            })?;
         match rows.next() {
             Some(Ok((id, hk_id, pp, agent))) => {
                 let assets = self.list_sync_record_assets(&id)?;
@@ -1874,7 +2012,9 @@ impl Store {
             params![id],
         )?;
         if affected == 0 {
-            return Err(HkError::NotFound("Harness Kit sync record not found".into()));
+            return Err(HkError::NotFound(
+                "Harness Kit sync record not found".into(),
+            ));
         }
         Ok(())
     }
@@ -1923,7 +2063,10 @@ impl Store {
                 rusqlite::Error::FromSqlConversionFailure(
                     1,
                     rusqlite::types::Type::Text,
-                    Box::new(std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string())),
+                    Box::new(std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        e.to_string(),
+                    )),
                 )
             })?;
             Ok(NewKitAsset {
@@ -1935,7 +2078,10 @@ impl Store {
         rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
     }
 
-    fn list_sync_record_configs(&self, record_id: &str) -> Result<Vec<HarnessKitConfigTarget>, HkError> {
+    fn list_sync_record_configs(
+        &self,
+        record_id: &str,
+    ) -> Result<Vec<HarnessKitConfigTarget>, HkError> {
         let mut stmt = self.conn.prepare(
             "SELECT agent_config_template_id, template_name, rel_path, target_path
              FROM harness_kit_sync_record_configs
@@ -1967,7 +2113,12 @@ fn insert_harness_kit_children(
             "INSERT INTO harness_kit_agent_configs
              (harness_kit_id, agent_config_template_id, template_name, position)
              VALUES (?1, ?2, ?3, ?4)",
-            params![harness_kit_id, item.template_id, item.template_name, position as i64],
+            params![
+                harness_kit_id,
+                item.template_id,
+                item.template_name,
+                position as i64
+            ],
         )?;
     }
     for (position, item) in extension_kits.iter().enumerate() {
@@ -2025,7 +2176,28 @@ mod tests {
         let db_path = dir.path().join("permissions_test.db");
         let _store = Store::open(&db_path).unwrap();
         let perms = std::fs::metadata(&db_path).unwrap().permissions();
-        assert_eq!(perms.mode() & 0o777, 0o600, "Database file should be owner-only (0600)");
+        assert_eq!(
+            perms.mode() & 0o777,
+            0o600,
+            "Database file should be owner-only (0600)"
+        );
+    }
+
+    #[test]
+    fn test_open_configures_wal_and_busy_timeout() {
+        let (store, _dir) = test_store();
+
+        let journal_mode: String = store
+            .conn
+            .query_row("PRAGMA journal_mode", [], |row| row.get(0))
+            .unwrap();
+        let busy_timeout: i64 = store
+            .conn
+            .query_row("PRAGMA busy_timeout", [], |row| row.get(0))
+            .unwrap();
+
+        assert_eq!(journal_mode, "wal");
+        assert_eq!(busy_timeout, 5000);
     }
 
     fn sample_extension() -> Extension {
@@ -2762,7 +2934,9 @@ mod tests {
         // Sync with the same extension (scanner doesn't know about install meta)
         let mut synced = ext.clone();
         synced.install_meta = None;
-        store.sync_extensions_for_agent("claude", &[synced]).unwrap();
+        store
+            .sync_extensions_for_agent("claude", &[synced])
+            .unwrap();
 
         // Install meta should survive the sync
         let fetched = store.get_extension("project-git-skill").unwrap().unwrap();
@@ -3005,11 +3179,14 @@ mod tests {
         store.insert_extension(&ext).unwrap();
 
         // Verify join table rows exist
-        let count: i64 = store.conn.query_row(
-            "SELECT COUNT(*) FROM extension_agents WHERE extension_id = ?1",
-            params![ext.id],
-            |row| row.get(0),
-        ).unwrap();
+        let count: i64 = store
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM extension_agents WHERE extension_id = ?1",
+                params![ext.id],
+                |row| row.get(0),
+            )
+            .unwrap();
         assert_eq!(count, 2);
 
         // Verify agent filter uses the join table correctly
@@ -3035,7 +3212,9 @@ mod tests {
         ext2.name = "ext-two".into();
         ext2.agents = vec!["cursor".into(), "claude".into()];
 
-        store.sync_extensions(&[ext1.clone(), ext2.clone()]).unwrap();
+        store
+            .sync_extensions(&[ext1.clone(), ext2.clone()])
+            .unwrap();
 
         // Verify both come back for claude
         let claude = store.list_extensions(None, Some("claude")).unwrap();
@@ -3088,9 +3267,13 @@ mod tests {
         ext2.agents = vec!["cursor".into()];
 
         // Sync for claude agent
-        store.sync_extensions_for_agent("claude", &[ext1.clone()]).unwrap();
+        store
+            .sync_extensions_for_agent("claude", &[ext1.clone()])
+            .unwrap();
         // Sync for cursor agent separately
-        store.sync_extensions_for_agent("cursor", &[ext2.clone()]).unwrap();
+        store
+            .sync_extensions_for_agent("cursor", &[ext2.clone()])
+            .unwrap();
 
         let claude = store.list_extensions(None, Some("claude")).unwrap();
         assert_eq!(claude.len(), 1);
@@ -3188,7 +3371,8 @@ mod tests {
             }],
             trust_score: 50,
             audited_at: chrono::DateTime::parse_from_rfc3339("2024-01-01T00:00:00Z")
-                .unwrap().with_timezone(&Utc),
+                .unwrap()
+                .with_timezone(&Utc),
         };
         store.insert_audit_result(&old_audit).unwrap();
 
@@ -3198,7 +3382,8 @@ mod tests {
             findings: vec![],
             trust_score: 100,
             audited_at: chrono::DateTime::parse_from_rfc3339("2025-01-01T00:00:00Z")
-                .unwrap().with_timezone(&Utc),
+                .unwrap()
+                .with_timezone(&Utc),
         };
         store.insert_audit_result(&new_audit).unwrap();
 
@@ -3462,10 +3647,20 @@ mod tests {
         let (store, _dir) = test_store();
 
         let blank = store.create_harness_kit("  ", "", &[], &[], &[]);
-        assert!(blank.unwrap_err().to_string().contains("Harness Kit name cannot be empty"));
+        assert!(
+            blank
+                .unwrap_err()
+                .to_string()
+                .contains("Harness Kit name cannot be empty")
+        );
 
         let empty = store.create_harness_kit("Empty", "", &[], &[], &[]);
-        assert!(empty.unwrap_err().to_string().contains("Select at least one Harness Kit asset"));
+        assert!(
+            empty
+                .unwrap_err()
+                .to_string()
+                .contains("Select at least one Harness Kit asset")
+        );
     }
 
     #[test]
@@ -3499,9 +3694,11 @@ mod tests {
         assert_eq!(record.configs[0].rel_path, ".codex/AGENTS.md");
 
         store.delete_harness_kit_sync_record(&record.id).unwrap();
-        assert!(store
-            .get_harness_kit_sync_record("hk-1", "/project", "codex")
-            .unwrap()
-            .is_none());
+        assert!(
+            store
+                .get_harness_kit_sync_record("hk-1", "/project", "codex")
+                .unwrap()
+                .is_none()
+        );
     }
 }

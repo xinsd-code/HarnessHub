@@ -1895,6 +1895,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "hk-tauri"
+version = "1.0.0"
+
+[[package]]
 name = "hk-web"
 version = "1.0.0"
 dependencies = [

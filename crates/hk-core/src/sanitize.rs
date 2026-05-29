@@ -71,8 +71,14 @@ pub fn validate_binary_name(name: &str) -> Result<()> {
         bail!("Binary name cannot start with '.' or '-': {}", name);
     }
     // Positive allowlist: only safe characters
-    if !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == '.') {
-        bail!("Binary name contains disallowed characters (only alphanumeric, '-', '_', '.' allowed): {}", name);
+    if !name
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == '.')
+    {
+        bail!(
+            "Binary name contains disallowed characters (only alphanumeric, '-', '_', '.' allowed): {}",
+            name
+        );
     }
     Ok(())
 }
@@ -83,7 +89,7 @@ pub fn validate_binary_name(name: &str) -> Result<()> {
 pub fn validate_git_url(url: &str) -> Result<()> {
     if url.starts_with("https://") || url.starts_with("git://") {
         Ok(())
-    } else if url.starts_with("git@") || url.starts_with("ssh://") {
+    } else if url.starts_with("ssh://") || is_scp_like_git_url(url) {
         // Allow SSH URLs — common for private repos
         Ok(())
     } else if url.starts_with("file://") {
@@ -91,10 +97,21 @@ pub fn validate_git_url(url: &str) -> Result<()> {
         Ok(())
     } else {
         bail!(
-            "Invalid git URL (must be https://, git://, ssh://, or git@): {}",
+            "Invalid git URL (must be https://, git://, ssh://, git@, or file://): {}",
             url
         );
     }
+}
+
+fn is_scp_like_git_url(url: &str) -> bool {
+    let Some(rest) = url.strip_prefix("git@") else {
+        return false;
+    };
+    let Some((host, path)) = rest.split_once(':') else {
+        return false;
+    };
+
+    !host.trim().is_empty() && !path.trim().is_empty()
 }
 
 /// Check if a string looks like a Windows absolute path (e.g. "C:\foo" or "D:/bar").
@@ -209,6 +226,7 @@ mod tests {
     fn validate_git_url_accepts_file_protocol() {
         assert!(validate_git_url("file:///tmp/repo").is_ok());
         assert!(validate_git_url("file:///home/user/project.git").is_ok());
+        assert!(validate_git_url("file:///C:/repo").is_ok());
     }
 
     #[test]
@@ -227,13 +245,21 @@ mod tests {
     }
 
     #[test]
+    fn validate_git_url_rejects_malformed_scp_like_ssh() {
+        assert!(validate_git_url("git@").is_err());
+        assert!(validate_git_url("git@host").is_err());
+        assert!(validate_git_url("git@host:").is_err());
+        assert!(validate_git_url("git@   ").is_err());
+    }
+
+    #[test]
     fn test_is_windows_abs_path() {
         assert!(is_windows_abs_path(r"C:\Users\test"));
         assert!(is_windows_abs_path("D:/Projects/foo"));
         assert!(!is_windows_abs_path("/usr/bin/env"));
         assert!(!is_windows_abs_path("relative/path"));
         assert!(!is_windows_abs_path("~/foo"));
-        assert!(!is_windows_abs_path("C:"));  // too short
+        assert!(!is_windows_abs_path("C:")); // too short
     }
 
     #[test]
@@ -254,9 +280,6 @@ mod tests {
             strip_windows_extended_path_prefix("//?/UNC/server/share/demo"),
             "//server/share/demo"
         );
-        assert_eq!(
-            strip_windows_extended_path_prefix("/tmp/demo"),
-            "/tmp/demo"
-        );
+        assert_eq!(strip_windows_extended_path_prefix("/tmp/demo"), "/tmp/demo");
     }
 }
