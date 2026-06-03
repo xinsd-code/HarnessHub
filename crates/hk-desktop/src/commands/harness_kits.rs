@@ -2,6 +2,11 @@ use super::AppState;
 use hk_core::{agent_config_templates, models::*, service};
 use tauri::State;
 
+fn agent_config_hub_dir(state: &State<AppState>) -> Result<std::path::PathBuf, String> {
+    let root = super::settings::effective_hub_root(state).map_err(|e| e.to_string())?;
+    Ok(agent_config_templates::hub_dir_for_root(&root))
+}
+
 #[tauri::command]
 pub fn list_harness_kits(state: State<'_, AppState>) -> Result<Vec<HarnessKitSummary>, String> {
     state
@@ -15,11 +20,9 @@ pub fn list_harness_kits(state: State<'_, AppState>) -> Result<Vec<HarnessKitSum
 pub fn list_harness_kit_asset_candidates(
     state: State<'_, AppState>,
 ) -> Result<HarnessKitAssetCandidates, String> {
-    service::list_harness_kit_asset_candidates(
-        &state.store,
-        &agent_config_templates::default_hub_dir(),
-    )
-    .map_err(|e| e.to_string())
+    let agent_config_hub_dir = agent_config_hub_dir(&state)?;
+    service::list_harness_kit_asset_candidates(&state.store, &agent_config_hub_dir)
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -33,6 +36,7 @@ pub async fn create_harness_kit(
 ) -> Result<HarnessKitSummary, String> {
     let store = state.store.clone();
     let adapters = state.runtime_adapters();
+    let agent_config_hub_dir = agent_config_hub_dir(&state)?;
     let request = CreateHarnessKitRequest {
         name,
         description,
@@ -49,13 +53,7 @@ pub async fn create_harness_kit(
         .collect();
 
     tauri::async_runtime::spawn_blocking(move || {
-        service::create_harness_kit(
-            &store,
-            &adapters,
-            &projects,
-            &agent_config_templates::default_hub_dir(),
-            request,
-        )
+        service::create_harness_kit(&store, &adapters, &projects, &agent_config_hub_dir, request)
     })
     .await
     .map_err(|e| e.to_string())?
@@ -74,6 +72,7 @@ pub async fn update_harness_kit(
 ) -> Result<HarnessKitSummary, String> {
     let store = state.store.clone();
     let adapters = state.runtime_adapters();
+    let agent_config_hub_dir = agent_config_hub_dir(&state)?;
     let request = UpdateHarnessKitRequest {
         id,
         name,
@@ -91,13 +90,7 @@ pub async fn update_harness_kit(
         .collect();
 
     tauri::async_runtime::spawn_blocking(move || {
-        service::update_harness_kit(
-            &store,
-            &adapters,
-            &projects,
-            &agent_config_templates::default_hub_dir(),
-            request,
-        )
+        service::update_harness_kit(&store, &adapters, &projects, &agent_config_hub_dir, request)
     })
     .await
     .map_err(|e| e.to_string())?
@@ -164,6 +157,7 @@ pub async fn sync_harness_kit_to_project(
 ) -> Result<HarnessKitSyncResult, String> {
     let store = state.store.clone();
     let adapters = state.runtime_adapters();
+    let agent_config_hub_dir = agent_config_hub_dir(&state)?;
     let request = build_harness_kit_sync_request(
         harness_kit_id,
         project_path,
@@ -173,12 +167,7 @@ pub async fn sync_harness_kit_to_project(
         force_agent_config_template_ids,
     );
     tauri::async_runtime::spawn_blocking(move || {
-        service::sync_harness_kit_to_project(
-            &store,
-            &adapters,
-            &agent_config_templates::default_hub_dir(),
-            request,
-        )
+        service::sync_harness_kit_to_project(&store, &adapters, &agent_config_hub_dir, request)
     })
     .await
     .map_err(|e| e.to_string())?

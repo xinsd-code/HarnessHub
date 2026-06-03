@@ -71,7 +71,7 @@ export function AgentConfigHubPage() {
               className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 bg-card/60 px-3 py-1.5 text-[12px] font-semibold shadow-sm backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:bg-card/90 hover:shadow-md"
             >
               <Plus size={14} className="text-primary" />
-              Import from Project
+              Input From Local
             </button>
           </div>
         </div>

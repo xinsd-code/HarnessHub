@@ -53,6 +53,18 @@ Tauri automatically runs `npm run dev` as a before-dev command and launches the 
 
 Produces `.dmg` bundles for Apple Silicon and Intel, plus `hk` CLI binaries.
 
+To open the desktop app built from the current worktree, run:
+
+```bash
+npm run desktop:open
+```
+
+You can also pass a custom `.app` path if needed:
+
+```bash
+npm run desktop:open -- /absolute/path/to/HarnessKit.app
+```
+
 ### CLI only (any platform)
 
 ```bash

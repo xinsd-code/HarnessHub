@@ -1,4 +1,5 @@
 use crate::adapter::AgentAdapter;
+use crate::local_hub;
 use crate::models::*;
 use crate::sanitize::strip_windows_extended_path_prefix;
 use crate::scanner_cli_registry::KNOWN_CLIS;
@@ -2179,22 +2180,7 @@ fn resolve_pattern(root: &std::path::Path, pattern: &str) -> Vec<std::path::Path
 
 /// Get the Local Hub directory path (~/.harnesskit)
 pub fn get_hub_path() -> PathBuf {
-    let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
-    let new_path = home.join(".harnesskit");
-
-    // Migration: if old path exists but new path doesn't, migrate
-    let old_path = home.join(".harness_kit");
-    if old_path.exists() && !new_path.exists() {
-        // Try to rename old directory to new
-        if let Err(e) = std::fs::rename(&old_path, &new_path) {
-            eprintln!(
-                "[hk] warning: failed to migrate ~/.harness_kit to ~/.harnesskit: {:?}",
-                e
-            );
-        }
-    }
-
-    new_path
+    local_hub::default_root()
 }
 
 /// Generate a deterministic ID for Local Hub extensions
@@ -2205,17 +2191,22 @@ fn hub_stable_id(name: &str, kind: &str) -> String {
 }
 
 /// Scan all assets from the Local Hub directory (~/.harnesskit/)
-pub fn scan_local_hub() -> Vec<Extension> {
-    let hub_path = get_hub_path();
+pub fn scan_local_hub_from(hub_path: &Path) -> Vec<Extension> {
     if !hub_path.exists() {
         return Vec::new();
     }
 
     let mut extensions = Vec::new();
-    extensions.extend(scan_hub_skills(&hub_path));
-    extensions.extend(scan_hub_mcp(&hub_path));
-    extensions.extend(scan_hub_plugins(&hub_path));
+    extensions.extend(scan_hub_skills(hub_path));
+    extensions.extend(scan_hub_mcp(hub_path));
+    extensions.extend(scan_hub_plugins(hub_path));
     extensions
+}
+
+/// Scan all assets from the Local Hub directory (~/.harnesskit/)
+pub fn scan_local_hub() -> Vec<Extension> {
+    let hub_path = get_hub_path();
+    scan_local_hub_from(&hub_path)
 }
 
 /// Scan skills from ~/.harnesskit/skills/
@@ -2441,8 +2432,7 @@ fn scan_hub_plugins(hub_path: &Path) -> Vec<Extension> {
 }
 
 /// Find a skill in the Local Hub by name
-pub fn find_hub_skill_by_name(name: &str) -> Option<PathBuf> {
-    let hub_path = get_hub_path();
+pub fn find_hub_skill_by_name_in(hub_path: &Path, name: &str) -> Option<PathBuf> {
     let skill_dir = hub_path.join("skills").join(name);
     if skill_dir.join("SKILL.md").exists() || skill_dir.join("SKILL.md.disabled").exists() {
         return Some(skill_dir);
@@ -2450,9 +2440,13 @@ pub fn find_hub_skill_by_name(name: &str) -> Option<PathBuf> {
     None
 }
 
+/// Find a skill in the Local Hub by name
+pub fn find_hub_skill_by_name(name: &str) -> Option<PathBuf> {
+    find_hub_skill_by_name_in(&get_hub_path(), name)
+}
+
 /// Check if an extension exists in the Local Hub (by name and kind)
-pub fn hub_extension_exists(name: &str, kind: ExtensionKind) -> bool {
-    let hub_path = get_hub_path();
+pub fn hub_extension_exists_in(hub_path: &Path, name: &str, kind: ExtensionKind) -> bool {
     let subdir = match kind {
         ExtensionKind::Skill => "skills",
         ExtensionKind::Mcp => "mcp",
@@ -2461,6 +2455,11 @@ pub fn hub_extension_exists(name: &str, kind: ExtensionKind) -> bool {
         ExtensionKind::Hook => return false, // Hooks are not backed up to hub
     };
     hub_path.join(subdir).join(name).exists()
+}
+
+/// Check if an extension exists in the Local Hub (by name and kind)
+pub fn hub_extension_exists(name: &str, kind: ExtensionKind) -> bool {
+    hub_extension_exists_in(&get_hub_path(), name, kind)
 }
 
 #[cfg(test)]
@@ -2526,6 +2525,38 @@ mod tests {
         extensions.extend(scan_hub_plugins(dir.path()));
 
         assert!(extensions.iter().all(|ext| ext.kind != ExtensionKind::Cli));
+    }
+
+    #[test]
+    fn test_scan_local_hub_from_uses_custom_root() {
+        let dir = TempDir::new().unwrap();
+        let skill_dir = dir.path().join("skills").join("demo");
+        std::fs::create_dir_all(&skill_dir).unwrap();
+        std::fs::write(skill_dir.join("SKILL.md"), "---\nname: demo\n---\n").unwrap();
+
+        let extensions = scan_local_hub_from(dir.path());
+
+        assert_eq!(extensions.len(), 1);
+        assert_eq!(extensions[0].name, "demo");
+        assert!(
+            extensions[0]
+                .source_path
+                .as_deref()
+                .unwrap()
+                .contains("skills/demo")
+        );
+    }
+
+    #[test]
+    fn test_hub_extension_exists_in_uses_custom_root() {
+        let dir = TempDir::new().unwrap();
+        std::fs::create_dir_all(dir.path().join("plugins").join("demo-plugin")).unwrap();
+
+        assert!(hub_extension_exists_in(
+            dir.path(),
+            "demo-plugin",
+            ExtensionKind::Plugin
+        ));
     }
 
     #[test]

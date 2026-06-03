@@ -36,11 +36,12 @@ struct AgentConfigTemplateMetadata {
     updated_at: DateTime<Utc>,
 }
 
+pub fn hub_dir_for_root(root: &Path) -> PathBuf {
+    crate::local_hub::agent_config_dir(root)
+}
+
 pub fn default_hub_dir() -> PathBuf {
-    dirs::home_dir()
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join(".harnesskit")
-        .join("agent-configs")
+    hub_dir_for_root(&crate::local_hub::default_root())
 }
 
 pub fn safe_segment(input: &str, fallback: &str) -> Result<String, HkError> {
@@ -461,6 +462,13 @@ mod tests {
     }
 
     #[test]
+    fn hub_dir_for_root_points_to_agent_configs() {
+        let root = PathBuf::from("/tmp/custom-hub");
+
+        assert_eq!(hub_dir_for_root(&root), root.join("agent-configs"));
+    }
+
+    #[test]
     fn update_tag_moves_template_directory() {
         let tmp = tempfile::tempdir().unwrap();
         let hub = tmp.path().join("hub");
@@ -516,19 +524,19 @@ mod sync_tests {
             CodexAdapter::new()
                 .project_rules_target_relpath()
                 .as_deref(),
-            Some(".codex/AGENTS.md")
+            Some("AGENTS.md")
         );
         assert_eq!(
             ClaudeAdapter::new()
                 .project_rules_target_relpath()
                 .as_deref(),
-            Some(".claude/CLAUDE.md")
+            Some("CLAUDE.md")
         );
         assert_eq!(
             GeminiAdapter::new()
                 .project_rules_target_relpath()
                 .as_deref(),
-            Some(".gemini/GEMINI.md")
+            Some("GEMINI.md")
         );
     }
 
@@ -549,7 +557,7 @@ mod sync_tests {
             false,
         )
         .unwrap();
-        assert_eq!(target, target_project.join(".codex/AGENTS.md"));
+        assert_eq!(target, target_project.join("AGENTS.md"));
         assert_eq!(fs::read_to_string(&target).unwrap(), "shared prompt");
 
         let err = sync_template_to_project(

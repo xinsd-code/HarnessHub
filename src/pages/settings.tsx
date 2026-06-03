@@ -4,6 +4,7 @@ import {
   Check,
   Download,
   FolderKanban,
+  HardDrive,
   FolderSearch,
   Loader2,
   Palette,
@@ -16,6 +17,7 @@ import {
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { AppearanceSettingsSection } from "@/components/settings/appearance-settings-section";
+import { LocalHubSettingsSection } from "@/components/settings/local-hub-settings-section";
 import { ProjectPathsSection } from "@/components/settings/project-paths-section";
 import {
   AGENT_BASE_CONFIGS,
@@ -50,6 +52,7 @@ import { useWebUpdateStore } from "@/stores/web-update-store";
 
 const SETTINGS_SECTIONS = [
   { id: "appearance", label: "Appearance", icon: Palette },
+  { id: "local-hub", label: "Exts Hub", icon: HardDrive },
   { id: "agent-paths", label: "Agents", icon: Bot },
   { id: "project-paths", label: "Projects", icon: FolderKanban },
 ] as const;
@@ -496,14 +499,14 @@ export default function SettingsPage() {
       category: string;
       targetScope: ConfigScope;
     }> = [
-      {
-        agent: agentName,
-        path: buildHomeRelativePath(preset.globalSkillsPath),
-        label: "Global Skills",
-        category: "settings",
-        targetScope: { type: "global" },
-      },
-    ];
+        {
+          agent: agentName,
+          path: buildHomeRelativePath(preset.globalSkillsPath),
+          label: "Global Skills",
+          category: "settings",
+          targetScope: { type: "global" },
+        },
+      ];
 
     for (const project of projects) {
       configPaths.push({
@@ -637,6 +640,8 @@ export default function SettingsPage() {
                   themeName={themeName}
                 />
               )}
+
+              {activeSection === "local-hub" && <LocalHubSettingsSection />}
 
               {/* Agent Paths */}
               {activeSection === "agent-paths" && (
@@ -848,7 +853,7 @@ export default function SettingsPage() {
               <span>One home for every agent</span>
               <span>&middot;</span>
               <a
-                href="https://github.com/RealZST/HarnessKit"
+                href="https://github.com/xinsd-code/HarnessKit"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="transition-colors hover:text-muted-foreground"

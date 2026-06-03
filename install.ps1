@@ -1,20 +1,20 @@
-# HarnessKit CLI installer for Windows — downloads the latest `hk` binary
+# HarnessHub CLI installer for Windows — downloads the latest `hk` binary
 # to ~/.local/bin. Re-run to update to the latest version.
 #
 # Usage:
-#   irm https://raw.githubusercontent.com/RealZST/HarnessKit/main/install.ps1 | iex
+#   irm https://raw.githubusercontent.com/xinsd-code/HarnessKit/main/install.ps1 | iex
 
 $ErrorActionPreference = "Stop"
 
 # Ensure TLS 1.2 (required by GitHub, not default on PowerShell 5.1)
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
-$Repo = "RealZST/HarnessKit"
+$Repo = "xinsd-code/HarnessKit"
 $Binary = "hk-cli-windows-x64.exe"
 $InstallDir = Join-Path $env:USERPROFILE ".local\bin"
 
 # Get latest release tag
-$Headers = @{ "User-Agent" = "HarnessKit-Installer" }
+$Headers = @{ "User-Agent" = "HarnessHub-Installer" }
 $Release = Invoke-RestMethod "https://api.github.com/repos/$Repo/releases/latest" -Headers $Headers
 $Tag = $Release.tag_name
 if (-not $Tag) {
@@ -25,7 +25,7 @@ if (-not $Tag) {
 $Url = "https://github.com/$Repo/releases/download/$Tag/$Binary"
 $ChecksumUrl = "$Url.sha256"
 
-Write-Host "Installing HarnessKit CLI $Tag..."
+Write-Host "Installing HarnessHub CLI $Tag..."
 
 # Download and verify
 New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null

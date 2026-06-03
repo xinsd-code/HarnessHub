@@ -10,9 +10,15 @@ describe("HarnessKitInsertDialog", () => {
         projectName="HarnessKit"
         projectPath="/workspace/hk"
         targetAgent="codex"
-        agentConfigs={[{ template_id: "tpl-1", template_name: "Rules" }]}
+        agentConfigs={[
+          {
+            template_id: "tpl-1",
+            template_name: "Rules",
+            original_file_name: "AGENTS.md",
+          },
+        ]}
         preview={null}
-        defaultRelPath=".codex/AGENTS.md"
+        defaultRelPath=".codex/SHOULD-NOT-USE.md"
         pending={false}
         onPreview={vi.fn()}
         onCancel={vi.fn()}
@@ -21,7 +27,7 @@ describe("HarnessKitInsertDialog", () => {
     );
 
     expect(screen.getByText("/workspace/hk")).toBeInTheDocument();
-    expect(screen.getByDisplayValue(".codex/AGENTS.md")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("AGENTS.md")).toBeInTheDocument();
   });
 
   it("blocks duplicate config paths", () => {

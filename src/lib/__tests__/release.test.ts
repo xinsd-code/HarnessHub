@@ -12,10 +12,10 @@ describe("release config", () => {
     );
 
     expect(RELEASES_URL).toBe(
-      "https://api.github.com/repos/RealZST/HarnessKit/releases/latest",
+      "https://api.github.com/repos/xinsd-code/HarnessKit/releases/latest",
     );
     expect(UPDATE_INSTRUCTIONS_URL).toBe(
-      "https://github.com/RealZST/HarnessKit#updating",
+      "https://github.com/xinsd-code/HarnessKit#updating",
     );
   });
 
@@ -46,10 +46,10 @@ describe("release config", () => {
     );
 
     expect(RELEASES_URL).toBe(
-      "https://api.github.com/repos/RealZST/HarnessKit/releases/latest",
+      "https://api.github.com/repos/xinsd-code/HarnessKit/releases/latest",
     );
     expect(UPDATE_INSTRUCTIONS_URL).toBe(
-      "https://github.com/RealZST/HarnessKit#updating",
+      "https://github.com/xinsd-code/HarnessKit#updating",
     );
   });
 });

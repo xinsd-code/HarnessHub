@@ -86,6 +86,8 @@ fn main() {
             commands::update_custom_config_path,
             commands::remove_custom_config_path,
             // Local Hub commands
+            commands::get_local_hub_settings,
+            commands::set_local_hub_dir,
             commands::list_hub_extensions,
             commands::backup_to_hub,
             commands::install_from_hub,

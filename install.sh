@@ -1,13 +1,13 @@
 #!/bin/sh
-# HarnessKit CLI installer — auto-detects architecture and installs the
+# HarnessHub CLI installer — auto-detects architecture and installs the
 # latest `hk` binary to ~/.local/bin. Re-run to update to the latest version.
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/RealZST/HarnessKit/main/install.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/xinsd-code/HarnessKit/main/install.sh | sh
 
 set -e
 
-REPO="RealZST/HarnessKit"
+REPO="xinsd-code/HarnessKit"
 INSTALL_DIR="$HOME/.local/bin"
 
 # Detect OS and architecture
@@ -44,7 +44,7 @@ fi
 URL="https://github.com/$REPO/releases/download/$TAG/$BINARY"
 CHECKSUM_URL="$URL.sha256"
 
-echo "Installing HarnessKit CLI $TAG ($ARCH)..."
+echo "Installing HarnessHub CLI $TAG ($ARCH)..."
 
 # Download and verify
 mkdir -p "$INSTALL_DIR"
@@ -79,7 +79,7 @@ add_to_path() {
     return  # Already present
   fi
   echo "" >> "$rc_file"
-  echo "# Added by HarnessKit CLI installer" >> "$rc_file"
+  echo "# Added by HarnessHub CLI installer" >> "$rc_file"
   echo "$line" >> "$rc_file"
   echo "Added ~/.local/bin to PATH in $rc_file"
 }

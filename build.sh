@@ -5,7 +5,7 @@ export MACOSX_DEPLOYMENT_TARGET=12.0
 
 VERSION=$(grep '"version"' package.json | head -1 | sed 's/.*: "\(.*\)".*/\1/')
 
-echo "==> Building HarnessKit v${VERSION} (macOS ${MACOSX_DEPLOYMENT_TARGET}+)..."
+echo "==> Building HarnessHub v${VERSION} (macOS ${MACOSX_DEPLOYMENT_TARGET}+)..."
 
 # Signing & notarization status
 if [ -n "$APPLE_SIGNING_IDENTITY" ] && [ -n "$APPLE_ID" ] && [ -n "$APPLE_TEAM_ID" ] && [ -n "$APPLE_PASSWORD" ]; then
@@ -33,8 +33,8 @@ echo "==> Building CLI (x86_64)..."
 cargo build --release --target x86_64-apple-darwin -p hk-cli
 
 # Output paths
-ARM_DMG="target/aarch64-apple-darwin/release/bundle/dmg/HarnessKit_${VERSION}_aarch64.dmg"
-X64_DMG="target/x86_64-apple-darwin/release/bundle/dmg/HarnessKit_${VERSION}_x64.dmg"
+ARM_DMG="target/aarch64-apple-darwin/release/bundle/dmg/HarnessHub_${VERSION}_aarch64.dmg"
+X64_DMG="target/x86_64-apple-darwin/release/bundle/dmg/HarnessHub_${VERSION}_x64.dmg"
 
 echo ""
 echo "==> Done!"

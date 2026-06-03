@@ -29,6 +29,8 @@ Use codegraph for **structural** questions — what calls what, what would break
 - **Don't loop `codegraph_node` over many symbols** — one `codegraph_explore` call returns several symbols' source grouped in a single capped call, while each separate node/Read call re-reads the whole context and costs far more.
 - **Index lag — check the staleness banner, don't guess a wait.** When a codegraph response starts with "⚠️ Some files referenced below were edited since the last index sync…", the listed files are pending re-index — Read those specific files for accurate content. Files NOT in that banner are fresh and codegraph is authoritative for them. `codegraph_status` also lists pending files under "Pending sync".
 
+Only run `cargo tauri build` when the user explicitly asks to package/build the desktop app, or when the task specifically requires the packaged bundle output. For ordinary desktop-app fixes and UI tweaks, prefer `cargo check`, focused Rust tests, and frontend tests instead of treating `cargo tauri build` as the default verification step. If you do run it and the command reports that the current folder is not a Tauri project, first correct the working directory instead of treating the error as an application failure.
+
 ### If `.codegraph/` doesn't exist
 
 The MCP server returns "not initialized." Ask the user: *"I notice this project doesn't have CodeGraph initialized. Want me to run `codegraph init -i` to build the index?"*

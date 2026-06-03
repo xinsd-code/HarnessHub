@@ -63,7 +63,7 @@ describe("AgentConfigHubPage", () => {
       screen.getByRole("button", { name: "New Agent Config" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Import from Project" }),
+      screen.getByRole("button", { name: "Input From Local" }),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "default" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "review" })).toBeInTheDocument();

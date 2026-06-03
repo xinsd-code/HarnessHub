@@ -4,7 +4,6 @@ members = [
   "crates/hk-cli",
   "crates/hk-desktop",
   "crates/hk-tauri",
-  "crates/hk-web",
 ]
 resolver = "2"
 

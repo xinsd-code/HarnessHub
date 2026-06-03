@@ -196,9 +196,9 @@ describe("OverviewPage", () => {
     });
 
     expect(screen.queryByText("hk status")).toBeNull();
-    expect(screen.queryByText("Welcome to HarnessKit")).toBeNull();
+    expect(screen.queryByText("Welcome to HarnessHub")).toBeNull();
 
-    const localHubHeading = screen.getByText("Local Hub Overview");
+    const localHubHeading = screen.getByText("Exts Hub Overview");
     const localHubSection = localHubHeading.closest("section");
     expect(localHubSection).toBeTruthy();
     const localHub = within(localHubSection as HTMLElement);

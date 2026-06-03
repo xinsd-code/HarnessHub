@@ -102,7 +102,7 @@ impl AgentAdapter for CodexAdapter {
     }
 
     fn project_rules_target_relpath(&self) -> Option<String> {
-        Some(".codex/AGENTS.md".into())
+        Some("AGENTS.md".into())
     }
 
     fn project_settings_patterns(&self) -> Vec<String> {

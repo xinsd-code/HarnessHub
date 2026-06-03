@@ -69,36 +69,10 @@ enum Commands {
         #[arg(long)]
         pack: Option<String>,
     },
-    /// Start the web UI server
-    Serve {
-        /// Port to listen on
-        #[arg(long, default_value = "7070")]
-        port: u16,
-
-        /// Bind address (127.0.0.1 = local only, 0.0.0.0 = all interfaces)
-        #[arg(long, default_value = "127.0.0.1")]
-        host: String,
-
-        /// Access token (auto-generated for non-localhost binds if omitted)
-        #[arg(long)]
-        token: Option<String>,
-    },
 }
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
-
-    if let Commands::Serve { port, host, token } = cli.command {
-        let effective_token = effective_serve_token(&host, token);
-
-        let rt = tokio::runtime::Runtime::new().unwrap();
-        rt.block_on(hk_web::serve(hk_web::ServeOptions {
-            port,
-            host,
-            token: effective_token,
-        }))?;
-        return Ok(());
-    }
 
     let data_dir = hk_data_dir();
     std::fs::create_dir_all(&data_dir)?;
@@ -153,7 +127,6 @@ fn main() -> Result<()> {
         Commands::Disable { name, pack } => {
             cmd_toggle(&store, &extensions, name.as_deref(), pack.as_deref(), false)
         }
-        Commands::Serve { .. } => unreachable!("handled above"),
     }
 }
 
@@ -161,28 +134,17 @@ fn hk_data_dir() -> PathBuf {
     dirs::home_dir().unwrap_or_default().join(".harnesskit")
 }
 
-fn effective_serve_token(_host: &str, token: Option<String>) -> Option<String> {
-    Some(token.unwrap_or_else(|| {
-        use rand::Rng;
-        let token_value: u128 = rand::rng().random();
-        format!("{token_value:032x}")
-    }))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use clap::CommandFactory;
 
     #[test]
-    fn local_serve_generates_token_by_default() {
-        assert!(effective_serve_token("127.0.0.1", None).is_some());
-    }
-
-    #[test]
-    fn serve_preserves_explicit_token() {
-        assert_eq!(
-            effective_serve_token("127.0.0.1", Some("secret".into())),
-            Some("secret".into())
+    fn cli_does_not_expose_web_mode_client() {
+        assert!(
+            Cli::command()
+                .get_subcommands()
+                .all(|command| command.get_name() != "serve")
         );
     }
 }

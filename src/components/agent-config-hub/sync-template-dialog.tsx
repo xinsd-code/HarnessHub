@@ -6,11 +6,31 @@ import { useAgentConfigTemplateStore } from "@/stores/agent-config-template-stor
 import { useAgentStore } from "@/stores/agent-store";
 import { useProjectStore } from "@/stores/project-store";
 
-const PRIMARY_TARGETS: Record<string, string> = {
-  codex: ".codex/AGENTS.md",
-  claude: ".claude/CLAUDE.md",
-  gemini: ".gemini/GEMINI.md",
-};
+function agentRuleDir(
+  agentName: string,
+  targetRelpath?: string | null,
+): string {
+  const relpath = targetRelpath?.trim() ?? "";
+  if (relpath.includes("/")) {
+    return relpath.slice(0, relpath.lastIndexOf("/"));
+  }
+  const map: Record<string, string> = {
+    codex: ".codex",
+    claude: ".claude",
+    gemini: ".gemini",
+  };
+  return map[agentName] ?? "";
+}
+
+function buildDefaultRelPath(
+  agentName: string,
+  originalFileName: string,
+  targetRelpath?: string | null,
+): string {
+  const dir = agentRuleDir(agentName, targetRelpath);
+  if (!dir) return originalFileName;
+  return originalFileName ? `${dir}/${originalFileName}` : dir;
+}
 
 export function SyncTemplateDialog({
   templateId,
@@ -19,6 +39,7 @@ export function SyncTemplateDialog({
   templateId: string;
   onClose: () => void;
 }) {
+  const templates = useAgentConfigTemplateStore((s) => s.templates);
   const projects = useProjectStore((s) => s.projects).filter(
     (project) => project.exists,
   );
@@ -30,13 +51,31 @@ export function SyncTemplateDialog({
   const [targetAgent, setTargetAgent] = useState(agents[0]?.name ?? "");
   const [error, setError] = useState<string | null>(null);
   const [conflicted, setConflicted] = useState(false);
-
-  const defaultRel = PRIMARY_TARGETS[agents[0]?.name ?? ""] ?? "";
-  const [relPath, setRelPath] = useState(defaultRel);
+  const template = templates.find((item) => item.id === templateId);
+  const originalFileName = template?.original_file_name ?? "";
+  const selectedAgent = agents.find((agent) => agent.name === targetAgent);
+  const [relPath, setRelPath] = useState(
+    buildDefaultRelPath(
+      agents[0]?.name ?? "",
+      originalFileName,
+      agents[0]?.project_rules_target_relpath,
+    ),
+  );
 
   useEffect(() => {
-    setRelPath(PRIMARY_TARGETS[targetAgent] ?? "");
-  }, [targetAgent]);
+    setRelPath(
+      buildDefaultRelPath(
+        targetAgent,
+        originalFileName,
+        selectedAgent?.project_rules_target_relpath,
+      ),
+    );
+  }, [
+    selectedAgent?.project_rules_target_relpath,
+    targetAgent,
+    templateId,
+    originalFileName,
+  ]);
 
   return (
     <div
@@ -62,7 +101,24 @@ export function SyncTemplateDialog({
             {agents.map((agent) => (
               <button
                 key={agent.name}
-                onClick={() => setTargetAgent(agent.name)}
+                onClick={() => {
+                  const nextAgent =
+                    targetAgent === agent.name ? "" : agent.name;
+                  const nextAgentRule = nextAgent
+                    ? agents.find((item) => item.name === nextAgent)
+                        ?.project_rules_target_relpath
+                    : undefined;
+                  setTargetAgent(nextAgent);
+                  setRelPath(
+                    buildDefaultRelPath(
+                      nextAgent,
+                      originalFileName,
+                      nextAgentRule,
+                    ),
+                  );
+                  setError(null);
+                  setConflicted(false);
+                }}
                 title={agent.name}
                 aria-label={agent.name}
                 className={clsx(

@@ -296,6 +296,151 @@ pub fn remove_custom_config_path(state: State<AppState>, id: i64) -> Result<(), 
     store.remove_custom_config_path(id)
 }
 
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct LocalHubSettings {
+    pub effective_path: String,
+    pub configured_path: Option<String>,
+    pub default_path: String,
+    pub asset_count: usize,
+    pub skills_count: usize,
+    pub mcp_count: usize,
+}
+
+fn configured_hub_root(state: &AppState) -> Result<Option<std::path::PathBuf>, HkError> {
+    Ok(state
+        .store
+        .lock()
+        .get_local_hub_dir()?
+        .map(std::path::PathBuf::from))
+}
+
+pub(crate) fn effective_hub_root(state: &AppState) -> Result<std::path::PathBuf, HkError> {
+    Ok(hk_core::local_hub::effective_root(configured_hub_root(
+        state,
+    )?))
+}
+
+fn resolve_and_validate_local_hub_root(
+    state: &AppState,
+    path: &str,
+) -> Result<std::path::PathBuf, HkError> {
+    let resolved = resolve_and_validate_writable_config_path(state, path)?;
+    if resolved.is_file() {
+        return Err(HkError::Validation(
+            "Local Hub directory cannot be a file".into(),
+        ));
+    }
+    let home = dirs::home_dir()
+        .ok_or_else(|| HkError::Internal("Cannot determine home directory".into()))?;
+    if super::normalize(&resolved) == super::normalize(&home) {
+        return Err(HkError::Validation(
+            "Cannot use home directory itself as Local Hub".into(),
+        ));
+    }
+    Ok(resolved)
+}
+
+fn copy_dir_contents_no_overwrite(
+    from: &std::path::Path,
+    to: &std::path::Path,
+) -> Result<(), HkError> {
+    if !from.exists() {
+        std::fs::create_dir_all(to)?;
+        return Ok(());
+    }
+
+    std::fs::create_dir_all(to)?;
+    for entry in std::fs::read_dir(from)? {
+        let entry = entry?;
+        let src = entry.path();
+        let dst = to.join(entry.file_name());
+        let meta = std::fs::symlink_metadata(&src)?;
+        if meta.file_type().is_symlink() {
+            continue;
+        }
+        if dst.exists() {
+            return Err(HkError::Validation(format!(
+                "Destination already contains {}",
+                dst.strip_prefix(to).unwrap_or(&dst).display()
+            )));
+        }
+        if meta.is_dir() {
+            copy_dir_contents_no_overwrite(&src, &dst)?;
+        } else {
+            std::fs::copy(&src, &dst)?;
+        }
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn get_local_hub_settings(state: State<AppState>) -> Result<LocalHubSettings, HkError> {
+    let configured_path = state.store.lock().get_local_hub_dir()?;
+    let default_path = hk_core::local_hub::default_root();
+    let effective_path =
+        hk_core::local_hub::effective_root(configured_path.as_ref().map(std::path::PathBuf::from));
+    let summary = hk_core::local_hub::summarize(&effective_path)?;
+    let store = state.store.lock();
+    let all = store.list_extensions(None, None)?;
+    Ok(LocalHubSettings {
+        effective_path: effective_path.to_string_lossy().to_string(),
+        configured_path,
+        default_path: default_path.to_string_lossy().to_string(),
+        asset_count: summary.asset_count,
+        skills_count: all
+            .iter()
+            .filter(|e| e.kind == ExtensionKind::Skill)
+            .count(),
+        mcp_count: all.iter().filter(|e| e.kind == ExtensionKind::Mcp).count(),
+    })
+}
+
+pub(crate) fn set_local_hub_dir_inner(
+    state: &AppState,
+    path: String,
+    migrate_assets: bool,
+) -> Result<LocalHubSettings, HkError> {
+    let new_root = resolve_and_validate_local_hub_root(state, &path)?;
+    let old_root = effective_hub_root(state)?;
+    if migrate_assets && super::normalize(&old_root) != super::normalize(&new_root) {
+        copy_dir_contents_no_overwrite(&old_root, &new_root)?;
+    } else {
+        std::fs::create_dir_all(&new_root)?;
+    }
+
+    let new_root_string = new_root.to_string_lossy().to_string();
+    state
+        .store
+        .lock()
+        .set_local_hub_dir(Some(&new_root_string))?;
+
+    let summary = hk_core::local_hub::summarize(&new_root)?;
+    let store = state.store.lock();
+    let all = store.list_extensions(None, None)?;
+    Ok(LocalHubSettings {
+        effective_path: new_root_string.clone(),
+        configured_path: Some(new_root_string),
+        default_path: hk_core::local_hub::default_root()
+            .to_string_lossy()
+            .to_string(),
+        asset_count: summary.asset_count,
+        skills_count: all
+            .iter()
+            .filter(|e| e.kind == ExtensionKind::Skill)
+            .count(),
+        mcp_count: all.iter().filter(|e| e.kind == ExtensionKind::Mcp).count(),
+    })
+}
+
+#[tauri::command]
+pub fn set_local_hub_dir(
+    state: State<AppState>,
+    path: String,
+    migrate_assets: bool,
+) -> Result<LocalHubSettings, HkError> {
+    set_local_hub_dir_inner(&state, path, migrate_assets)
+}
+
 #[cfg(test)]
 mod tests {
     use super::super::AppState;
@@ -368,5 +513,83 @@ mod tests {
         assert!(preview.contains("visible.txt"));
         assert!(!preview.contains("level-3/"));
         assert!(!preview.contains("hidden.txt"));
+    }
+
+    #[test]
+    fn migrate_local_hub_assets_copies_all_asset_dirs() {
+        let (state, dir) = test_state();
+        let project = dir.path().join("project");
+        std::fs::create_dir_all(&project).unwrap();
+        state
+            .store
+            .lock()
+            .insert_project(&Project {
+                id: "proj-1".into(),
+                name: "project".into(),
+                path: project.to_string_lossy().to_string(),
+                created_at: chrono::Utc::now(),
+                exists: true,
+            })
+            .unwrap();
+
+        let old_root = project.join("old");
+        let new_root = project.join("new");
+        std::fs::create_dir_all(old_root.join("skills/demo")).unwrap();
+        std::fs::create_dir_all(old_root.join("mcp/server")).unwrap();
+        std::fs::create_dir_all(old_root.join("plugins/plugin")).unwrap();
+        std::fs::create_dir_all(old_root.join("agent-configs/default/template")).unwrap();
+        state
+            .store
+            .lock()
+            .set_local_hub_dir(Some(&old_root.to_string_lossy()))
+            .unwrap();
+
+        let result = set_local_hub_dir_inner(&state, new_root.to_string_lossy().to_string(), true);
+
+        assert!(result.is_ok());
+        assert!(new_root.join("skills/demo").exists());
+        assert!(new_root.join("mcp/server").exists());
+        assert!(new_root.join("plugins/plugin").exists());
+        assert!(new_root.join("agent-configs/default/template").exists());
+        assert_eq!(
+            state.store.lock().get_local_hub_dir().unwrap().as_deref(),
+            Some(new_root.to_str().unwrap())
+        );
+    }
+
+    #[test]
+    fn migration_conflict_does_not_switch_setting() {
+        let (state, dir) = test_state();
+        let project = dir.path().join("project");
+        std::fs::create_dir_all(&project).unwrap();
+        state
+            .store
+            .lock()
+            .insert_project(&Project {
+                id: "proj-1".into(),
+                name: "project".into(),
+                path: project.to_string_lossy().to_string(),
+                created_at: chrono::Utc::now(),
+                exists: true,
+            })
+            .unwrap();
+
+        let old_root = project.join("old");
+        let new_root = project.join("new");
+        std::fs::create_dir_all(old_root.join("skills/demo")).unwrap();
+        std::fs::create_dir_all(new_root.join("skills/demo")).unwrap();
+        state
+            .store
+            .lock()
+            .set_local_hub_dir(Some(&old_root.to_string_lossy()))
+            .unwrap();
+
+        let result = set_local_hub_dir_inner(&state, new_root.to_string_lossy().to_string(), true);
+
+        assert!(result.is_err());
+        assert_eq!(
+            state.store.lock().get_local_hub_dir().unwrap().as_deref(),
+            Some(old_root.to_str().unwrap())
+        );
     }
 }

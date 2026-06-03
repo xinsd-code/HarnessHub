@@ -60,6 +60,8 @@ For multi-step tasks, state a brief plan:
 
 Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
 
+Only run `cargo tauri build` when the user explicitly asks to package/build the desktop app, or when the task specifically requires the packaged bundle output. For ordinary desktop-app fixes and UI tweaks, prefer `cargo check`, focused Rust tests, and frontend tests instead of treating `cargo tauri build` as the default verification step. If you do run it and the command reports that the current folder is not a Tauri project, first correct the working directory instead of treating the error as an application failure.
+
 ---
 
 **These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.

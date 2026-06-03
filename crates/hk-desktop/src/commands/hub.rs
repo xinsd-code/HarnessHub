@@ -2,10 +2,15 @@ use super::AppState;
 use hk_core::{models::*, scanner, service};
 use tauri::State;
 
+fn hub_root(state: &State<AppState>) -> Result<std::path::PathBuf, String> {
+    super::settings::effective_hub_root(state).map_err(|e| e.to_string())
+}
+
 /// List all extensions in the Local Hub
 #[tauri::command]
-pub fn list_hub_extensions() -> Result<Vec<Extension>, String> {
-    service::list_hub_extensions().map_err(|e| e.to_string())
+pub fn list_hub_extensions(state: State<AppState>) -> Result<Vec<Extension>, String> {
+    let hub_path = hub_root(&state)?;
+    service::list_hub_extensions_in(&hub_path).map_err(|e| e.to_string())
 }
 
 /// Backup an extension to the Local Hub
@@ -13,6 +18,7 @@ pub fn list_hub_extensions() -> Result<Vec<Extension>, String> {
 pub async fn backup_to_hub(state: State<'_, AppState>, extension_id: String) -> Result<(), String> {
     let store = state.store.clone();
     let adapters = state.runtime_adapters();
+    let hub_path = hub_root(&state)?;
     // Get projects from store
     let projects: Vec<(String, String)> = {
         let store_guard = store.lock();
@@ -24,7 +30,7 @@ pub async fn backup_to_hub(state: State<'_, AppState>, extension_id: String) -> 
             .collect()
     };
     tauri::async_runtime::spawn_blocking(move || {
-        service::backup_to_hub(&store, &adapters, &projects, &extension_id)
+        service::backup_to_hub_in(&hub_path, &store, &adapters, &projects, &extension_id)
     })
     .await
     .map_err(|e| e.to_string())?
@@ -42,8 +48,10 @@ pub async fn install_from_hub(
 ) -> Result<Vec<Extension>, String> {
     let store = state.store.clone();
     let adapters = state.runtime_adapters();
+    let hub_path = hub_root(&state)?;
     tauri::async_runtime::spawn_blocking(move || {
-        service::install_from_hub(
+        service::install_from_hub_in(
+            &hub_path,
             &store,
             &adapters,
             &extension_id,
@@ -59,16 +67,22 @@ pub async fn install_from_hub(
 
 /// Delete an extension from the Local Hub
 #[tauri::command]
-pub fn delete_from_hub(extension_id: String) -> Result<(), String> {
-    service::delete_from_hub(&extension_id).map_err(|e| e.to_string())
+pub fn delete_from_hub(state: State<AppState>, extension_id: String) -> Result<(), String> {
+    let hub_path = hub_root(&state)?;
+    service::delete_from_hub_in(&hub_path, &extension_id).map_err(|e| e.to_string())
 }
 
 /// Import an extension from a local path to the Local Hub
 #[tauri::command]
-pub fn import_to_hub(source_path: String, kind: String) -> Result<Extension, String> {
+pub fn import_to_hub(
+    state: State<AppState>,
+    source_path: String,
+    kind: String,
+) -> Result<Extension, String> {
     let kind = kind.parse::<ExtensionKind>().map_err(|e| e.to_string())?;
     let path = std::path::Path::new(&source_path);
-    service::import_to_hub(path, kind).map_err(|e| e.to_string())
+    let hub_path = hub_root(&state)?;
+    service::import_to_hub_in(&hub_path, path, kind).map_err(|e| e.to_string())
 }
 
 /// Check if installing from hub would conflict with existing extension
@@ -79,27 +93,37 @@ pub fn check_hub_install_conflict(
     target_agent: String,
     scope: ConfigScope,
 ) -> Option<Extension> {
-    service::check_hub_install_conflict(&state.store, &extension_id, &target_agent, &scope)
+    let hub_path = hub_root(&state).ok()?;
+    service::check_hub_install_conflict_in(
+        &hub_path,
+        &state.store,
+        &extension_id,
+        &target_agent,
+        &scope,
+    )
 }
 
 /// Get the Local Hub directory path
 #[tauri::command]
-pub fn get_hub_path() -> String {
-    scanner::get_hub_path().to_string_lossy().to_string()
+pub fn get_hub_path(state: State<AppState>) -> String {
+    hub_root(&state)
+        .map(|path| path.to_string_lossy().to_string())
+        .unwrap_or_else(|_| scanner::get_hub_path().to_string_lossy().to_string())
 }
 
 /// Get extension content from Local Hub
 #[tauri::command]
 pub fn get_hub_extension_content(
+    state: State<AppState>,
     extension_id: String,
 ) -> Result<service::ExtensionContent, String> {
-    let hub_extensions = scanner::scan_local_hub();
+    let hub_path = hub_root(&state)?;
+    let hub_extensions = scanner::scan_local_hub_from(&hub_path);
     let hub_ext = hub_extensions
         .iter()
         .find(|e| e.id == extension_id)
         .ok_or_else(|| "Extension not found in Local Hub".to_string())?;
 
-    let hub_path = scanner::get_hub_path();
     let source_path = match hub_ext.kind {
         ExtensionKind::Skill => hub_path.join("skills").join(&hub_ext.name),
         ExtensionKind::Mcp => hub_path.join("mcp").join(&hub_ext.name),
@@ -127,6 +151,7 @@ pub fn get_hub_extension_content(
 /// Returns (new extensions, conflicts with existing hub extensions)
 #[tauri::command]
 pub fn preview_sync_to_hub(state: State<AppState>) -> Result<service::SyncPreview, String> {
+    let hub_path = hub_root(&state)?;
     let projects: Vec<(String, String)> = {
         let store_guard = state.store.lock();
         store_guard
@@ -137,7 +162,8 @@ pub fn preview_sync_to_hub(state: State<AppState>) -> Result<service::SyncPrevie
             .collect()
     };
     let adapters = state.runtime_adapters();
-    service::preview_sync_to_hub(&state.store, &adapters, &projects).map_err(|e| e.to_string())
+    service::preview_sync_to_hub_in(&hub_path, &state.store, &adapters, &projects)
+        .map_err(|e| e.to_string())
 }
 
 /// Sync specific extensions to Hub (after user confirms conflicts)
@@ -148,6 +174,7 @@ pub async fn sync_extensions_to_hub(
 ) -> Result<Vec<String>, String> {
     let store = state.store.clone();
     let adapters = state.runtime_adapters();
+    let hub_path = hub_root(&state)?;
     // Get projects from store
     let projects: Vec<(String, String)> = {
         let store_guard = store.lock();
@@ -159,7 +186,7 @@ pub async fn sync_extensions_to_hub(
             .collect()
     };
     tauri::async_runtime::spawn_blocking(move || {
-        service::sync_extensions_to_hub(&store, &adapters, &projects, &extension_ids)
+        service::sync_extensions_to_hub_in(&hub_path, &store, &adapters, &projects, &extension_ids)
     })
     .await
     .map_err(|e| e.to_string())?

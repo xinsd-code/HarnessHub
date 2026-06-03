@@ -176,7 +176,10 @@ const {
   };
 
   const agentConfigTemplateState = {
+    templates: [],
+    loading: false,
     select: vi.fn(),
+    fetch: vi.fn(() => Promise.resolve()),
   };
 
   const hubState = {
@@ -364,6 +367,7 @@ beforeEach(() => {
   extensionState.fetch.mockClear();
   extensionState.setSelectedId.mockClear();
   agentConfigTemplateState.select.mockClear();
+  agentConfigTemplateState.fetch.mockClear();
   hubState.setSelectedId.mockClear();
   navigateMock.mockClear();
   agentState.fetch.mockClear();

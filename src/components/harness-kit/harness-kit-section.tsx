@@ -13,6 +13,7 @@ import type {
   UpdateHarnessKitRequest,
 } from "@/lib/types";
 import { useAgentStore } from "@/stores/agent-store";
+import { useAgentConfigTemplateStore } from "@/stores/agent-config-template-store";
 import { useHarnessKitStore } from "@/stores/harness-kit-store";
 import { useKitStore } from "@/stores/kit-store";
 import { useProjectStore } from "@/stores/project-store";
@@ -63,6 +64,13 @@ export function HarnessKitSection({
   const agents = useAgentStore((s) => s.agents);
   const agentOrder = useAgentStore((s) => s.agentOrder);
   const fetchAgents = useAgentStore((s) => s.fetch);
+  const agentConfigTemplates = useAgentConfigTemplateStore((s) => s.templates);
+  const agentConfigTemplatesLoading = useAgentConfigTemplateStore(
+    (s) => s.loading,
+  );
+  const fetchAgentConfigTemplates = useAgentConfigTemplateStore(
+    (s) => s.fetch,
+  );
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedKit, setSelectedKit] = useState<HarnessKitSummary | null>(
@@ -97,6 +105,16 @@ export function HarnessKitSection({
   }, [agents.length, fetchAgents]);
 
   useEffect(() => {
+    if (agentConfigTemplates.length === 0 && !agentConfigTemplatesLoading) {
+      void fetchAgentConfigTemplates();
+    }
+  }, [
+    agentConfigTemplates.length,
+    agentConfigTemplatesLoading,
+    fetchAgentConfigTemplates,
+  ]);
+
+  useEffect(() => {
     if (!projectsLoaded) {
       void loadProjects();
     }
@@ -128,6 +146,17 @@ export function HarnessKitSection({
     if (!q) return harnessKits;
     return harnessKits.filter((kit) => kit.name.toLowerCase().includes(q));
   }, [harnessKits, searchQuery]);
+
+  const agentConfigOriginalNames = useMemo(
+    () =>
+      new Map(
+        agentConfigTemplates.map((template) => [
+          template.id,
+          template.original_file_name,
+        ]),
+      ),
+    [agentConfigTemplates],
+  );
 
   const loadExtensionKitAssets = useCallback(
     async (id: string): Promise<HarnessKitAssets> => {
@@ -174,7 +203,10 @@ export function HarnessKitSection({
                   .catch(() => setSyncingAgent(null));
               }
             }
-          : () => {
+          : async () => {
+              if (agentConfigTemplates.length === 0) {
+                await fetchAgentConfigTemplates();
+              }
               setInsertDialog({
                 agentName: agent.name,
                 harnessKitId: selectedKitId,
@@ -186,6 +218,9 @@ export function HarnessKitSection({
   }, [
     agents,
     agentOrder,
+    agentConfigTemplates.length,
+    agentConfigTemplatesLoading,
+    fetchAgentConfigTemplates,
     selectedProjectPath,
     syncStatuses,
     syncingAgent,
@@ -515,6 +550,7 @@ export function HarnessKitSection({
               agentConfigs={kitAssets.agent_configs.map((c) => ({
                 template_id: c.template_id,
                 template_name: c.template_name,
+                original_file_name: agentConfigOriginalNames.get(c.template_id),
               }))}
               preview={insertPreview}
               defaultRelPath={defaultProjectRelPath(insertDialog.agentName)}

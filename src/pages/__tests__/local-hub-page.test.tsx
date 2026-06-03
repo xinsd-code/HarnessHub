@@ -149,7 +149,7 @@ describe("LocalHubPage asset grouping", () => {
     stores.extensionListGroupKey.mockClear();
   });
 
-  it("deduplicates Local Hub skill rows by logical identity before rendering the table", () => {
+  it("deduplicates Exts Hub skill rows by logical identity before rendering the table", () => {
     stores.hubState.extensions = [
       makeHubExtension({
         id: "hub-a",
@@ -216,7 +216,7 @@ describe("LocalHubPage asset grouping", () => {
         expect.objectContaining({ id: "installed-frontend-design" }),
       );
       expect(stores.toast.success).toHaveBeenCalledWith(
-        "1 个 Local Hub 资产有可用更新",
+        "1 个 Exts Hub 资产有可用更新",
       );
     });
   });

@@ -338,7 +338,7 @@ function StepWelcome() {
       </div>
 
       <h1 className="font-serif text-[44px] font-semibold tracking-tight leading-[1.1] text-foreground">
-        Welcome to <span style={shimmerStyle}>HarnessKit</span>
+        Welcome to <span style={shimmerStyle}>HarnessHub</span>
       </h1>
       <p className="mt-3 text-[15px] font-medium text-primary/70">
         One home for every agent
@@ -355,7 +355,7 @@ function StepWelcome() {
         </HandAnnotation>
         .
         <br />
-        HarnessKit brings them all{" "}
+        HarnessHub brings them all{" "}
         <span style={shimmerStyle}>under one roof</span>.
       </p>
     </div>
