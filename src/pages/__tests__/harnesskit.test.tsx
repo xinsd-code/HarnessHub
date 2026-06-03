@@ -820,7 +820,7 @@ describe("HarnessKitPage", () => {
     );
   });
 
-  it("navigates Skill assets to the Local Hub overview when a hub id exists", async () => {
+  it("navigates Skill assets to the Exts Hub overview when a hub id exists", async () => {
     render(<HarnessKitPage />);
 
     fireEvent.click(screen.getByText("Data Workspace"));

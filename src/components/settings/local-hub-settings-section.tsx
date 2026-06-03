@@ -115,7 +115,7 @@ export function LocalHubSettingsSection() {
           Exts Hub
         </h3>
         <p className="mt-1 text-xs text-muted-foreground">
-          Choose where HarnessKit stores shared skills, MCP servers, plugins,
+          Choose where HarnessHub stores shared skills, MCP servers, plugins,
           and agent config templates.
         </p>
       </div>

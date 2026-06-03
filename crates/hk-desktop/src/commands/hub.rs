@@ -6,14 +6,14 @@ fn hub_root(state: &State<AppState>) -> Result<std::path::PathBuf, String> {
     super::settings::effective_hub_root(state).map_err(|e| e.to_string())
 }
 
-/// List all extensions in the Local Hub
+/// List all extensions in the Exts Hub
 #[tauri::command]
 pub fn list_hub_extensions(state: State<AppState>) -> Result<Vec<Extension>, String> {
     let hub_path = hub_root(&state)?;
     service::list_hub_extensions_in(&hub_path).map_err(|e| e.to_string())
 }
 
-/// Backup an extension to the Local Hub
+/// Backup an extension to the Exts Hub
 #[tauri::command]
 pub async fn backup_to_hub(state: State<'_, AppState>, extension_id: String) -> Result<(), String> {
     let store = state.store.clone();
@@ -37,7 +37,7 @@ pub async fn backup_to_hub(state: State<'_, AppState>, extension_id: String) -> 
     .map_err(|e| e.to_string())
 }
 
-/// Install an extension from Local Hub to an agent
+/// Install an extension from Exts Hub to an agent
 #[tauri::command]
 pub async fn install_from_hub(
     state: State<'_, AppState>,
@@ -65,14 +65,14 @@ pub async fn install_from_hub(
     .map_err(|e| e.to_string())
 }
 
-/// Delete an extension from the Local Hub
+/// Delete an extension from the Exts Hub
 #[tauri::command]
 pub fn delete_from_hub(state: State<AppState>, extension_id: String) -> Result<(), String> {
     let hub_path = hub_root(&state)?;
     service::delete_from_hub_in(&hub_path, &extension_id).map_err(|e| e.to_string())
 }
 
-/// Import an extension from a local path to the Local Hub
+/// Import an extension from a local path to the Exts Hub
 #[tauri::command]
 pub fn import_to_hub(
     state: State<AppState>,
@@ -103,7 +103,7 @@ pub fn check_hub_install_conflict(
     )
 }
 
-/// Get the Local Hub directory path
+/// Get the Exts Hub directory path
 #[tauri::command]
 pub fn get_hub_path(state: State<AppState>) -> String {
     hub_root(&state)
@@ -111,7 +111,7 @@ pub fn get_hub_path(state: State<AppState>) -> String {
         .unwrap_or_else(|_| scanner::get_hub_path().to_string_lossy().to_string())
 }
 
-/// Get extension content from Local Hub
+/// Get extension content from Exts Hub
 #[tauri::command]
 pub fn get_hub_extension_content(
     state: State<AppState>,
@@ -122,7 +122,7 @@ pub fn get_hub_extension_content(
     let hub_ext = hub_extensions
         .iter()
         .find(|e| e.id == extension_id)
-        .ok_or_else(|| "Extension not found in Local Hub".to_string())?;
+        .ok_or_else(|| "Extension not found in Exts Hub".to_string())?;
 
     let source_path = match hub_ext.kind {
         ExtensionKind::Skill => hub_path.join("skills").join(&hub_ext.name),
@@ -147,7 +147,7 @@ pub fn get_hub_extension_content(
     })
 }
 
-/// Preview sync from all agents/projects to Local Hub
+/// Preview sync from all agents/projects to Exts Hub
 /// Returns (new extensions, conflicts with existing hub extensions)
 #[tauri::command]
 pub fn preview_sync_to_hub(state: State<AppState>) -> Result<service::SyncPreview, String> {

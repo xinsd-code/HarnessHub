@@ -1,8 +1,8 @@
-# Contributing to HarnessKit
+# Contributing to HarnessHub
 
 Thanks for your interest in contributing!
 
-HarnessKit is a Cargo workspace containing four Rust crates and a React + Vite frontend in `src/`. The desktop app is packaged with [Tauri](https://tauri.app/); the CLI embeds the built frontend via [rust-embed](https://crates.io/crates/rust-embed) to serve it in web mode.
+HarnessHub is a Cargo workspace containing two Rust crates and a React + Vite frontend in `src/`. The desktop app is packaged with [Tauri](https://tauri.app/).
 
 ## Prerequisites
 
@@ -16,24 +16,10 @@ This project uses **npm**, not pnpm or yarn.
 ## Getting Started
 
 ```bash
-git clone https://github.com/RealZST/HarnessKit.git
-cd HarnessKit
+git clone https://github.com/xinsd-code/HarnessHub.git
+cd HarnessHub
 npm install
 ```
-
-### Web Mode Development (macOS / Linux / Windows)
-
-Two terminals — Vite dev server + Rust backend:
-
-```bash
-# Terminal A
-npm run dev                                  # http://localhost:1420 (HMR)
-
-# Terminal B
-cargo run -p hk-cli -- serve                 # http://127.0.0.1:7070
-```
-
-Open `http://localhost:1420` in your browser. Vite proxies `/api/*` requests to the backend at `:7070`.
 
 ### Desktop App Development (macOS only)
 
@@ -45,13 +31,13 @@ Tauri automatically runs `npm run dev` as a before-dev command and launches the 
 
 ## Building Releases
 
-### macOS (both architectures + CLI)
+### macOS desktop app
 
 ```bash
 ./build.sh
 ```
 
-Produces `.dmg` bundles for Apple Silicon and Intel, plus `hk` CLI binaries.
+Produces `.dmg` bundles for Apple Silicon and Intel.
 
 To open the desktop app built from the current worktree, run:
 
@@ -62,14 +48,7 @@ npm run desktop:open
 You can also pass a custom `.app` path if needed:
 
 ```bash
-npm run desktop:open -- /absolute/path/to/HarnessKit.app
-```
-
-### CLI only (any platform)
-
-```bash
-npm run build                          # produce dist/ for rust-embed
-cargo build --release -p hk-cli        # produces target/release/hk
+npm run desktop:open -- /absolute/path/to/HarnessHub.app
 ```
 
 ## Project Layout
@@ -77,11 +56,9 @@ cargo build --release -p hk-cli        # produces target/release/hk
 ```
 crates/
 ├── hk-core/         Shared core: scanning, models, DB, agent adapters
-├── hk-desktop/      Tauri desktop app (wraps hk-core + frontend)
-├── hk-cli/          CLI binary (hk); includes `hk serve` for web mode
-└── hk-web/          HTTP layer for web mode (embedded into hk-cli via rust-embed)
+└── hk-desktop/      Tauri desktop app (wraps hk-core + frontend)
 
-src/                 React frontend (shared by desktop app and web mode)
+src/                 React frontend (hosted by the desktop app)
 ├── pages/           Route pages (Overview, Agents, Extensions, Marketplace, Audit, Settings)
 ├── components/      Shared UI components
 ├── stores/          Zustand stores

@@ -310,7 +310,7 @@ export function HubDetail() {
         );
         setSelectedId(null);
         await fetchHubExtensions();
-        toast.success("Deleted from Local Hub");
+        toast.success("Deleted from Exts Hub");
       }
       setShowDelete(false);
     } catch (e) {
@@ -434,7 +434,7 @@ export function HubDetail() {
         <div className="absolute inset-0 bg-card/95 flex items-center justify-center p-4">
           <div className="space-y-4 text-center">
             <p className="text-sm">
-              Delete <strong>{ext.name}</strong> from Local Hub?
+              Delete <strong>{ext.name}</strong> from Exts Hub?
             </p>
             <div className="flex gap-2">
               <button

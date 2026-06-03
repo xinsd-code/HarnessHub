@@ -585,7 +585,7 @@ export default function OverviewPage() {
       >
         <header className="space-y-2 text-center">
           <h2 className="text-3xl font-extrabold tracking-tight text-foreground select-none">
-            Welcome to HarnessKit
+            Welcome to HarnessHub
           </h2>
           <p className="text-muted-foreground text-sm max-w-md mx-auto">
             Your centralized control deck for AI coding agent extensions, MCP

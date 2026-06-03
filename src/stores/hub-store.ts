@@ -124,7 +124,7 @@ export const useHubStore = create<HubState>((set, get) => ({
   async backupToHub(id) {
     try {
       await api.backupToHub(id);
-      toast.success("Backed up to Local Hub");
+      toast.success("Backed up to Exts Hub");
       await get().fetch();
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -147,7 +147,7 @@ export const useHubStore = create<HubState>((set, get) => ({
   async deleteFromHub(id) {
     try {
       await api.deleteFromHub(id);
-      toast.success("Deleted from Local Hub");
+      toast.success("Deleted from Exts Hub");
       set({ selectedId: null });
       await get().fetch();
     } catch (e) {
@@ -160,7 +160,7 @@ export const useHubStore = create<HubState>((set, get) => ({
   async importToHub(path, kind) {
     try {
       await api.importToHub(path, kind);
-      toast.success("Imported to Local Hub");
+      toast.success("Imported to Exts Hub");
       await get().fetch();
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);

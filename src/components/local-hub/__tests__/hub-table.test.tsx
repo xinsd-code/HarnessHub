@@ -206,7 +206,7 @@ describe("HubTable local hub install state", () => {
     expect(stores.hubState.setSelectedId).not.toHaveBeenCalled();
   });
 
-  it("matches Local Hub installs by logical identity for global Agent icons", () => {
+  it("matches Exts Hub installs by logical identity for global Agent icons", () => {
     stores.agentState.agents = [
       {
         name: "claude",
@@ -280,7 +280,7 @@ describe("HubTable local hub install state", () => {
     ]);
   });
 
-  it("does not keep an agent highlighted from stale Local Hub optimistic state", () => {
+  it("does not keep an agent highlighted from stale Exts Hub optimistic state", () => {
     stores.hubState.isHubInstalled.mockReturnValue(true);
     stores.extensionState.extensions = [];
 

@@ -848,12 +848,12 @@ export default function SettingsPage() {
 
             {/* Footer */}
             <footer className="flex items-center justify-center gap-1.5 border-t border-border pt-6 pb-2 text-xs text-muted-foreground/50">
-              <span>HarnessKit</span>
+              <span>HarnessHub</span>
               <span>&middot;</span>
               <span>One home for every agent</span>
               <span>&middot;</span>
               <a
-                href="https://github.com/xinsd-code/HarnessKit"
+                href="https://github.com/xinsd-code/HarnessHub"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="transition-colors hover:text-muted-foreground"
@@ -879,7 +879,7 @@ export default function SettingsPage() {
                   Add Agent
                 </h4>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Pick a bundled AI tool preset. HarnessKit will create the
+                  Pick a bundled AI tool preset. HarnessHub will create the
                   agent with its default Global Skills, Project Skills, MCP
                   Config, and Hooks Config paths when available.
                 </p>

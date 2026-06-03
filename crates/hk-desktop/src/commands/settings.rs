@@ -327,14 +327,14 @@ fn resolve_and_validate_local_hub_root(
     let resolved = resolve_and_validate_writable_config_path(state, path)?;
     if resolved.is_file() {
         return Err(HkError::Validation(
-            "Local Hub directory cannot be a file".into(),
+            "Exts Hub directory cannot be a file".into(),
         ));
     }
     let home = dirs::home_dir()
         .ok_or_else(|| HkError::Internal("Cannot determine home directory".into()))?;
     if super::normalize(&resolved) == super::normalize(&home) {
         return Err(HkError::Validation(
-            "Cannot use home directory itself as Local Hub".into(),
+            "Cannot use home directory itself as Exts Hub".into(),
         ));
     }
     Ok(resolved)

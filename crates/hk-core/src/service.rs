@@ -1075,7 +1075,7 @@ pub fn install_to_project(
 }
 
 // ---------------------------------------------------------------------------
-// Local Hub Service Functions
+// Exts Hub Service Functions
 // ---------------------------------------------------------------------------
 
 fn copy_asset_into_dir(
@@ -1196,17 +1196,17 @@ fn can_sync_extension(
     }
 }
 
-/// List all extensions in the Local Hub
+/// List all extensions in the Exts Hub
 pub fn list_hub_extensions_in(hub_path: &std::path::Path) -> Result<Vec<Extension>, HkError> {
     Ok(scanner::scan_local_hub_from(hub_path))
 }
 
-/// List all extensions in the Local Hub
+/// List all extensions in the Exts Hub
 pub fn list_hub_extensions() -> Result<Vec<Extension>, HkError> {
     list_hub_extensions_in(&scanner::get_hub_path())
 }
 
-/// Backup an extension to the Local Hub
+/// Backup an extension to the Exts Hub
 pub fn backup_to_hub_in(
     hub_path: &std::path::Path,
     store: &Mutex<Store>,
@@ -1299,7 +1299,7 @@ pub fn backup_to_hub_in(
     Ok(())
 }
 
-/// Backup an extension to the Local Hub
+/// Backup an extension to the Exts Hub
 pub fn backup_to_hub(
     store: &Mutex<Store>,
     adapters: &[Box<dyn AgentAdapter>],
@@ -1315,7 +1315,7 @@ pub fn backup_to_hub(
     )
 }
 
-/// Install an extension from Local Hub to an agent
+/// Install an extension from Exts Hub to an agent
 pub fn install_from_hub_in(
     hub_path: &std::path::Path,
     store: &Mutex<Store>,
@@ -1330,7 +1330,7 @@ pub fn install_from_hub_in(
     let hub_ext = hub_extensions
         .iter()
         .find(|e| e.id == extension_id)
-        .ok_or_else(|| HkError::NotFound("Extension not found in Local Hub".into()))?;
+        .ok_or_else(|| HkError::NotFound("Extension not found in Exts Hub".into()))?;
 
     // Find target adapter
     let target_adapter = adapters
@@ -1497,7 +1497,7 @@ pub fn install_from_hub_in(
     )
 }
 
-/// Install an extension from Local Hub to an agent
+/// Install an extension from Exts Hub to an agent
 pub fn install_from_hub(
     store: &Mutex<Store>,
     adapters: &[Box<dyn AgentAdapter>],
@@ -1517,13 +1517,13 @@ pub fn install_from_hub(
     )
 }
 
-/// Delete an extension from the Local Hub
+/// Delete an extension from the Exts Hub
 pub fn delete_from_hub_in(hub_path: &std::path::Path, extension_id: &str) -> Result<(), HkError> {
     let hub_extensions = scanner::scan_local_hub_from(hub_path);
     let hub_ext = hub_extensions
         .iter()
         .find(|e| e.id == extension_id)
-        .ok_or_else(|| HkError::NotFound("Extension not found in Local Hub".into()))?;
+        .ok_or_else(|| HkError::NotFound("Extension not found in Exts Hub".into()))?;
 
     if let Some(ref path_str) = hub_ext.source_path {
         let path = std::path::Path::new(path_str);
@@ -1535,7 +1535,7 @@ pub fn delete_from_hub_in(hub_path: &std::path::Path, extension_id: &str) -> Res
     Ok(())
 }
 
-/// Import an extension from a local path to the Local Hub
+/// Import an extension from a local path to the Exts Hub
 pub fn import_to_hub_in(
     hub_path: &std::path::Path,
     source_path: &std::path::Path,
@@ -1554,7 +1554,7 @@ pub fn import_to_hub_in(
     // Check for duplicates
     if scanner::hub_extension_exists_in(hub_path, &name, kind) {
         return Err(HkError::Validation(format!(
-            "Extension '{}' already exists in Local Hub",
+            "Extension '{}' already exists in Exts Hub",
             name
         )));
     }
@@ -1581,7 +1581,7 @@ pub fn import_to_hub_in(
         .ok_or_else(|| HkError::Internal("Failed to scan imported extension".into()))
 }
 
-/// Import an extension from a local path to the Local Hub
+/// Import an extension from a local path to the Exts Hub
 pub fn import_to_hub(
     source_path: &std::path::Path,
     kind: ExtensionKind,
@@ -1635,7 +1635,7 @@ pub struct SyncPreview {
     pub conflicts: Vec<Extension>,
 }
 
-/// Preview what would be synced from all agents/projects to Local Hub
+/// Preview what would be synced from all agents/projects to Exts Hub
 /// Returns (new extensions, conflicts with existing hub extensions)
 pub fn preview_sync_to_hub_in(
     hub_path: &std::path::Path,
@@ -1681,7 +1681,7 @@ pub fn preview_sync_to_hub_in(
     })
 }
 
-/// Preview what would be synced from all agents/projects to Local Hub
+/// Preview what would be synced from all agents/projects to Exts Hub
 /// Returns (new extensions, conflicts with existing hub extensions)
 pub fn preview_sync_to_hub(
     store: &Mutex<Store>,
@@ -1918,7 +1918,7 @@ fn find_hub_asset_after_sync(name: &str, kind: ExtensionKind) -> Result<Extensio
         .find(|ext| ext.name == name && ext.kind == kind)
         .ok_or_else(|| {
             HkError::Internal(format!(
-                "Asset '{name}' was synced but not found in Local Hub"
+                "Asset '{name}' was synced but not found in Exts Hub"
             ))
         })
 }
@@ -1940,7 +1940,7 @@ fn resolve_kit_assets(
             (Some(hub_id), _) => scanner::scan_local_hub()
                 .into_iter()
                 .find(|ext| ext.id == *hub_id)
-                .ok_or_else(|| HkError::NotFound(format!("Local Hub asset not found: {hub_id}")))?,
+                .ok_or_else(|| HkError::NotFound(format!("Exts Hub asset not found: {hub_id}")))?,
             (None, Some(extension_id)) => {
                 backup_to_hub(store, adapters, projects, extension_id)?;
                 find_hub_asset_after_sync(&candidate.name, candidate.kind)?

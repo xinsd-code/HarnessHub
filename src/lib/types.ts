@@ -137,7 +137,7 @@ export function deriveExtensionUrl(ext: Extension): string | null {
   );
 }
 
-/** Source-aware key for strict identity use cases. Extensions and Local Hub
+/** Source-aware key for strict identity use cases. Extensions and Exts Hub
  *  list surfaces should use `extensionListGroupKey` instead. */
 export function extensionGroupKey(ext: Extension): string {
   // When the URL is null, fall back to scopeKey so a project-level

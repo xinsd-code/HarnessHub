@@ -393,7 +393,7 @@ export const api = {
     return transport("set_app_icon", { name });
   },
 
-  // Local Hub API
+  // Exts Hub API
   getLocalHubSettings(): Promise<LocalHubSettings> {
     return transport("get_local_hub_settings");
   },

@@ -2175,22 +2175,22 @@ fn resolve_pattern(root: &std::path::Path, pattern: &str) -> Vec<std::path::Path
 }
 
 // ---------------------------------------------------------------------------
-// Local Hub Scanner
+// Exts Hub Scanner
 // ---------------------------------------------------------------------------
 
-/// Get the Local Hub directory path (~/.harnesskit)
+/// Get the Exts Hub directory path (~/.harnesskit)
 pub fn get_hub_path() -> PathBuf {
     local_hub::default_root()
 }
 
-/// Generate a deterministic ID for Local Hub extensions
+/// Generate a deterministic ID for Exts Hub extensions
 /// Format: hub:{kind}:{name}
 fn hub_stable_id(name: &str, kind: &str) -> String {
     let key = format!("hub:{}:{}", kind, name);
     format!("{:016x}", fnv1a(key.as_bytes()))
 }
 
-/// Scan all assets from the Local Hub directory (~/.harnesskit/)
+/// Scan all assets from the Exts Hub directory (~/.harnesskit/)
 pub fn scan_local_hub_from(hub_path: &Path) -> Vec<Extension> {
     if !hub_path.exists() {
         return Vec::new();
@@ -2203,7 +2203,7 @@ pub fn scan_local_hub_from(hub_path: &Path) -> Vec<Extension> {
     extensions
 }
 
-/// Scan all assets from the Local Hub directory (~/.harnesskit/)
+/// Scan all assets from the Exts Hub directory (~/.harnesskit/)
 pub fn scan_local_hub() -> Vec<Extension> {
     let hub_path = get_hub_path();
     scan_local_hub_from(&hub_path)
@@ -2431,7 +2431,7 @@ fn scan_hub_plugins(hub_path: &Path) -> Vec<Extension> {
     extensions
 }
 
-/// Find a skill in the Local Hub by name
+/// Find a skill in the Exts Hub by name
 pub fn find_hub_skill_by_name_in(hub_path: &Path, name: &str) -> Option<PathBuf> {
     let skill_dir = hub_path.join("skills").join(name);
     if skill_dir.join("SKILL.md").exists() || skill_dir.join("SKILL.md.disabled").exists() {
@@ -2440,12 +2440,12 @@ pub fn find_hub_skill_by_name_in(hub_path: &Path, name: &str) -> Option<PathBuf>
     None
 }
 
-/// Find a skill in the Local Hub by name
+/// Find a skill in the Exts Hub by name
 pub fn find_hub_skill_by_name(name: &str) -> Option<PathBuf> {
     find_hub_skill_by_name_in(&get_hub_path(), name)
 }
 
-/// Check if an extension exists in the Local Hub (by name and kind)
+/// Check if an extension exists in the Exts Hub (by name and kind)
 pub fn hub_extension_exists_in(hub_path: &Path, name: &str, kind: ExtensionKind) -> bool {
     let subdir = match kind {
         ExtensionKind::Skill => "skills",
@@ -2457,7 +2457,7 @@ pub fn hub_extension_exists_in(hub_path: &Path, name: &str, kind: ExtensionKind)
     hub_path.join(subdir).join(name).exists()
 }
 
-/// Check if an extension exists in the Local Hub (by name and kind)
+/// Check if an extension exists in the Exts Hub (by name and kind)
 pub fn hub_extension_exists(name: &str, kind: ExtensionKind) -> bool {
     hub_extension_exists_in(&get_hub_path(), name, kind)
 }

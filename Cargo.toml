@@ -1,9 +1,7 @@
 [workspace]
 members = [
   "crates/hk-core",
-  "crates/hk-cli",
   "crates/hk-desktop",
-  "crates/hk-tauri",
 ]
 resolver = "2"
 

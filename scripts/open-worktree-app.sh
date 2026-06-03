@@ -5,12 +5,12 @@ ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 case "${1:-}" in
   -h|--help)
     echo "Usage: npm run desktop:open [path-to-app-bundle]"
-    echo "Default: $ROOT_DIR/target/release/bundle/macos/HarnessKit.app"
+    echo "Default: $ROOT_DIR/target/release/bundle/macos/HarnessHub.app"
     exit 0
     ;;
 esac
 
-APP_PATH="${1:-$ROOT_DIR/target/release/bundle/macos/HarnessKit.app}"
+APP_PATH="${1:-$ROOT_DIR/target/release/bundle/macos/HarnessHub.app}"
 
 if [ ! -d "$APP_PATH" ]; then
   echo "Error: app bundle not found at $APP_PATH"

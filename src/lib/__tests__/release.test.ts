@@ -6,16 +6,16 @@ describe("release config", () => {
     vi.resetModules();
   });
 
-  it("uses the default HarnessKit release URLs", async () => {
+  it("uses the default HarnessHub release URLs", async () => {
     const { RELEASES_URL, UPDATE_INSTRUCTIONS_URL } = await import(
       "../release"
     );
 
     expect(RELEASES_URL).toBe(
-      "https://api.github.com/repos/xinsd-code/HarnessKit/releases/latest",
+      "https://api.github.com/repos/xinsd-code/HarnessHub/releases/latest",
     );
     expect(UPDATE_INSTRUCTIONS_URL).toBe(
-      "https://github.com/xinsd-code/HarnessKit#updating",
+      "https://github.com/xinsd-code/HarnessHub#updating",
     );
   });
 
@@ -46,10 +46,10 @@ describe("release config", () => {
     );
 
     expect(RELEASES_URL).toBe(
-      "https://api.github.com/repos/xinsd-code/HarnessKit/releases/latest",
+      "https://api.github.com/repos/xinsd-code/HarnessHub/releases/latest",
     );
     expect(UPDATE_INSTRUCTIONS_URL).toBe(
-      "https://github.com/xinsd-code/HarnessKit#updating",
+      "https://github.com/xinsd-code/HarnessHub#updating",
     );
   });
 });

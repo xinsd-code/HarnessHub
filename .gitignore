@@ -21,3 +21,5 @@ branding/
 .env*
 output/
 crates/hk-desktop/gen/
+GEMINI.md
+CLAUDE.md

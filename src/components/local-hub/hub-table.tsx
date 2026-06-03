@@ -132,7 +132,7 @@ export function HubTable({ data }: { data: Extension[] }) {
   return (
     <div className="rounded-xl border border-border overflow-hidden shadow-sm">
       <div className="overflow-x-auto">
-        <table className="w-full" aria-label="Local Hub table">
+        <table className="w-full" aria-label="Exts Hub table">
           <thead className="bg-muted/30">
             <tr>
               <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
