@@ -11,6 +11,10 @@
 docs/
 .superpowers/
 .claude/
+.codex/
+.cursor/
+.gemini/
+.kiro/
 .worktrees/
 branding/
 .impeccable.md
