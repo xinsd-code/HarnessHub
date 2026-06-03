@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
-import { MemoryRouter, Routes, Route } from "react-router-dom";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import SettingsPage from "@/pages/settings";
 
@@ -66,16 +66,18 @@ vi.mock("@/stores/agent-store", () => ({
   useAgentStore: () => mocks.agentState,
 }));
 vi.mock("@/stores/agent-config-store", () => ({
-  useAgentConfigStore: (selector: (state: typeof mocks.agentConfigState) => unknown) =>
-    selector(mocks.agentConfigState),
+  useAgentConfigStore: (
+    selector: (state: typeof mocks.agentConfigState) => unknown,
+  ) => selector(mocks.agentConfigState),
 }));
 vi.mock("@/stores/update-store", () => ({
   useUpdateStore: (selector: (state: typeof mocks.updateState) => unknown) =>
     selector(mocks.updateState),
 }));
 vi.mock("@/stores/web-update-store", () => ({
-  useWebUpdateStore: (selector: (state: typeof mocks.webUpdateState) => unknown) =>
-    selector(mocks.webUpdateState),
+  useWebUpdateStore: (
+    selector: (state: typeof mocks.webUpdateState) => unknown,
+  ) => selector(mocks.webUpdateState),
 }));
 vi.mock("@/lib/transport", () => ({
   isDesktop: () => false,

@@ -12,8 +12,8 @@ import type {
   HarnessKitSyncStatus,
   UpdateHarnessKitRequest,
 } from "@/lib/types";
-import { useAgentStore } from "@/stores/agent-store";
 import { useAgentConfigTemplateStore } from "@/stores/agent-config-template-store";
+import { useAgentStore } from "@/stores/agent-store";
 import { useHarnessKitStore } from "@/stores/harness-kit-store";
 import { useKitStore } from "@/stores/kit-store";
 import { useProjectStore } from "@/stores/project-store";
@@ -68,9 +68,7 @@ export function HarnessKitSection({
   const agentConfigTemplatesLoading = useAgentConfigTemplateStore(
     (s) => s.loading,
   );
-  const fetchAgentConfigTemplates = useAgentConfigTemplateStore(
-    (s) => s.fetch,
-  );
+  const fetchAgentConfigTemplates = useAgentConfigTemplateStore((s) => s.fetch);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedKit, setSelectedKit] = useState<HarnessKitSummary | null>(
@@ -219,7 +217,6 @@ export function HarnessKitSection({
     agents,
     agentOrder,
     agentConfigTemplates.length,
-    agentConfigTemplatesLoading,
     fetchAgentConfigTemplates,
     selectedProjectPath,
     syncStatuses,

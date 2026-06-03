@@ -1,24 +1,16 @@
 import { clsx } from "clsx";
-import {
-  FolderSearch,
-  Loader2,
-  Save,
-  X,
-} from "lucide-react";
+import { FolderSearch, Loader2, Save, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { api } from "@/lib/invoke";
 import {
   openDirectoryPicker,
   PICKER_UNSUPPORTED_MESSAGE,
   selectedPickerPath,
 } from "@/lib/platform/dialog";
 import { isDesktop } from "@/lib/transport";
-import {
-  normalizePathForComparison,
-  type LocalHubSettings,
-} from "@/lib/types";
+import { type LocalHubSettings, normalizePathForComparison } from "@/lib/types";
 import { useHubStore } from "@/stores/hub-store";
 import { toast } from "@/stores/toast-store";
-import { api } from "@/lib/invoke";
 
 type MigrationMode = "migrate" | "empty" | null;
 

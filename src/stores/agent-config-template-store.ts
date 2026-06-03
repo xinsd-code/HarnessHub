@@ -149,19 +149,15 @@ export const useAgentConfigTemplateStore = create<AgentConfigTemplateState>(
     },
 
     async syncToProject(id, projectPath, targetAgent, force, relPath) {
-      try {
-        const targetPath = await api.syncAgentConfigTemplateToProject(
-          id,
-          projectPath,
-          targetAgent,
-          force,
-          relPath,
-        );
-        toast.success("Agent config synced");
-        return targetPath;
-      } catch (error) {
-        throw error;
-      }
+      const targetPath = await api.syncAgentConfigTemplateToProject(
+        id,
+        projectPath,
+        targetAgent,
+        force,
+        relPath,
+      );
+      toast.success("Agent config synced");
+      return targetPath;
     },
   }),
 );
