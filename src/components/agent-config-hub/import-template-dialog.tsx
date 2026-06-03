@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { isDesktop } from "@/lib/transport";
 import { openFilePicker, selectedPickerPath } from "@/lib/platform/dialog";
+import { isDesktop } from "@/lib/transport";
 import { useAgentConfigTemplateStore } from "@/stores/agent-config-template-store";
 
 function fileNameFromPath(path: string): string {

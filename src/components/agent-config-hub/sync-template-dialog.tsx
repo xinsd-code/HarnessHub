@@ -73,7 +73,6 @@ export function SyncTemplateDialog({
   }, [
     selectedAgent?.project_rules_target_relpath,
     targetAgent,
-    templateId,
     originalFileName,
   ]);
 

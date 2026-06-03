@@ -67,7 +67,9 @@ describe("LocalHubSettingsSection", () => {
       mcp_count: 1,
     });
     mocks.dialog.openDirectoryPicker.mockResolvedValue({ status: "selected" });
-    mocks.dialog.selectedPickerPath.mockReturnValue("/Users/xinsd/projects/hub");
+    mocks.dialog.selectedPickerPath.mockReturnValue(
+      "/Users/xinsd/projects/hub",
+    );
     mocks.api.setLocalHubDir.mockResolvedValue({
       effective_path: "/Users/xinsd/projects/hub",
       configured_path: "/Users/xinsd/projects/hub",
@@ -85,11 +87,15 @@ describe("LocalHubSettingsSection", () => {
     expect(screen.getByText(/effective path/i)).toBeTruthy();
     expect(screen.getByText(/default path/i)).toBeTruthy();
     expect(screen.getByText(/assets/i)).toBeTruthy();
-    expect(screen.queryByText(/using \/users\/xinsd\/\.harnesskit/i)).toBeNull();
+    expect(
+      screen.queryByText(/using \/users\/xinsd\/\.harnesskit/i),
+    ).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: /browse/i }));
     await waitFor(() =>
-      expect(screen.getByDisplayValue("/Users/xinsd/projects/hub")).toBeTruthy(),
+      expect(
+        screen.getByDisplayValue("/Users/xinsd/projects/hub"),
+      ).toBeTruthy(),
     );
 
     fireEvent.click(screen.getByRole("button", { name: /save/i }));

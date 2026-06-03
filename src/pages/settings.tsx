@@ -4,8 +4,8 @@ import {
   Check,
   Download,
   FolderKanban,
-  HardDrive,
   FolderSearch,
+  HardDrive,
   Loader2,
   Palette,
   Pencil,
@@ -499,14 +499,14 @@ export default function SettingsPage() {
       category: string;
       targetScope: ConfigScope;
     }> = [
-        {
-          agent: agentName,
-          path: buildHomeRelativePath(preset.globalSkillsPath),
-          label: "Global Skills",
-          category: "settings",
-          targetScope: { type: "global" },
-        },
-      ];
+      {
+        agent: agentName,
+        path: buildHomeRelativePath(preset.globalSkillsPath),
+        label: "Global Skills",
+        category: "settings",
+        targetScope: { type: "global" },
+      },
+    ];
 
     for (const project of projects) {
       configPaths.push({
