@@ -28,6 +28,7 @@ import type {
   KitSyncResult,
   MarketplaceItem,
   NewKitAsset,
+  LocalHubSettings,
   Project,
   ScanResult,
   SkillAuditInfo,
@@ -392,7 +393,18 @@ export const api = {
     return transport("set_app_icon", { name });
   },
 
-  // Local Hub API
+  // Exts Hub API
+  getLocalHubSettings(): Promise<LocalHubSettings> {
+    return transport("get_local_hub_settings");
+  },
+
+  setLocalHubDir(
+    path: string,
+    migrateAssets: boolean,
+  ): Promise<LocalHubSettings> {
+    return transport("set_local_hub_dir", { path, migrateAssets });
+  },
+
   listHubExtensions(): Promise<Extension[]> {
     return transport("list_hub_extensions");
   },

@@ -403,7 +403,7 @@ fn find_skill_content(
     (String::new(), None)
 }
 
-// --- Extension command flows shared by hk-desktop and hk-web -------------
+// --- Extension command flows shared by desktop-facing surfaces -------------
 
 /// Rich detail returned by `get_extension_content`. Surfaces the on-disk
 /// representation (file/dir path + readable text) so the UI's detail panel
@@ -1075,7 +1075,7 @@ pub fn install_to_project(
 }
 
 // ---------------------------------------------------------------------------
-// Local Hub Service Functions
+// Exts Hub Service Functions
 // ---------------------------------------------------------------------------
 
 fn copy_asset_into_dir(
@@ -1196,13 +1196,19 @@ fn can_sync_extension(
     }
 }
 
-/// List all extensions in the Local Hub
-pub fn list_hub_extensions() -> Result<Vec<Extension>, HkError> {
-    Ok(scanner::scan_local_hub())
+/// List all extensions in the Exts Hub
+pub fn list_hub_extensions_in(hub_path: &std::path::Path) -> Result<Vec<Extension>, HkError> {
+    Ok(scanner::scan_local_hub_from(hub_path))
 }
 
-/// Backup an extension to the Local Hub
-pub fn backup_to_hub(
+/// List all extensions in the Exts Hub
+pub fn list_hub_extensions() -> Result<Vec<Extension>, HkError> {
+    list_hub_extensions_in(&scanner::get_hub_path())
+}
+
+/// Backup an extension to the Exts Hub
+pub fn backup_to_hub_in(
+    hub_path: &std::path::Path,
     store: &Mutex<Store>,
     adapters: &[Box<dyn AgentAdapter>],
     projects: &[(String, String)],
@@ -1237,14 +1243,12 @@ pub fn backup_to_hub(
     };
 
     // Check if already exists in hub (dedup)
-    if scanner::hub_extension_exists(&ext.name, ext.kind) {
+    if scanner::hub_extension_exists_in(hub_path, &ext.name, ext.kind) {
         return Ok(()); // Already backed up, skip
     }
 
-    let hub_path = scanner::get_hub_path();
-
     // Create the hub root directory first
-    std::fs::create_dir_all(&hub_path)?;
+    std::fs::create_dir_all(hub_path)?;
 
     let subdir = match ext.kind {
         ExtensionKind::Skill => "skills",
@@ -1295,8 +1299,25 @@ pub fn backup_to_hub(
     Ok(())
 }
 
-/// Install an extension from Local Hub to an agent
-pub fn install_from_hub(
+/// Backup an extension to the Exts Hub
+pub fn backup_to_hub(
+    store: &Mutex<Store>,
+    adapters: &[Box<dyn AgentAdapter>],
+    projects: &[(String, String)],
+    extension_id: &str,
+) -> Result<(), HkError> {
+    backup_to_hub_in(
+        &scanner::get_hub_path(),
+        store,
+        adapters,
+        projects,
+        extension_id,
+    )
+}
+
+/// Install an extension from Exts Hub to an agent
+pub fn install_from_hub_in(
+    hub_path: &std::path::Path,
     store: &Mutex<Store>,
     adapters: &[Box<dyn AgentAdapter>],
     extension_id: &str,
@@ -1305,11 +1326,11 @@ pub fn install_from_hub(
     force: bool,
 ) -> Result<Vec<Extension>, HkError> {
     // Find extension in hub
-    let hub_extensions = scanner::scan_local_hub();
+    let hub_extensions = scanner::scan_local_hub_from(hub_path);
     let hub_ext = hub_extensions
         .iter()
         .find(|e| e.id == extension_id)
-        .ok_or_else(|| HkError::NotFound("Extension not found in Local Hub".into()))?;
+        .ok_or_else(|| HkError::NotFound("Extension not found in Exts Hub".into()))?;
 
     // Find target adapter
     let target_adapter = adapters
@@ -1334,7 +1355,6 @@ pub fn install_from_hub(
     }
 
     // Get source path from hub
-    let hub_path = scanner::get_hub_path();
     let source_path = match hub_ext.kind {
         ExtensionKind::Skill => hub_path.join("skills").join(&hub_ext.name),
         ExtensionKind::Mcp => hub_path.join("mcp").join(&hub_ext.name),
@@ -1477,17 +1497,37 @@ pub fn install_from_hub(
     )
 }
 
-/// Delete an extension from the Local Hub
-pub fn delete_from_hub(extension_id: &str) -> Result<(), HkError> {
-    let hub_extensions = scanner::scan_local_hub();
+/// Install an extension from Exts Hub to an agent
+pub fn install_from_hub(
+    store: &Mutex<Store>,
+    adapters: &[Box<dyn AgentAdapter>],
+    extension_id: &str,
+    target_agent: &str,
+    scope: &ConfigScope,
+    force: bool,
+) -> Result<Vec<Extension>, HkError> {
+    install_from_hub_in(
+        &scanner::get_hub_path(),
+        store,
+        adapters,
+        extension_id,
+        target_agent,
+        scope,
+        force,
+    )
+}
+
+/// Delete an extension from the Exts Hub
+pub fn delete_from_hub_in(hub_path: &std::path::Path, extension_id: &str) -> Result<(), HkError> {
+    let hub_extensions = scanner::scan_local_hub_from(hub_path);
     let hub_ext = hub_extensions
         .iter()
         .find(|e| e.id == extension_id)
-        .ok_or_else(|| HkError::NotFound("Extension not found in Local Hub".into()))?;
+        .ok_or_else(|| HkError::NotFound("Extension not found in Exts Hub".into()))?;
 
     if let Some(ref path_str) = hub_ext.source_path {
         let path = std::path::Path::new(path_str);
-        if path.exists() && path.starts_with(scanner::get_hub_path()) {
+        if path.exists() && path.starts_with(hub_path) {
             std::fs::remove_dir_all(path)?;
         }
     }
@@ -1495,8 +1535,9 @@ pub fn delete_from_hub(extension_id: &str) -> Result<(), HkError> {
     Ok(())
 }
 
-/// Import an extension from a local path to the Local Hub
-pub fn import_to_hub(
+/// Import an extension from a local path to the Exts Hub
+pub fn import_to_hub_in(
+    hub_path: &std::path::Path,
     source_path: &std::path::Path,
     kind: ExtensionKind,
 ) -> Result<Extension, HkError> {
@@ -1511,14 +1552,12 @@ pub fn import_to_hub(
         .to_string();
 
     // Check for duplicates
-    if scanner::hub_extension_exists(&name, kind) {
+    if scanner::hub_extension_exists_in(hub_path, &name, kind) {
         return Err(HkError::Validation(format!(
-            "Extension '{}' already exists in Local Hub",
+            "Extension '{}' already exists in Exts Hub",
             name
         )));
     }
-
-    let hub_path = scanner::get_hub_path();
     let subdir = match kind {
         ExtensionKind::Skill => "skills",
         ExtensionKind::Mcp => "mcp",
@@ -1535,21 +1574,30 @@ pub fn import_to_hub(
     copy_asset_into_dir(source_path, &target_dir)?;
 
     // Return the newly created extension
-    let extensions = scanner::scan_local_hub();
+    let extensions = scanner::scan_local_hub_from(hub_path);
     extensions
         .into_iter()
         .find(|e| e.name == name && e.kind == kind)
         .ok_or_else(|| HkError::Internal("Failed to scan imported extension".into()))
 }
 
+/// Import an extension from a local path to the Exts Hub
+pub fn import_to_hub(
+    source_path: &std::path::Path,
+    kind: ExtensionKind,
+) -> Result<Extension, HkError> {
+    import_to_hub_in(&scanner::get_hub_path(), source_path, kind)
+}
+
 /// Check if installing from hub would conflict with existing extension
-pub fn check_hub_install_conflict(
+pub fn check_hub_install_conflict_in(
+    hub_path: &std::path::Path,
     store: &Mutex<Store>,
     extension_id: &str,
     target_agent: &str,
     target_scope: &ConfigScope,
 ) -> Option<Extension> {
-    let hub_extensions = scanner::scan_local_hub();
+    let hub_extensions = scanner::scan_local_hub_from(hub_path);
     let hub_ext = hub_extensions.iter().find(|e| e.id == extension_id)?;
 
     let store_guard = store.lock();
@@ -1562,6 +1610,22 @@ pub fn check_hub_install_conflict(
         .find(|e| e.name == hub_ext.name && same_scope(&e.scope, target_scope))
 }
 
+/// Check if installing from hub would conflict with existing extension
+pub fn check_hub_install_conflict(
+    store: &Mutex<Store>,
+    extension_id: &str,
+    target_agent: &str,
+    target_scope: &ConfigScope,
+) -> Option<Extension> {
+    check_hub_install_conflict_in(
+        &scanner::get_hub_path(),
+        store,
+        extension_id,
+        target_agent,
+        target_scope,
+    )
+}
+
 /// Result of a sync operation - contains conflicts that need user resolution
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct SyncPreview {
@@ -1571,9 +1635,10 @@ pub struct SyncPreview {
     pub conflicts: Vec<Extension>,
 }
 
-/// Preview what would be synced from all agents/projects to Local Hub
+/// Preview what would be synced from all agents/projects to Exts Hub
 /// Returns (new extensions, conflicts with existing hub extensions)
-pub fn preview_sync_to_hub(
+pub fn preview_sync_to_hub_in(
+    hub_path: &std::path::Path,
     store: &Mutex<Store>,
     adapters: &[Box<dyn AgentAdapter>],
     projects: &[(String, String)],
@@ -1582,7 +1647,7 @@ pub fn preview_sync_to_hub(
     let all_extensions = store_guard.list_extensions(None, None)?;
 
     // Get existing hub extensions
-    let hub_extensions = scanner::scan_local_hub();
+    let hub_extensions = scanner::scan_local_hub_from(hub_path);
     let hub_names: std::collections::HashSet<(String, ExtensionKind)> = hub_extensions
         .iter()
         .map(|e| (e.name.clone(), e.kind))
@@ -1616,8 +1681,19 @@ pub fn preview_sync_to_hub(
     })
 }
 
+/// Preview what would be synced from all agents/projects to Exts Hub
+/// Returns (new extensions, conflicts with existing hub extensions)
+pub fn preview_sync_to_hub(
+    store: &Mutex<Store>,
+    adapters: &[Box<dyn AgentAdapter>],
+    projects: &[(String, String)],
+) -> Result<SyncPreview, HkError> {
+    preview_sync_to_hub_in(&scanner::get_hub_path(), store, adapters, projects)
+}
+
 /// Sync specific extensions to Hub (after user confirms conflicts)
-pub fn sync_extensions_to_hub(
+pub fn sync_extensions_to_hub_in(
+    hub_path: &std::path::Path,
     store: &Mutex<Store>,
     adapters: &[Box<dyn AgentAdapter>],
     projects: &[(String, String)],
@@ -1626,7 +1702,7 @@ pub fn sync_extensions_to_hub(
     let mut synced = Vec::new();
 
     for id in extension_ids {
-        match backup_to_hub(store, adapters, projects, id) {
+        match backup_to_hub_in(hub_path, store, adapters, projects, id) {
             Ok(()) => synced.push(id.clone()),
             Err(e) => {
                 eprintln!("Failed to sync extension {}: {:?}", id, e);
@@ -1636,6 +1712,22 @@ pub fn sync_extensions_to_hub(
     }
 
     Ok(synced)
+}
+
+/// Sync specific extensions to Hub (after user confirms conflicts)
+pub fn sync_extensions_to_hub(
+    store: &Mutex<Store>,
+    adapters: &[Box<dyn AgentAdapter>],
+    projects: &[(String, String)],
+    extension_ids: &[String],
+) -> Result<Vec<String>, HkError> {
+    sync_extensions_to_hub_in(
+        &scanner::get_hub_path(),
+        store,
+        adapters,
+        projects,
+        extension_ids,
+    )
 }
 
 // --- Kit Service Functions ---
@@ -1826,7 +1918,7 @@ fn find_hub_asset_after_sync(name: &str, kind: ExtensionKind) -> Result<Extensio
         .find(|ext| ext.name == name && ext.kind == kind)
         .ok_or_else(|| {
             HkError::Internal(format!(
-                "Asset '{name}' was synced but not found in Local Hub"
+                "Asset '{name}' was synced but not found in Exts Hub"
             ))
         })
 }
@@ -1848,7 +1940,7 @@ fn resolve_kit_assets(
             (Some(hub_id), _) => scanner::scan_local_hub()
                 .into_iter()
                 .find(|ext| ext.id == *hub_id)
-                .ok_or_else(|| HkError::NotFound(format!("Local Hub asset not found: {hub_id}")))?,
+                .ok_or_else(|| HkError::NotFound(format!("Exts Hub asset not found: {hub_id}")))?,
             (None, Some(extension_id)) => {
                 backup_to_hub(store, adapters, projects, extension_id)?;
                 find_hub_asset_after_sync(&candidate.name, candidate.kind)?
@@ -3128,6 +3220,20 @@ mod tests {
         assert_eq!(candidates.extension_kits.len(), 1);
         assert_eq!(candidates.skills[0].name, "frontend-design");
         assert_eq!(candidates.mcps[0].name, "chrome-devtools");
+    }
+
+    #[test]
+    fn import_to_hub_in_writes_to_custom_root() {
+        let tmp = TempDir::new().unwrap();
+        let source = tmp.path().join("source");
+        std::fs::create_dir_all(&source).unwrap();
+        std::fs::write(source.join("SKILL.md"), "---\nname: source\n---\n").unwrap();
+        let hub = tmp.path().join("hub");
+
+        let ext = import_to_hub_in(&hub, &source, ExtensionKind::Skill).unwrap();
+
+        assert_eq!(ext.name, "source");
+        assert!(hub.join("skills").join("source").join("SKILL.md").is_file());
     }
 
     #[test]

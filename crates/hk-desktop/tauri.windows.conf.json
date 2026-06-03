@@ -2,7 +2,7 @@
   "app": {
     "windows": [
       {
-        "title": "HarnessKit",
+        "title": "HarnessHub",
         "decorations": true,
         "width": 1280,
         "height": 800,

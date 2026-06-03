@@ -43,9 +43,8 @@ jobs:
           fi
           DOWNLOADS=$(cat <<'DOWNLOADS_EOF'
           ## Downloads
-          - **Windows desktop:** Use `HarnessKit-windows-x64-installer.exe` first. `HarnessKit-windows-x64.msi` is the alternate enterprise-friendly package.
+          - **Windows desktop:** Use `HarnessHub-windows-x64-installer.exe` first. `HarnessHub-windows-x64.msi` is the alternate enterprise-friendly package.
           - **macOS desktop:** Temporary ad-hoc signed dmg files are published when Apple signing/notarization secrets are missing. Gatekeeper may require manual approval.
-          - **CLI assets:** `hk-cli-*` packages are temporarily disabled for this release workflow.
           DOWNLOADS_EOF
           )
           BODY="$BODY
@@ -66,7 +65,7 @@ jobs:
           printf '%s' "$RELEASE_BODY" > release-body.md
           RELEASE_ID=$(gh api repos/${{ github.repository }}/releases \
             -f tag_name="${{ github.ref_name }}" \
-            -f name="HarnessKit ${{ github.ref_name }}" \
+            -f name="HarnessHub ${{ github.ref_name }}" \
             -F body=@release-body.md \
             -F draft=true \
             --jq '.id')
@@ -178,24 +177,8 @@ jobs:
             echo "Missing ad-hoc signed macOS dmg output" >&2
             exit 1
           fi
-          cp "$dmg" "HarnessKit-macos-${{ matrix.arch }}-adhoc.dmg"
-          gh release upload "${{ github.ref_name }}" "HarnessKit-macos-${{ matrix.arch }}-adhoc.dmg" --clobber
-
-      - name: Build CLI (with embedded web frontend)
-        if: ${{ false }}
-        run: |
-          npm run build
-          rustup run stable cargo build --release --target ${{ matrix.target }} -p hk-cli
-
-      - name: Upload CLI to release
-        if: ${{ false }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          ASSET="hk-cli-macos-${{ matrix.arch }}"
-          cp "target/${{ matrix.target }}/release/hk" "$ASSET"
-          shasum -a 256 "$ASSET" > "$ASSET.sha256"
-          gh release upload "${{ github.ref_name }}" "$ASSET" "$ASSET.sha256" --clobber
+          cp "$dmg" "HarnessHub-macos-${{ matrix.arch }}-adhoc.dmg"
+          gh release upload "${{ github.ref_name }}" "HarnessHub-macos-${{ matrix.arch }}-adhoc.dmg" --clobber
 
   release-desktop-windows:
     needs: create-release
@@ -266,89 +249,7 @@ jobs:
           $msi = Get-ChildItem "$bundleRoot/msi/*.msi" -ErrorAction SilentlyContinue | Select-Object -First 1
           if (-not $nsis) { throw "Missing NSIS installer output" }
           if (-not $msi) { throw "Missing MSI output" }
-          Copy-Item $nsis.FullName "HarnessKit-windows-x64-installer.exe"
-          Copy-Item $msi.FullName "HarnessKit-windows-x64.msi"
-          Invoke-GhReleaseUploadWithRetry "${{ github.ref_name }}" "HarnessKit-windows-x64-installer.exe"
-          Invoke-GhReleaseUploadWithRetry "${{ github.ref_name }}" "HarnessKit-windows-x64.msi"
-
-  release-cli-linux:
-    if: ${{ false }}
-    needs: create-release
-    runs-on: ubuntu-22.04
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: x86_64-unknown-linux-musl
-
-      - name: Rust cache
-        uses: swatinem/rust-cache@v2
-        with:
-          key: x86_64-unknown-linux-musl
-
-      - name: Install musl toolchain
-        run: sudo apt-get update && sudo apt-get install -y musl-tools perl make
-
-      - name: Install frontend dependencies
-        run: npm ci
-
-      - name: Build CLI (with embedded web frontend)
-        run: |
-          npm run build
-          rustup run stable cargo build --release -p hk-cli --target x86_64-unknown-linux-musl
-
-      - name: Upload CLI to release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          ASSET="hk-cli-linux-x64"
-          cp target/x86_64-unknown-linux-musl/release/hk "$ASSET"
-          sha256sum "$ASSET" > "$ASSET.sha256"
-          gh release upload "${{ github.ref_name }}" "$ASSET" "$ASSET.sha256" --clobber
-
-  release-cli-windows:
-    if: ${{ false }}
-    needs: create-release
-    runs-on: windows-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Rust cache
-        uses: swatinem/rust-cache@v2
-
-      - name: Install frontend dependencies
-        run: npm ci
-
-      - name: Build CLI (with embedded web frontend)
-        run: |
-          npm run build
-          rustup run stable cargo build --release -p hk-cli
-
-      - name: Upload CLI to release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        shell: bash
-        run: |
-          ASSET="hk-cli-windows-x64.exe"
-          cp target/release/hk.exe "$ASSET"
-          sha256sum "$ASSET" > "$ASSET.sha256"
-          gh release upload "${{ github.ref_name }}" "$ASSET" "$ASSET.sha256" --clobber
+          Copy-Item $nsis.FullName "HarnessHub-windows-x64-installer.exe"
+          Copy-Item $msi.FullName "HarnessHub-windows-x64.msi"
+          Invoke-GhReleaseUploadWithRetry "${{ github.ref_name }}" "HarnessHub-windows-x64-installer.exe"
+          Invoke-GhReleaseUploadWithRetry "${{ github.ref_name }}" "HarnessHub-windows-x64.msi"

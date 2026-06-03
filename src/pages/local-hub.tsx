@@ -142,8 +142,8 @@ export default function LocalHubPage() {
     ).length;
     toast.success(
       matchedCount > 0
-        ? `${matchedCount} 个 Local Hub 资产有可用更新`
-        : "Local Hub 资产没有可用更新",
+        ? `${matchedCount} 个 Exts Hub 资产有可用更新`
+        : "Exts Hub 资产没有可用更新",
     );
   };
 
@@ -154,7 +154,7 @@ export default function LocalHubPage() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <h2 className="text-2xl font-bold tracking-tight select-none">
-              Local Hub
+              Exts Hub
             </h2>
             <button
               onClick={() => setShowSyncDialog(true)}

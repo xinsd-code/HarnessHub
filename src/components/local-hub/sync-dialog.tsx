@@ -59,7 +59,7 @@ export function SyncDialog({ open, onClose }: SyncDialogProps) {
     try {
       const ids = [...selectedIds];
       const synced = await api.syncExtensionsToHub(ids);
-      toast.success(`Synced ${synced.length} extension(s) to Local Hub`);
+      toast.success(`Synced ${synced.length} extension(s) to Exts Hub`);
       await fetch();
       onClose();
     } catch (e) {
@@ -115,7 +115,7 @@ export function SyncDialog({ open, onClose }: SyncDialogProps) {
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
               <RefreshCw size={16} />
             </div>
-            <h3 className="font-semibold text-lg">Sync to Local Hub</h3>
+            <h3 className="font-semibold text-lg">Sync to Exts Hub</h3>
           </div>
           <button
             onClick={onClose}
@@ -140,7 +140,7 @@ export function SyncDialog({ open, onClose }: SyncDialogProps) {
             </div>
           ) : totalCount === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              All extensions are already synced to Local Hub
+              All extensions are already synced to Exts Hub
             </div>
           ) : (
             <div className="space-y-4">

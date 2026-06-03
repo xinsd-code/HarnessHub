@@ -567,6 +567,7 @@ pub struct AgentInfo {
     pub icon_path: Option<String>,
     pub builtin: bool,
     pub has_custom_path: bool,
+    pub project_rules_target_relpath: Option<String>,
 }
 
 // --- Dashboard Stats ---

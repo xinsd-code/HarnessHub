@@ -3,8 +3,6 @@ import { HashRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AppShell } from "./components/layout/app-shell";
 import { UpdateDialog } from "./components/layout/update-dialog";
 import { WebUpdateDialog } from "./components/layout/web-update-dialog";
-import { Confetti } from "./components/onboarding/confetti";
-import { Onboarding, useOnboarding } from "./components/onboarding/onboarding";
 import { ErrorBoundary } from "./components/shared/error-boundary";
 import { api } from "./lib/invoke";
 import { setDesktopAppIcon } from "./lib/platform/desktop-actions";
@@ -42,9 +40,6 @@ export default function App() {
   const mode = useUIStore((s) => s.mode);
   const fetchExtensions = useExtensionStore((s) => s.fetch);
   const loadCachedAudit = useAuditStore((s) => s.loadCached);
-  const { show: showOnboarding, complete: completeOnboarding } =
-    useOnboarding();
-  const [showConfetti, setShowConfetti] = useState(false);
   const lastScanRef = useRef(0);
   const appIcon = useUIStore((s) => s.appIcon);
 
@@ -113,10 +108,8 @@ export default function App() {
   // Apply theme + dark class to <html>, and sync window appearance for vibrancy
   useEffect(() => {
     const root = document.documentElement;
-    // Force Tiesen light during onboarding
-    const activeTheme = showOnboarding ? "tiesen" : themeName;
-    const activeDark = showOnboarding ? false : resolved === "dark";
-    root.setAttribute("data-theme", activeTheme);
+    const activeDark = resolved === "dark";
+    root.setAttribute("data-theme", themeName);
     if (activeDark) {
       root.classList.add("dark");
     } else {
@@ -131,11 +124,9 @@ export default function App() {
     }
     // Force macOS vibrancy to match — "light" | "dark" | null (system)
     if (isDesktop()) {
-      void setWindowTheme(
-        showOnboarding ? "light" : mode === "system" ? null : resolved,
-      );
+      void setWindowTheme(mode === "system" ? null : resolved);
     }
-  }, [themeName, mode, resolved, showOnboarding]);
+  }, [themeName, mode, resolved]);
 
   // Restore app icon from saved preference — desktop only
   useEffect(() => {
@@ -146,21 +137,8 @@ export default function App() {
     }
   }, [appIcon]);
 
-  if (showOnboarding) {
-    return (
-      <Onboarding
-        onComplete={() => {
-          completeOnboarding();
-          setShowConfetti(true);
-          setTimeout(() => setShowConfetti(false), 3000);
-        }}
-      />
-    );
-  }
-
   return (
     <>
-      {showConfetti && <Confetti />}
       {isDesktop() ? <UpdateDialog /> : <WebUpdateDialog />}
       <HashRouter>
         <ErrorBoundary>

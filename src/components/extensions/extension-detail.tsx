@@ -496,7 +496,7 @@ export function ExtensionDetail({
                   .catch(() => {});
               }}
               className="shrink-0 rounded-full bg-muted/50 px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors flex items-center gap-1"
-              title="Backup to Local Hub (~/.harnesskit)"
+              title="Backup to Exts Hub (~/.harnesskit)"
             >
               <Archive size={12} />
               Backup

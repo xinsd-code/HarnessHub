@@ -1,64 +1,44 @@
-import { clsx } from "clsx";
-import { useMemo, useState } from "react";
-import { AgentMascot } from "@/components/shared/agent-mascot/agent-mascot";
-import { pathsEqual } from "@/lib/types";
-import { useAgentConfigStore } from "@/stores/agent-config-store";
+import { useState } from "react";
+import { isDesktop } from "@/lib/transport";
+import { openFilePicker, selectedPickerPath } from "@/lib/platform/dialog";
 import { useAgentConfigTemplateStore } from "@/stores/agent-config-template-store";
-import { useProjectStore } from "@/stores/project-store";
+
+function fileNameFromPath(path: string): string {
+  const trimmed = path.trim().replace(/\/+$/, "");
+  if (!trimmed) return "";
+  const index = trimmed.lastIndexOf("/");
+  return index >= 0 ? trimmed.slice(index + 1) : trimmed;
+}
+
+function parentPathFrom(path: string): string {
+  const trimmed = path.trim().replace(/\/+$/, "");
+  if (!trimmed) return "";
+  const index = trimmed.lastIndexOf("/");
+  if (index < 0) return "";
+  if (index === 0) return "/";
+  return trimmed.slice(0, index);
+}
 
 export function ImportTemplateDialog({ onClose }: { onClose: () => void }) {
-  const projects = useProjectStore((s) => s.projects).filter((p) => p.exists);
-  const agentDetails = useAgentConfigStore((s) => s.agentDetails);
   const importTemplate = useAgentConfigTemplateStore((s) => s.importTemplate);
 
-  const [projectPath, setProjectPath] = useState(projects[0]?.path ?? "");
-  const [targetAgent, setTargetAgent] = useState("");
-  const [sourcePath, setSourcePath] = useState("");
+  const [localPath, setLocalPath] = useState("");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [tag, setTag] = useState("default");
 
-  const projectAgents = useMemo(() => {
-    return agentDetails.filter((agent) =>
-      agent.config_files.some(
-        (file) =>
-          file.exists &&
-          file.category === "rules" &&
-          file.scope.type === "project" &&
-          pathsEqual(file.scope.path, projectPath),
-      ),
-    );
-  }, [agentDetails, projectPath]);
-
-  const agentFiles = useMemo(() => {
-    if (!targetAgent) return [];
-    const agent = agentDetails.find((a) => a.name === targetAgent);
-    if (!agent) return [];
-    return agent.config_files
-      .filter(
-        (file) =>
-          file.exists &&
-          file.category === "rules" &&
-          file.scope.type === "project" &&
-          pathsEqual(file.scope.path, projectPath),
-      )
-      .map((file) => ({
-        ...file,
-        relPath: file.path.startsWith(`${projectPath}/`)
-          ? file.path.slice(projectPath.length + 1)
-          : file.path,
-      }));
-  }, [agentDetails, projectPath, targetAgent]);
-
-  const selected = agentFiles.find((file) => file.path === sourcePath) ?? null;
-  const canSubmit = !!(selected && name.trim());
+  const localSourcePath = localPath.trim();
+  const localSourceProjectPath = parentPathFrom(localSourcePath);
+  const localSourceProjectName =
+    fileNameFromPath(localSourceProjectPath) || "Local path";
+  const canSubmit = !!(localSourcePath && name.trim());
 
   const handleSubmit = async () => {
-    if (!selected || selected.scope.type !== "project") return;
+    if (!localSourcePath) return;
     await importTemplate({
-      sourcePath: selected.path,
-      sourceProjectPath: selected.scope.path,
-      sourceProjectName: selected.scope.name,
+      sourcePath: localSourcePath,
+      sourceProjectPath: localSourceProjectPath,
+      sourceProjectName: localSourceProjectName,
       name,
       description,
       tag,
@@ -69,95 +49,64 @@ export function ImportTemplateDialog({ onClose }: { onClose: () => void }) {
   return (
     <div
       role="dialog"
-      aria-label="Import from Project"
+      aria-label="Input From Local"
       className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm animate-in fade-in duration-200"
     >
       <div className="w-[640px] rounded-2xl border border-border/50 bg-card shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden">
         <div className="border-b border-border/50 bg-muted/20 px-6 py-4 flex items-center justify-between">
-          <h3 className="text-lg font-semibold">Import from Project</h3>
+          <h3 className="text-lg font-semibold">Input From Local</h3>
         </div>
         <div className="p-6 flex gap-6">
           <div className="w-[280px] shrink-0 space-y-4">
             <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-muted-foreground/80 uppercase tracking-widest pl-1">
-                Project
-              </label>
-              <select
-                value={projectPath}
-                onChange={(event) => {
-                  setProjectPath(event.target.value);
-                  setTargetAgent("");
-                  setSourcePath("");
-                }}
-                className="h-10 w-full rounded-xl border border-border/60 bg-card/40 px-3 text-sm shadow-sm outline-none backdrop-blur-sm transition-all hover:bg-card/80 focus:border-primary/50 focus:bg-card focus:ring-2 focus:ring-primary/20 appearance-none cursor-pointer"
+              <label
+                htmlFor="agent-config-file-path"
+                className="text-[11px] font-bold text-muted-foreground/80 uppercase tracking-widest pl-1"
               >
-                {projects.map((p) => (
-                  <option key={p.id} value={p.path}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
+                File path
+              </label>
+              <div className="flex gap-2">
+                <input
+                  id="agent-config-file-path"
+                  value={localPath}
+                  onChange={(event) => {
+                    const nextPath = event.target.value;
+                    setLocalPath(nextPath);
+                    if (!name.trim()) {
+                      setName(fileNameFromPath(nextPath));
+                    }
+                  }}
+                  onBlur={() => {
+                    if (!name.trim()) {
+                      setName(fileNameFromPath(localPath));
+                    }
+                  }}
+                  placeholder="Paste or choose a local file path"
+                  className="h-10 min-w-0 flex-1 rounded-xl border border-border/60 bg-card/40 px-3.5 text-sm shadow-sm outline-none backdrop-blur-sm transition-all focus:border-primary/50 focus:bg-card focus:ring-2 focus:ring-primary/20"
+                />
+                {isDesktop() && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const result = await openFilePicker({
+                        title: "Select local file",
+                      });
+                      const selectedPath = selectedPickerPath(result);
+                      if (selectedPath) {
+                        setLocalPath(selectedPath);
+                        setName(fileNameFromPath(selectedPath));
+                      }
+                    }}
+                    className="shrink-0 rounded-xl border border-border/60 bg-card/60 px-3 text-[12px] font-semibold shadow-sm transition-colors hover:bg-accent hover:text-foreground"
+                  >
+                    Browse
+                  </button>
+                )}
+              </div>
+              <p className="px-1 text-[11px] text-muted-foreground/70">
+                Choose a file directly, or paste its full path here.
+              </p>
             </div>
-
-            {projectAgents.length === 0 ? (
-              <div className="py-8 rounded-xl border border-dashed border-border/50 bg-muted/10 text-center text-xs text-muted-foreground/80">
-                No agents detected in this project.
-              </div>
-            ) : (
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-muted-foreground/80 uppercase tracking-widest pl-1">
-                  Target Agent
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {projectAgents.map((agent) => (
-                    <button
-                      key={agent.name}
-                      onClick={() => {
-                        setTargetAgent(agent.name);
-                        setSourcePath("");
-                      }}
-                      title={agent.name}
-                      aria-label={agent.name}
-                      className={clsx(
-                        "rounded-xl border p-2 transition-all hover:-translate-y-0.5",
-                        targetAgent === agent.name
-                          ? "border-primary bg-primary/10 shadow-sm"
-                          : "border-border/60 bg-card/60 hover:bg-accent/80 hover:border-primary/30",
-                      )}
-                    >
-                      <AgentMascot name={agent.name} size={24} />
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {agentFiles.length > 0 && (
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-muted-foreground/80 uppercase tracking-widest pl-1">
-                  Configuration File
-                </label>
-                <div className="max-h-[132px] overflow-y-auto rounded-xl border border-border/60 bg-card/30 shadow-inner p-1">
-                  {agentFiles.map((file) => (
-                    <button
-                      key={file.path}
-                      onClick={() => {
-                        setSourcePath(file.path);
-                        setName(file.file_name);
-                      }}
-                      className={clsx(
-                        "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[12px] font-medium leading-tight transition-all",
-                        sourcePath === file.path
-                          ? "bg-primary/10 text-primary font-semibold"
-                          : "text-muted-foreground/90 hover:bg-accent/50 hover:text-foreground",
-                      )}
-                    >
-                      <span className="truncate">{file.relPath}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
 
           <div className="min-w-0 flex-1 space-y-4 py-1">

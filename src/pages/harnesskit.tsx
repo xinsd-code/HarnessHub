@@ -483,7 +483,7 @@ export default function HarnessKitPage() {
             </h2>
             <p className="mt-1.5 text-[14px] text-muted-foreground/80">
               一个组合的 Skills、MCP，形成可追溯的 Kit 清单。保存前自动把未在
-              Local Hub 的资产同步进去。
+              Exts Hub 的资产同步进去。
             </p>
           </div>
           <button
@@ -580,7 +580,7 @@ export default function HarnessKitPage() {
                         event.stopPropagation();
                         if (
                           window.confirm(
-                            `Delete ${kit.name}? Local Hub assets will be preserved.`,
+                            `Delete ${kit.name}? Exts Hub assets will be preserved.`,
                           )
                         ) {
                           void deleteKit(kit.id);

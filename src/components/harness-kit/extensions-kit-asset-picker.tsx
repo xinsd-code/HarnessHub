@@ -215,7 +215,7 @@ export function ExtensionsKitAssetPicker({
             {candidateLoading ? (
               <EmptyList
                 title="Loading assets"
-                subtitle="Scanning Local Hub and Extensions."
+                subtitle="Scanning Exts Hub and Extensions."
               />
             ) : availableFiltered.length === 0 ? (
               <EmptyList

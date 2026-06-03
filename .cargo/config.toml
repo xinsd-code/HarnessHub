@@ -1,6 +1,3 @@
-[alias]
-tauri = "run --package hk-tauri --"
-
 [env]
 TAURI_APP_PATH = { value = "crates/hk-desktop", relative = true }
 TAURI_FRONTEND_PATH = { value = ".", relative = true }

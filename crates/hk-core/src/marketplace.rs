@@ -859,7 +859,7 @@ struct CliRegistryCache {
 static CLI_REGISTRY_CACHE: LazyLock<Mutex<Option<CliRegistryCache>>> =
     LazyLock::new(|| Mutex::new(None));
 
-const CLI_REGISTRY_URL: &str = "https://raw.githubusercontent.com/RealZST/harnesskit-resources/main/cli-registry/registry.json";
+const CLI_REGISTRY_URL: &str = "https://raw.githubusercontent.com/xinsd-code/harnesskit-resources/main/cli-registry/registry.json";
 const CLI_REGISTRY_TTL: Duration = Duration::from_secs(300); // 5 minutes
 
 fn fetch_remote_cli_registry() -> Result<Vec<CliRegistryEntry>, HkError> {
@@ -1088,7 +1088,7 @@ fn fetch_github_stars(owner_repo: &str) -> Option<u64> {
     let stars = client()
         .get(&url)
         .header("Accept", "application/vnd.github.v3+json")
-        .header("User-Agent", "HarnessKit")
+        .header("User-Agent", "HarnessHub")
         .send()
         .ok()
         .filter(|r| r.status().is_success())

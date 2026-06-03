@@ -137,7 +137,7 @@ export function deriveExtensionUrl(ext: Extension): string | null {
   );
 }
 
-/** Source-aware key for strict identity use cases. Extensions and Local Hub
+/** Source-aware key for strict identity use cases. Extensions and Exts Hub
  *  list surfaces should use `extensionListGroupKey` instead. */
 export function extensionGroupKey(ext: Extension): string {
   // When the URL is null, fall back to scopeKey so a project-level
@@ -200,6 +200,15 @@ export interface CheckUpdatesResult {
   new_skills: NewRepoSkill[];
 }
 
+export interface LocalHubSettings {
+  effective_path: string;
+  configured_path: string | null;
+  default_path: string;
+  asset_count: number;
+  skills_count: number;
+  mcp_count: number;
+}
+
 export interface AgentInfo {
   name: string;
   detected: boolean;
@@ -209,6 +218,7 @@ export interface AgentInfo {
   icon_path?: string | null;
   builtin?: boolean;
   has_custom_path?: boolean;
+  project_rules_target_relpath?: string | null;
 }
 
 export type ConfigCategory =

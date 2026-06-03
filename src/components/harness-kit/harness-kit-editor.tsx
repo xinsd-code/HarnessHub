@@ -856,7 +856,7 @@ export default function HarnessKitEditor({
                     Loading assets
                   </p>
                   <p className="mt-1 max-w-[200px] text-[10px] leading-relaxed text-muted-foreground/70">
-                    Scanning Local Hub and Extensions.
+                    Scanning Exts Hub and Extensions.
                   </p>
                 </div>
               ) : availableItems.length === 0 ? (

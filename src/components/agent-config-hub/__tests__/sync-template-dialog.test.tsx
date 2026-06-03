@@ -1,6 +1,6 @@
 import "@testing-library/jest-dom/vitest";
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SyncTemplateDialog } from "@/components/agent-config-hub/sync-template-dialog";
 
 const projectState = {
@@ -15,6 +15,7 @@ const agentState = {
       name: "codex",
       detected: true,
       enabled: true,
+      project_rules_target_relpath: ".codex/AGENTS.md",
       extension_count: 0,
       path: "",
       icon_path: null,
@@ -25,6 +26,7 @@ const agentState = {
       name: "claude",
       detected: true,
       enabled: true,
+      project_rules_target_relpath: ".claude/CLAUDE.md",
       extension_count: 0,
       path: "",
       icon_path: null,
@@ -35,6 +37,22 @@ const agentState = {
 };
 
 const templateStore = {
+  templates: [
+    {
+      id: "default/rules",
+      name: "rules",
+      description: "desc",
+      tag: "default",
+      source_project_name: "HarnessKit",
+      source_project_path: "/p/hk",
+      source_path: "/p/hk/AGENTS.md",
+      original_file_name: "AGENTS.md",
+      content_path: "/hub/default/rules/prompt.md",
+      size_bytes: 10,
+      created_at: "2026-05-15T00:00:00Z",
+      updated_at: "2026-05-15T00:00:00Z",
+    },
+  ],
   syncToProject: vi.fn(),
 };
 
@@ -55,6 +73,10 @@ vi.mock("@/stores/agent-config-template-store", () => ({
 }));
 
 describe("SyncTemplateDialog", () => {
+  beforeEach(() => {
+    templateStore.syncToProject.mockClear();
+  });
+
   it("shows icon-only agent buttons without visible text labels", () => {
     render(<SyncTemplateDialog templateId="default/rules" onClose={vi.fn()} />);
 
@@ -70,5 +92,31 @@ describe("SyncTemplateDialog", () => {
     expect(screen.getByText("Target path")).toBeInTheDocument();
     expect(screen.getByText("/workspace/hk/")).toBeInTheDocument();
     expect(screen.getByDisplayValue(".codex/AGENTS.md")).toBeInTheDocument();
+  });
+
+  it("switches the default path when a different agent is selected", () => {
+    render(<SyncTemplateDialog templateId="default/rules" onClose={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "claude" }));
+
+    expect(screen.getByDisplayValue(".claude/AGENTS.md")).toBeInTheDocument();
+  });
+
+  it("clears the agent selection when clicking the active agent and falls back to file name only", async () => {
+    render(<SyncTemplateDialog templateId="default/rules" onClose={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "codex" }));
+
+    expect(screen.getByDisplayValue("AGENTS.md")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Sync" }));
+
+    expect(templateStore.syncToProject).toHaveBeenCalledWith(
+      "default/rules",
+      "/workspace/hk",
+      "",
+      false,
+      "AGENTS.md",
+    );
   });
 });

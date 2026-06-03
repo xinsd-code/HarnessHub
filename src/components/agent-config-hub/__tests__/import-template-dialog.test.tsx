@@ -65,16 +65,20 @@ vi.mock("@/stores/agent-config-template-store", () => ({
 }));
 
 describe("ImportTemplateDialog", () => {
-  it("limits visible file list height and only shows rules files", () => {
+  it("shows the local input form and derives file name from selection", () => {
     render(<ImportTemplateDialog onClose={vi.fn()} />);
-    fireEvent.click(screen.getByRole("button", { name: "codex" }));
 
-    expect(screen.getByText(".codex/AGENTS.md")).toBeInTheDocument();
-    expect(screen.queryByText("settings.json")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("dialog", { name: "Input From Local" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByPlaceholderText("Paste or choose a local file path"),
+    ).toBeInTheDocument();
 
-    const list = screen
-      .getByText("Configuration File")
-      .parentElement?.querySelector("div.max-h-\\[132px\\]");
-    expect(list).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("File path"), {
+      target: { value: "/workspace/hk/.codex/AGENTS.md" },
+    });
+
+    expect(screen.getByLabelText("File name")).toHaveValue("AGENTS.md");
   });
 });

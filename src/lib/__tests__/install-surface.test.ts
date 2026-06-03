@@ -127,7 +127,7 @@ describe("resolveProjectSelection", () => {
 });
 
 describe("buildInstallState", () => {
-  it("treats Local Hub project-only installs as install in the list", () => {
+  it("treats Exts Hub project-only installs as install in the list", () => {
     const state = buildInstallState({
       agentName: "claude",
       instances: [

@@ -18,7 +18,7 @@ import { WebUpdateCard } from "./web-update-card";
 const mainNavItems = [
   { to: "/", icon: LayoutDashboard, label: "Overview" },
   { to: "/harnesskit", icon: PackageOpen, label: "HarnessKit" },
-  { to: "/local-hub", icon: HardDrive, label: "Local Hub" },
+  { to: "/local-hub", icon: HardDrive, label: "Exts Hub" },
   { to: "/extensions", icon: Blocks, label: "Extensions" },
   { to: "/agents", icon: Bot, label: "Agents" },
   { to: "/projects", icon: FolderKanban, label: "Projects" },
@@ -75,11 +75,11 @@ export function Sidebar() {
   return (
     <aside className="app-sidebar flex h-full w-48 shrink-0 flex-col px-3 pb-5 select-none">
       {/* Top spacer for traffic lights */}
-      <div className="h-12 shrink-0" />
+      <div className="h-8 shrink-0" />
 
-      <div className="mb-6 px-3">
+      <div className="mb-4 px-3">
         <h1 className="text-lg font-bold tracking-tight text-sidebar-foreground">
-          HarnessKit
+          HarnessHub
         </h1>
       </div>
 

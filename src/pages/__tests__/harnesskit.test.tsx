@@ -176,7 +176,10 @@ const {
   };
 
   const agentConfigTemplateState = {
+    templates: [],
+    loading: false,
     select: vi.fn(),
+    fetch: vi.fn(() => Promise.resolve()),
   };
 
   const hubState = {
@@ -364,6 +367,7 @@ beforeEach(() => {
   extensionState.fetch.mockClear();
   extensionState.setSelectedId.mockClear();
   agentConfigTemplateState.select.mockClear();
+  agentConfigTemplateState.fetch.mockClear();
   hubState.setSelectedId.mockClear();
   navigateMock.mockClear();
   agentState.fetch.mockClear();
@@ -816,7 +820,7 @@ describe("HarnessKitPage", () => {
     );
   });
 
-  it("navigates Skill assets to the Local Hub overview when a hub id exists", async () => {
+  it("navigates Skill assets to the Exts Hub overview when a hub id exists", async () => {
     render(<HarnessKitPage />);
 
     fireEvent.click(screen.getByText("Data Workspace"));

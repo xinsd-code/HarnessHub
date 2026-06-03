@@ -227,7 +227,7 @@ describe("HubDetail stale project handling", () => {
     });
   });
 
-  it("does not show stale Local Hub install marks as installed", async () => {
+  it("does not show stale Exts Hub install marks as installed", async () => {
     stores.hubState.isHubInstalled.mockReturnValue(true);
     stores.extensionState.extensions = [];
 

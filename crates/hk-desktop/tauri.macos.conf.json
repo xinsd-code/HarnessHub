@@ -3,11 +3,11 @@
     "macOSPrivateApi": true,
     "windows": [
       {
-        "title": "HarnessKit",
+        "title": "HarnessHub",
         "hiddenTitle": true,
         "titleBarStyle": "Overlay",
         "trafficLightPosition": {
-          "x": 24,
+          "x": 26,
           "y": 18
         },
         "decorations": true,

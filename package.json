@@ -1,5 +1,5 @@
 {
-  "name": "harnesskit-frontend",
+  "name": "harnesshub-frontend",
   "private": true,
   "version": "1.0.0",
   "description": "Cross-platform extension management for AI coding agents",
@@ -9,6 +9,7 @@
     "dev": "vite --port 1420",
     "build": "tsc && vite build",
     "preview": "vite preview",
+    "desktop:open": "sh scripts/open-worktree-app.sh",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "biome check src/",

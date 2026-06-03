@@ -585,7 +585,7 @@ export default function OverviewPage() {
       >
         <header className="space-y-2 text-center">
           <h2 className="text-3xl font-extrabold tracking-tight text-foreground select-none">
-            Welcome to HarnessKit
+            Welcome to HarnessHub
           </h2>
           <p className="text-muted-foreground text-sm max-w-md mx-auto">
             Your centralized control deck for AI coding agent extensions, MCP
@@ -753,13 +753,13 @@ export default function OverviewPage() {
         </div>
       </div>
 
-      {/* Row 2: Local Hub Overview, Harness Kit Overview & Projects overview */}
+      {/* Row 2: Exts Hub Overview, Harness Kit Overview & Projects overview */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          {/* Local Hub Overview */}
+          {/* Exts Hub Overview */}
           <section className="space-y-3">
             <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80">
-              Local Hub Overview
+              Exts Hub Overview
             </h3>
             <div className="grid grid-cols-3 gap-3.5">
               <OverviewMetric

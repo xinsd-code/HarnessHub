@@ -1,7 +1,7 @@
 {
-  "productName": "HarnessKit",
+  "productName": "HarnessHub",
   "version": "1.0.0",
-  "identifier": "com.harnesskit.app",
+  "identifier": "com.xinsd.harnesshub",
   "build": {
     "frontendDist": "../../dist",
     "devUrl": "http://localhost:1420",
@@ -11,7 +11,7 @@
   "app": {
     "windows": [
       {
-        "title": "HarnessKit",
+        "title": "HarnessHub",
         "decorations": true,
         "width": 1280,
         "height": 800,

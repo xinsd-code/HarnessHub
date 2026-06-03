@@ -5,6 +5,7 @@ import type {
   Extension,
   ExtensionContent,
   ExtensionKind,
+  LocalHubSettings,
 } from "@/lib/types";
 import { normalizePathForComparison } from "@/lib/types";
 import { toast } from "./toast-store";
@@ -27,6 +28,7 @@ interface HubState {
   searchQuery: string;
   selectedId: string | null;
   hubPath: string | null;
+  hubSettings: LocalHubSettings | null;
   extensionContent: Map<string, ExtensionContent>;
   /** Persistent set of hub-install keys for tracking which scope+agent combos
    *  have been installed. Unlike component-local state this survives remounts. */
@@ -56,6 +58,7 @@ interface HubState {
     scope: ConfigScope,
     agent: string,
   ) => boolean;
+  refreshHubSettings: () => Promise<void>;
 }
 
 export const useHubStore = create<HubState>((set, get) => ({
@@ -66,20 +69,39 @@ export const useHubStore = create<HubState>((set, get) => ({
   searchQuery: "",
   selectedId: null,
   hubPath: null,
+  hubSettings: null,
   extensionContent: new Map(),
   hubInstalledKeys: new Set(),
 
   async fetch() {
     set({ loading: true });
     try {
-      const [extensions, hubPath] = await Promise.all([
+      const [extensions, settings] = await Promise.all([
         api.listHubExtensions(),
-        api.getHubPath(),
+        api.getLocalHubSettings(),
       ]);
-      set({ extensions, hubPath, loading: false, hasFetched: true });
+      set({
+        extensions,
+        hubPath: settings.effective_path,
+        hubSettings: settings,
+        loading: false,
+        hasFetched: true,
+      });
     } catch (e) {
       console.error("Failed to fetch hub extensions:", e);
       set({ loading: false, hasFetched: true });
+    }
+  },
+
+  async refreshHubSettings() {
+    try {
+      const settings = await api.getLocalHubSettings();
+      set({
+        hubPath: settings.effective_path,
+        hubSettings: settings,
+      });
+    } catch (e) {
+      console.error("Failed to refresh hub settings:", e);
     }
   },
 
@@ -102,7 +124,7 @@ export const useHubStore = create<HubState>((set, get) => ({
   async backupToHub(id) {
     try {
       await api.backupToHub(id);
-      toast.success("Backed up to Local Hub");
+      toast.success("Backed up to Exts Hub");
       await get().fetch();
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -125,7 +147,7 @@ export const useHubStore = create<HubState>((set, get) => ({
   async deleteFromHub(id) {
     try {
       await api.deleteFromHub(id);
-      toast.success("Deleted from Local Hub");
+      toast.success("Deleted from Exts Hub");
       set({ selectedId: null });
       await get().fetch();
     } catch (e) {
@@ -138,7 +160,7 @@ export const useHubStore = create<HubState>((set, get) => ({
   async importToHub(path, kind) {
     try {
       await api.importToHub(path, kind);
-      toast.success("Imported to Local Hub");
+      toast.success("Imported to Exts Hub");
       await get().fetch();
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);

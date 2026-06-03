@@ -8,6 +8,7 @@ import type {
 export type AgentConfigRow = {
   template_id: string;
   template_name: string;
+  original_file_name?: string;
 };
 
 type Props = {
@@ -42,7 +43,7 @@ export function HarnessKitInsertDialog({
   const [paths, setPaths] = useState<HarnessKitAgentConfigPath[]>(
     agentConfigs.map((item) => ({
       template_id: item.template_id,
-      rel_path: defaultRelPath,
+      rel_path: item.original_file_name ?? defaultRelPath,
     })),
   );
   const [selectedAssetConflicts, setSelectedAssetConflicts] = useState<

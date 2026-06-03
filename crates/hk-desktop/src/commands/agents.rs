@@ -91,6 +91,7 @@ pub fn list_agents(state: State<AppState>) -> Result<Vec<AgentInfo>, HkError> {
                 .get(a.name())
                 .and_then(|(custom_path, _, _)| custom_path.as_ref())
                 .is_some(),
+            project_rules_target_relpath: a.project_rules_target_relpath(),
         });
     }
 
@@ -98,6 +99,10 @@ pub fn list_agents(state: State<AppState>) -> Result<Vec<AgentInfo>, HkError> {
         if builtin_names.contains(&name) {
             continue;
         }
+        let project_rules_target_relpath = runtime_adapters
+            .iter()
+            .find(|adapter| adapter.name() == name)
+            .and_then(|adapter| adapter.project_rules_target_relpath());
         let adapter_detected = runtime_adapters
             .iter()
             .find(|adapter| adapter.name() == name)
@@ -121,6 +126,7 @@ pub fn list_agents(state: State<AppState>) -> Result<Vec<AgentInfo>, HkError> {
             icon_path,
             builtin: false,
             has_custom_path: true,
+            project_rules_target_relpath,
         });
     }
 

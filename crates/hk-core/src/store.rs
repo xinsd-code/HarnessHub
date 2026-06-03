@@ -3,11 +3,12 @@ use chrono::{DateTime, Utc};
 use rusqlite::{Connection, OptionalExtension, params};
 use std::path::{Path, PathBuf};
 
+use crate::local_hub::LOCAL_HUB_DIR_SETTING_KEY;
 use crate::models::*;
 use crate::sanitize::strip_windows_extended_path_prefix;
 
 /// Latest schema version supported by this binary.
-const LATEST_SCHEMA_VERSION: i64 = 8;
+const LATEST_SCHEMA_VERSION: i64 = 9;
 
 /// One row of `custom_config_paths`: (id, path, label, category, scope_json).
 /// `scope_json` is `None` for legacy rows that predate v4 schema migration.
@@ -170,6 +171,9 @@ impl Store {
         }
         if current_version < 8 {
             self.migrate_v8()?;
+        }
+        if current_version < 9 {
+            self.migrate_v9()?;
         }
 
         // Update schema version to latest
@@ -407,6 +411,19 @@ impl Store {
         Ok(())
     }
 
+    /// Schema v9: app-level settings.
+    fn migrate_v9(&self) -> Result<(), HkError> {
+        self.conn.execute_batch(
+            "
+            CREATE TABLE IF NOT EXISTS app_settings (
+                key TEXT PRIMARY KEY,
+                value TEXT
+            );
+            ",
+        )?;
+        Ok(())
+    }
+
     /// Schema v2: extension_agents join table for efficient agent-based filtering.
     fn migrate_v2(&self) -> Result<(), HkError> {
         self.conn.execute_batch(
@@ -441,6 +458,62 @@ impl Store {
                 |row| row.get(0),
             )
             .map_err(Into::into)
+    }
+
+    // --- App settings ---
+
+    pub fn get_app_setting(&self, key: &str) -> Result<Option<String>, HkError> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT value FROM app_settings WHERE key = ?1")?;
+        let result = stmt.query_row(params![key], |row| row.get::<_, Option<String>>(0));
+        match result {
+            Ok(value) => Ok(value),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(e.into()),
+        }
+    }
+
+    pub fn set_app_setting(&self, key: &str, value: Option<&str>) -> Result<(), HkError> {
+        match value {
+            Some(value) => {
+                self.conn.execute(
+                    "INSERT INTO app_settings (key, value)
+                     VALUES (?1, ?2)
+                     ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                    params![key, value],
+                )?;
+            }
+            None => {
+                self.conn
+                    .execute("DELETE FROM app_settings WHERE key = ?1", params![key])?;
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn get_local_hub_dir(&self) -> Result<Option<String>, HkError> {
+        Ok(self
+            .get_app_setting(LOCAL_HUB_DIR_SETTING_KEY)?
+            .and_then(|value| {
+                if value.trim().is_empty() {
+                    None
+                } else {
+                    Some(value)
+                }
+            }))
+    }
+
+    pub fn set_local_hub_dir(&self, path: Option<&str>) -> Result<(), HkError> {
+        let normalized = path.and_then(|value| {
+            if value.trim().is_empty() {
+                None
+            } else {
+                Some(value)
+            }
+        });
+        self.set_app_setting(LOCAL_HUB_DIR_SETTING_KEY, normalized)
     }
 
     // --- Agent settings ---
@@ -2200,6 +2273,36 @@ mod tests {
         assert_eq!(busy_timeout, 5000);
     }
 
+    #[test]
+    fn app_settings_round_trip() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = Store::open(&dir.path().join("test.db")).unwrap();
+
+        assert_eq!(store.get_app_setting("local_hub_dir").unwrap(), None);
+
+        store
+            .set_app_setting("local_hub_dir", Some("  /tmp/hk-local-hub  "))
+            .unwrap();
+
+        assert_eq!(
+            store.get_app_setting("local_hub_dir").unwrap().as_deref(),
+            Some("  /tmp/hk-local-hub  ")
+        );
+
+        store.set_app_setting("local_hub_dir", None).unwrap();
+        assert_eq!(store.get_app_setting("local_hub_dir").unwrap(), None);
+    }
+
+    #[test]
+    fn local_hub_dir_setting_ignores_blank_values() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = Store::open(&dir.path().join("test.db")).unwrap();
+
+        store.set_local_hub_dir(Some("   ")).unwrap();
+
+        assert_eq!(store.get_local_hub_dir().unwrap(), None);
+    }
+
     fn sample_extension() -> Extension {
         Extension {
             id: uuid::Uuid::new_v4().to_string(),
@@ -3417,7 +3520,7 @@ mod tests {
 
         assert_eq!(kits_count, 1);
         assert_eq!(kit_assets_count, 1);
-        assert_eq!(store.schema_version().unwrap(), 8);
+        assert_eq!(store.schema_version().unwrap(), 9);
     }
 
     #[test]
