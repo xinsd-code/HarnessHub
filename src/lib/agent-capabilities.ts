@@ -20,7 +20,7 @@ const PROJECT_INSTALL_SUPPORT: Record<string, Set<ExtensionKind>> = {
   gemini: new Set(["skill", "mcp", "hook"]),
   copilot: new Set(["skill", "mcp", "hook"]),
   windsurf: new Set(["skill", "mcp", "hook"]),
-  antigravity: new Set(["skill"]), // MCP/hook adapter completion deferred (v2)
+  antigravity: new Set(["skill", "mcp"]), // hook adapter completion deferred (v2)
   opencode: new Set(["skill", "mcp"]),
   openclaw: new Set(["skill"]),
   codebuddy: new Set(["skill"]),

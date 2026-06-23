@@ -59,6 +59,7 @@ pub async fn install_from_marketplace(
 ) -> Result<manager::InstallResult, HkError> {
     let store_clone = state.store.clone();
     let adapters = state.runtime_adapters();
+    let hub_path = super::settings::effective_hub_root(&state)?;
 
     tauri::async_runtime::spawn_blocking(move || -> Result<manager::InstallResult, HkError> {
         let (target_dir, agent_name) = if let Some(ref agent) = target_agent {
@@ -86,6 +87,20 @@ pub async fn install_from_marketplace(
                 ))
             })?;
             (dir, name)
+        };
+        let (projects, pre_existing_ids) = {
+            let store = store_clone.lock();
+            let projects = store.list_project_tuples();
+            let existing = store.list_extensions(None, Some(&agent_name))?;
+            let pre_existing_ids = existing
+                .into_iter()
+                .filter(|ext| {
+                    matches!(ext.kind, ExtensionKind::Skill | ExtensionKind::Mcp)
+                        && service::same_scope(&ext.scope, &target_scope)
+                })
+                .map(|ext| ext.id)
+                .collect();
+            (projects, pre_existing_ids)
         };
         std::fs::create_dir_all(&target_dir)?;
         let git_url = marketplace::git_url_for_source(&source);
@@ -126,7 +141,7 @@ pub async fn install_from_marketplace(
         let agents = vec![agent_name];
         {
             let store = store_clone.lock();
-            service::post_install_sync(
+            let installed_extensions = service::post_install_sync(
                 &store,
                 &adapters,
                 &agents,
@@ -134,6 +149,17 @@ pub async fn install_from_marketplace(
                 Some(meta),
                 pack.as_deref(),
                 &target_scope,
+            )?;
+            drop(store);
+            service::backup_marketplace_install_to_hub_in(
+                &hub_path,
+                &store_clone,
+                &adapters,
+                &projects,
+                &installed_extensions,
+                &result.name,
+                &target_scope,
+                &pre_existing_ids,
             )?;
         }
         Ok(result)

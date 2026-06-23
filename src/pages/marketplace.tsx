@@ -448,9 +448,7 @@ export default function MarketplacePage() {
   const projectInstallAgents =
     selectedItem?.kind === "skill" &&
     marketplaceProjectScope?.type === "project"
-      ? settingsAgents.filter((agent) =>
-          canInstallAtScope(agent.name, "skill", marketplaceProjectScope),
-        )
+      ? settingsAgents
       : [];
   const selectedProject =
     marketplaceProjectScope?.type === "project"
@@ -984,6 +982,11 @@ export default function MarketplacePage() {
                                 agent.name,
                                 marketplaceProjectScope,
                               );
+                              const capabilityOk = canInstallAtScope(
+                                agent.name,
+                                "skill",
+                                marketplaceProjectScope,
+                              );
                               const isInstalled = isItemInstalled(
                                 selectedItem,
                                 agent.name,
@@ -993,7 +996,8 @@ export default function MarketplacePage() {
                               const isInstallingAny =
                                 installing?.startsWith(`${selectedItem.id}:`) ??
                                 false;
-                              const disabled = isInstallingAny;
+                              const unsupported = !capabilityOk && !isInstalled;
+                              const disabled = isInstallingAny || unsupported;
                               return (
                                 <button
                                   key={`project:${agent.name}`}
@@ -1001,16 +1005,21 @@ export default function MarketplacePage() {
                                   disabled={disabled}
                                   aria-disabled={disabled}
                                   title={
-                                    isInstalled
-                                      ? `从 ${selectedProject?.name ?? marketplaceProjectScope.name} / ${agent.name} 移除`
-                                      : `同步到 ${selectedProject?.name ?? marketplaceProjectScope.name} / ${agent.name}`
+                                    unsupported
+                                      ? `${agent.name} · 不支持项目级 skill 安装`
+                                      : isInstalled
+                                        ? `从 ${selectedProject?.name ?? marketplaceProjectScope.name} / ${agent.name} 移除`
+                                        : `同步到 ${selectedProject?.name ?? marketplaceProjectScope.name} / ${agent.name}`
                                   }
-                                  onClick={() =>
-                                    handleToggleMarketplaceInstall(
-                                      selectedItem,
-                                      agent.name,
-                                      marketplaceProjectScope,
-                                    )
+                                  onClick={
+                                    unsupported
+                                      ? undefined
+                                      : () =>
+                                          handleToggleMarketplaceInstall(
+                                            selectedItem,
+                                            agent.name,
+                                            marketplaceProjectScope,
+                                          )
                                   }
                                   className={clsx(
                                     "relative flex h-11 w-11 items-center justify-center rounded-full border transition-all disabled:cursor-not-allowed",

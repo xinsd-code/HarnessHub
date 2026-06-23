@@ -41,7 +41,7 @@ pub(super) fn is_path_within_allowed_dirs(
             .canonicalize()
             .is_ok_and(|d| canonical.starts_with(super::normalize(&d)))
     }) || dirs::home_dir()
-        .map(|h| h.join(".harnesskit"))
+        .map(|h| h.join(".harnesshub"))
         .and_then(|d| d.canonicalize().ok())
         .is_some_and(|d| canonical.starts_with(super::normalize(&d)));
     Ok(allowed)

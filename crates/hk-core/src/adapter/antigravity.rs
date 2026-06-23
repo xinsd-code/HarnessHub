@@ -94,7 +94,13 @@ impl AgentAdapter for AntigravityAdapter {
     }
 
     fn project_settings_patterns(&self) -> Vec<String> {
-        vec![]
+        vec![
+            ".gemini/antigravity/mcp_config.json".into(),
+        ]
+    }
+
+    fn project_mcp_config_relpath(&self) -> Option<String> {
+        Some(".gemini/antigravity/mcp_config.json".into())
     }
 
     fn project_ignore_patterns(&self) -> Vec<String> {
@@ -167,5 +173,17 @@ mod tests {
         let adapter = AntigravityAdapter::with_home(tmp.path().to_path_buf());
         let hooks = adapter.read_hooks();
         assert!(hooks.is_empty(), "Antigravity should not support hooks");
+    }
+
+    #[test]
+    fn test_antigravity_config_methods() {
+        let tmp = tempfile::tempdir().unwrap();
+        let adapter = AntigravityAdapter::with_home(tmp.path().to_path_buf());
+
+        let project_settings = adapter.project_settings_patterns();
+        assert!(project_settings.contains(&".gemini/antigravity/mcp_config.json".to_string()));
+
+        let relpath = adapter.project_mcp_config_relpath();
+        assert_eq!(relpath, Some(".gemini/antigravity/mcp_config.json".to_string()));
     }
 }
