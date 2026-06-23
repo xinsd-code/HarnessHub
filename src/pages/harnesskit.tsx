@@ -333,12 +333,10 @@ export default function HarnessKitPage() {
   const projectAgentItems =
     detailProjectScope?.type === "project"
       ? detectedAgents
-          .filter((agent) =>
-            projectAssetKinds.every((kind) =>
-              canInstallAtScope(agent.name, kind, detailProjectScope),
-            ),
-          )
           .map((agent) => {
+            const capabilityOk = projectAssetKinds.every((kind) =>
+              canInstallAtScope(agent.name, kind, detailProjectScope),
+            );
             const key = selectedKit
               ? kitProjectAgentKey(
                   selectedKit.id,
@@ -355,48 +353,54 @@ export default function HarnessKitPage() {
                 detailProjectScope,
                 agent.name,
               );
+            const unsupported = !capabilityOk && !installed;
             return {
               name: agent.name,
               installed,
               pending: syncingAgent === agent.name,
-              title: installed
-                ? `${agentDisplayName(agent.name)} · Remove Kit from project`
-                : `Sync Kit to ${agentDisplayName(agent.name)}`,
-              onClick: async () => {
-                if (!selectedKit || detailProjectScope.type !== "project")
-                  return;
-                const request = {
-                  kit_id: selectedKit.id,
-                  project_path: detailProjectScope.path,
-                  target_agent: agent.name,
-                };
-                setSyncingAgent(agent.name);
-                try {
-                  if (installed) {
-                    await unsyncKitFromProject(request);
-                    setProjectAgentInstallOverrides((current) => {
-                      const next = new Map(current);
-                      next.set(key, false);
-                      return next;
-                    });
-                    await fetchExtensions();
-                  } else {
-                    const preview = await previewKitProjectConflicts(request);
-                    if (preview.conflicts.length > 0) {
-                      setKitConflictDialog({
-                        request,
-                        conflicts: preview.conflicts,
-                        selectedIds: new Set(),
-                        syncKey: key,
-                      });
+              disabled: unsupported,
+              title: unsupported
+                ? `${agentDisplayName(agent.name)} · 不支持项目级安装`
+                : installed
+                  ? `${agentDisplayName(agent.name)} · Remove Kit from project`
+                  : `Sync Kit to ${agentDisplayName(agent.name)}`,
+              onClick: unsupported
+                ? undefined
+                : async () => {
+                    if (!selectedKit || detailProjectScope.type !== "project")
                       return;
+                    const request = {
+                      kit_id: selectedKit.id,
+                      project_path: detailProjectScope.path,
+                      target_agent: agent.name,
+                    };
+                    setSyncingAgent(agent.name);
+                    try {
+                      if (installed) {
+                        await unsyncKitFromProject(request);
+                        setProjectAgentInstallOverrides((current) => {
+                          const next = new Map(current);
+                          next.set(key, false);
+                          return next;
+                        });
+                        await fetchExtensions();
+                      } else {
+                        const preview = await previewKitProjectConflicts(request);
+                        if (preview.conflicts.length > 0) {
+                          setKitConflictDialog({
+                            request,
+                            conflicts: preview.conflicts,
+                            selectedIds: new Set(),
+                            syncKey: key,
+                          });
+                          return;
+                        }
+                        await performKitProjectSync(request, key);
+                      }
+                    } finally {
+                      setSyncingAgent(null);
                     }
-                    await performKitProjectSync(request, key);
-                  }
-                } finally {
-                  setSyncingAgent(null);
-                }
-              },
+                  },
             };
           })
       : [];

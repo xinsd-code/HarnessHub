@@ -186,7 +186,7 @@ export default function LocalHubPage() {
           </div>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <HardDrive size={14} />
-            <span>~/.harnesskit</span>
+            <span>~/.harnesshub</span>
           </div>
         </div>
         <HubFilters />

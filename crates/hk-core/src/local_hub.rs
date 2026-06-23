@@ -19,32 +19,44 @@ pub fn migrate_legacy_default_root() -> Result<Option<PathBuf>, HkError> {
     migrate_legacy_default_root_at(&home, |from, to| std::fs::rename(from, to))
 }
 
-fn migrate_legacy_default_root_at<F>(home: &Path, rename: F) -> Result<Option<PathBuf>, HkError>
+fn migrate_legacy_default_root_at<F>(home: &Path, mut rename: F) -> Result<Option<PathBuf>, HkError>
 where
-    F: FnOnce(&Path, &Path) -> std::io::Result<()>,
+    F: FnMut(&Path, &Path) -> std::io::Result<()>,
 {
-    let new_path = home.join(".harnesskit");
-    let old_path = home.join(".harness_kit");
+    let target_path = home.join(".harnesshub");
+    let legacy_kit_dot = home.join(".harnesskit");
+    let legacy_kit_under = home.join(".harness_kit");
 
-    if !old_path.exists() || new_path.exists() {
+    if target_path.exists() {
         return Ok(None);
     }
 
-    rename(&old_path, &new_path)?;
-    Ok(Some(new_path))
+    if legacy_kit_dot.exists() {
+        rename(&legacy_kit_dot, &target_path)?;
+        return Ok(Some(target_path));
+    }
+
+    if legacy_kit_under.exists() {
+        rename(&legacy_kit_under, &target_path)?;
+        return Ok(Some(target_path));
+    }
+
+    Ok(None)
 }
 
 fn default_root_at<F>(home: &Path, rename: F) -> PathBuf
 where
-    F: FnOnce(&Path, &Path) -> std::io::Result<()>,
+    F: FnMut(&Path, &Path) -> std::io::Result<()>,
 {
-    let legacy_root = home.join(".harness_kit");
+    let legacy_kit_dot = home.join(".harnesskit");
+    let legacy_kit_under = home.join(".harness_kit");
 
     match migrate_legacy_default_root_at(home, rename) {
         Ok(Some(path)) => path,
-        Ok(None) => home.join(".harnesskit"),
-        Err(_) if legacy_root.exists() => legacy_root,
-        Err(_) => home.join(".harnesskit"),
+        Ok(None) => home.join(".harnesshub"),
+        Err(_) if legacy_kit_dot.exists() => legacy_kit_dot,
+        Err(_) if legacy_kit_under.exists() => legacy_kit_under,
+        Err(_) => home.join(".harnesshub"),
     }
 }
 
@@ -113,15 +125,16 @@ mod tests {
 
     #[test]
     fn default_root_uses_the_new_directory_name_only() {
-        assert!(default_root().ends_with(".harnesskit"));
+        assert!(default_root().ends_with(".harnesshub"));
+        assert!(!default_root().ends_with(".harnesskit"));
         assert!(!default_root().ends_with(".harness_kit"));
     }
 
     #[test]
     fn default_root_migrates_the_legacy_directory_when_present() {
         let home = tempfile::tempdir().unwrap();
-        let old_path = home.path().join(".harness_kit");
-        let new_path = home.path().join(".harnesskit");
+        let old_path = home.path().join(".harnesskit");
+        let new_path = home.path().join(".harnesshub");
         std::fs::create_dir_all(&old_path).unwrap();
         std::fs::write(old_path.join("marker.txt"), "hello").unwrap();
 
@@ -135,7 +148,7 @@ mod tests {
     #[test]
     fn default_root_keeps_the_legacy_directory_visible_when_migration_fails() {
         let home = tempfile::tempdir().unwrap();
-        let old_path = home.path().join(".harness_kit");
+        let old_path = home.path().join(".harnesskit");
         std::fs::create_dir_all(&old_path).unwrap();
 
         let resolved = default_root_at(home.path(), |_from, _to| {
@@ -155,14 +168,31 @@ mod tests {
                 .unwrap();
 
         assert_eq!(result, None);
-        assert!(!home.path().join(".harnesskit").exists());
+        assert!(!home.path().join(".harnesshub").exists());
     }
 
     #[test]
     fn migrate_legacy_default_root_moves_the_legacy_directory() {
         let home = tempfile::tempdir().unwrap();
+        let old_path = home.path().join(".harnesskit");
+        let new_path = home.path().join(".harnesshub");
+        std::fs::create_dir_all(&old_path).unwrap();
+        std::fs::write(old_path.join("marker.txt"), "hello").unwrap();
+
+        let result =
+            migrate_legacy_default_root_at(home.path(), |from, to| std::fs::rename(from, to))
+                .unwrap();
+
+        assert_eq!(result, Some(new_path.clone()));
+        assert!(!old_path.exists());
+        assert!(new_path.join("marker.txt").exists());
+    }
+
+    #[test]
+    fn migrate_legacy_default_root_moves_the_oldest_legacy_directory() {
+        let home = tempfile::tempdir().unwrap();
         let old_path = home.path().join(".harness_kit");
-        let new_path = home.path().join(".harnesskit");
+        let new_path = home.path().join(".harnesshub");
         std::fs::create_dir_all(&old_path).unwrap();
         std::fs::write(old_path.join("marker.txt"), "hello").unwrap();
 
@@ -178,8 +208,8 @@ mod tests {
     #[test]
     fn migrate_legacy_default_root_propagates_rename_errors() {
         let home = tempfile::tempdir().unwrap();
-        let old_path = home.path().join(".harness_kit");
-        let new_path = home.path().join(".harnesskit");
+        let old_path = home.path().join(".harnesskit");
+        let new_path = home.path().join(".harnesshub");
         std::fs::create_dir_all(&old_path).unwrap();
 
         let err = migrate_legacy_default_root_at(home.path(), |_from, _to| {

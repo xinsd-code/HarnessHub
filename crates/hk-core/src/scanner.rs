@@ -2178,7 +2178,7 @@ fn resolve_pattern(root: &std::path::Path, pattern: &str) -> Vec<std::path::Path
 // Exts Hub Scanner
 // ---------------------------------------------------------------------------
 
-/// Get the Exts Hub directory path (~/.harnesskit)
+/// Get the Exts Hub directory path (~/.harnesshub)
 pub fn get_hub_path() -> PathBuf {
     local_hub::default_root()
 }
@@ -2190,7 +2190,7 @@ fn hub_stable_id(name: &str, kind: &str) -> String {
     format!("{:016x}", fnv1a(key.as_bytes()))
 }
 
-/// Scan all assets from the Exts Hub directory (~/.harnesskit/)
+/// Scan all assets from the Exts Hub directory (~/.harnesshub/)
 pub fn scan_local_hub_from(hub_path: &Path) -> Vec<Extension> {
     if !hub_path.exists() {
         return Vec::new();
@@ -2203,13 +2203,13 @@ pub fn scan_local_hub_from(hub_path: &Path) -> Vec<Extension> {
     extensions
 }
 
-/// Scan all assets from the Exts Hub directory (~/.harnesskit/)
+/// Scan all assets from the Exts Hub directory (~/.harnesshub/)
 pub fn scan_local_hub() -> Vec<Extension> {
     let hub_path = get_hub_path();
     scan_local_hub_from(&hub_path)
 }
 
-/// Scan skills from ~/.harnesskit/skills/
+/// Scan skills from ~/.harnesshub/skills/
 fn scan_hub_skills(hub_path: &Path) -> Vec<Extension> {
     let skills_dir = hub_path.join("skills");
     if !skills_dir.exists() {
@@ -2303,7 +2303,7 @@ fn scan_hub_skills(hub_path: &Path) -> Vec<Extension> {
     extensions
 }
 
-/// Scan MCP servers from ~/.harnesskit/mcp/
+/// Scan MCP servers from ~/.harnesshub/mcp/
 fn scan_hub_mcp(hub_path: &Path) -> Vec<Extension> {
     let mcp_dir = hub_path.join("mcp");
     if !mcp_dir.exists() {
@@ -2375,7 +2375,7 @@ fn scan_hub_mcp(hub_path: &Path) -> Vec<Extension> {
     extensions
 }
 
-/// Scan plugins from ~/.harnesskit/plugins/
+/// Scan plugins from ~/.harnesshub/plugins/
 fn scan_hub_plugins(hub_path: &Path) -> Vec<Extension> {
     let plugins_dir = hub_path.join("plugins");
     if !plugins_dir.exists() {

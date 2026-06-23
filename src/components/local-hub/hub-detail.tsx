@@ -163,9 +163,7 @@ export function HubDetail() {
     ext.kind === "skill" || ext.kind === "mcp" ? ext.kind : null;
   const projectInstallAgents =
     projectScope && projectTargetKind
-      ? detectedAgents.filter((agent) =>
-          canInstallAtScope(agent.name, projectTargetKind, projectScope),
-        )
+      ? detectedAgents
       : [];
   const matchingInstancesForAsset = installedExtensions.filter((instance) =>
     sameLogicalAsset(ext, instance),
@@ -260,6 +258,11 @@ export function HubDetail() {
   const projectAgentItems: AgentInstallIconItem[] =
     projectScope && projectTargetKind
       ? projectInstallAgents.map((agent) => {
+          const capabilityOk = canInstallAtScope(
+            agent.name,
+            projectTargetKind,
+            projectScope,
+          );
           const installState = buildInstallState({
             agentName: agent.name,
             instances: matchingInstancesForAsset,
@@ -267,19 +270,25 @@ export function HubDetail() {
             surface: "extension-detail",
           });
           const installed = installState.projectInstalled;
+          const unsupported = !capabilityOk && !installed;
           return {
             name: agent.name,
             installed,
             pending: projectDeploying === agent.name,
-            title: `${agentDisplayName(agent.name)}${
-              installed ? " · 点击移除项目安装" : " · 安装到项目"
-            }`,
-            onClick: () => {
-              setProjectDeploying(agent.name);
-              void handleInstall(agent.name, projectScope).finally(() =>
-                setProjectDeploying(null),
-              );
-            },
+            disabled: unsupported,
+            title: unsupported
+              ? `${agentDisplayName(agent.name)} · 不支持项目级 ${projectTargetKind} 安装`
+              : `${agentDisplayName(agent.name)}${
+                  installed ? " · 点击移除项目安装" : " · 安装到项目"
+                }`,
+            onClick: unsupported
+              ? undefined
+              : () => {
+                  setProjectDeploying(agent.name);
+                  void handleInstall(agent.name, projectScope).finally(() =>
+                    setProjectDeploying(null),
+                  );
+                },
           };
         })
       : [];

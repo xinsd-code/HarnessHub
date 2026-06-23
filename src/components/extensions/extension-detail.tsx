@@ -210,9 +210,7 @@ export function ExtensionDetail({
     group.kind === "cli" ? cliProjectChildren : group.instances;
   const projectInstallAgents =
     installProjectScope?.type === "project" && projectTargetKind
-      ? detectedAgents.filter((agent) =>
-          canInstallAtScope(agent.name, projectTargetKind, installProjectScope),
-        )
+      ? detectedAgents
       : [];
 
   const globalSourceInstance = getInstallSourceInstance(group.instances, {
@@ -321,6 +319,11 @@ export function ExtensionDetail({
   const projectAgentItems =
     installProjectScope?.type === "project" && projectTargetKind
       ? projectInstallAgents.map((agent) => {
+          const capabilityOk = canInstallAtScope(
+            agent.name,
+            projectTargetKind,
+            installProjectScope,
+          );
           const installState = buildInstallState({
             agentName: agent.name,
             instances: projectStateInstances,
@@ -328,16 +331,21 @@ export function ExtensionDetail({
             surface: "extension-detail",
           });
           const isInstalled = installState.projectInstalled;
+          const unsupported = !capabilityOk && !isInstalled;
 
           return {
             name: agent.name,
             installed: isInstalled,
             pending: projectDeployingAgents.has(agent.name),
-            disabled: projectDeployingAgents.has(agent.name),
-            title: `${agentDisplayName(agent.name)}${
-              isInstalled ? " · 点击移除项目安装" : " · 安装到项目"
-            }`,
-            onClick: async () => {
+            disabled: unsupported || projectDeployingAgents.has(agent.name),
+            title: unsupported
+              ? `${agentDisplayName(agent.name)} · 不支持项目级 ${projectTargetKind} 安装`
+              : `${agentDisplayName(agent.name)}${
+                  isInstalled ? " · 点击移除项目安装" : " · 安装到项目"
+                }`,
+            onClick: unsupported
+              ? undefined
+              : async () => {
               setProjectDeployingAgents((prev) =>
                 new Set(prev).add(agent.name),
               );

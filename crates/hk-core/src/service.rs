@@ -1730,6 +1730,46 @@ pub fn sync_extensions_to_hub(
     )
 }
 
+/// Back up marketplace-installed Skill/MCP rows to Exts Hub.
+///
+/// `post_install_sync` returns the full target scan, so callers pass the row ids
+/// that already existed before install. Existing rows are skipped unless they
+/// match the installed marketplace item name, which covers updates or installs
+/// that predate this automatic Hub sync behavior.
+pub fn backup_marketplace_install_to_hub_in(
+    hub_path: &std::path::Path,
+    store: &Mutex<Store>,
+    adapters: &[Box<dyn AgentAdapter>],
+    projects: &[(String, String)],
+    installed_extensions: &[Extension],
+    installed_name: &str,
+    target_scope: &ConfigScope,
+    pre_existing_ids: &std::collections::HashSet<String>,
+) -> Result<Vec<String>, HkError> {
+    let mut synced = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+
+    for ext in installed_extensions {
+        if !matches!(ext.kind, ExtensionKind::Skill | ExtensionKind::Mcp) {
+            continue;
+        }
+        if !same_scope(&ext.scope, target_scope) {
+            continue;
+        }
+        if pre_existing_ids.contains(&ext.id) && ext.name != installed_name {
+            continue;
+        }
+        if !seen.insert((ext.name.clone(), ext.kind)) {
+            continue;
+        }
+
+        backup_to_hub_in(hub_path, store, adapters, projects, &ext.id)?;
+        synced.push(ext.id.clone());
+    }
+
+    Ok(synced)
+}
+
 // --- Kit Service Functions ---
 
 fn kit_asset_key(ext: &Extension) -> Option<String> {
@@ -2841,6 +2881,131 @@ mod tests {
             global.is_none() || global.unwrap().install_meta.is_none(),
             "global row should not exist or should not have install_meta",
         );
+    }
+
+    #[test]
+    fn test_backup_marketplace_install_to_hub_syncs_new_skill_and_mcp() {
+        use crate::adapter;
+
+        let dir = TempDir::new().unwrap();
+        let home = dir.path();
+        let hub = dir.path().join("hub");
+        let store_raw = Store::open(&home.join("test.db")).unwrap();
+        let store = Mutex::new(store_raw);
+        let adapters: Vec<Box<dyn adapter::AgentAdapter>> = vec![Box::new(
+            adapter::claude::ClaudeAdapter::with_home(home.to_path_buf()),
+        )];
+
+        let skill_dir = home.join(".claude").join("skills").join("foo");
+        std::fs::create_dir_all(&skill_dir).unwrap();
+        std::fs::write(skill_dir.join("SKILL.md"), "---\nname: foo\n---\n").unwrap();
+        std::fs::write(
+            home.join(".claude.json"),
+            r#"{"mcpServers":{"db":{"command":"npx","args":["db"],"env":{"TOKEN":"x"}}}}"#,
+        )
+        .unwrap();
+
+        let skill_id = scanner::stable_id_for("foo", "skill", "claude");
+        let mcp_id = scanner::stable_id_for("db", "mcp", "claude");
+        let skill = Extension {
+            id: skill_id.clone(),
+            kind: ExtensionKind::Skill,
+            name: "foo".into(),
+            description: String::new(),
+            source: Source {
+                origin: SourceOrigin::Agent,
+                url: None,
+                version: None,
+                commit_hash: None,
+            },
+            agents: vec!["claude".into()],
+            tags: vec![],
+            pack: None,
+            permissions: vec![],
+            enabled: true,
+            trust_score: None,
+            installed_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+            source_path: Some(skill_dir.join("SKILL.md").to_string_lossy().to_string()),
+            cli_parent_id: None,
+            cli_meta: None,
+            install_meta: None,
+            scope: ConfigScope::Global,
+        };
+        let mcp = Extension {
+            id: mcp_id.clone(),
+            kind: ExtensionKind::Mcp,
+            name: "db".into(),
+            description: String::new(),
+            source: Source {
+                origin: SourceOrigin::Agent,
+                url: None,
+                version: None,
+                commit_hash: None,
+            },
+            agents: vec!["claude".into()],
+            tags: vec![],
+            pack: None,
+            permissions: vec![],
+            enabled: true,
+            trust_score: None,
+            installed_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+            source_path: Some(home.join(".claude.json").to_string_lossy().to_string()),
+            cli_parent_id: None,
+            cli_meta: None,
+            install_meta: None,
+            scope: ConfigScope::Global,
+        };
+        store.lock().insert_extension(&skill).unwrap();
+        store.lock().insert_extension(&mcp).unwrap();
+
+        let synced = backup_marketplace_install_to_hub_in(
+            &hub,
+            &store,
+            &adapters,
+            &[],
+            &[skill, mcp],
+            "foo",
+            &ConfigScope::Global,
+            &std::collections::HashSet::new(),
+        )
+        .unwrap();
+
+        assert_eq!(synced, vec![skill_id, mcp_id]);
+        assert!(hub.join("skills").join("foo").join("SKILL.md").is_file());
+        assert!(hub.join("mcp").join("db").join("mcp.json").is_file());
+    }
+
+    #[test]
+    fn test_backup_marketplace_install_to_hub_skips_unrelated_existing_rows() {
+        let dir = TempDir::new().unwrap();
+        let hub = dir.path().join("hub");
+        let (store_raw, _db_dir) = test_store();
+        let store = Mutex::new(store_raw);
+        let existing = make_extension(
+            "existing-skill",
+            ExtensionKind::Skill,
+            "already-there",
+            None,
+        );
+        store.lock().insert_extension(&existing).unwrap();
+        let pre_existing_ids = std::collections::HashSet::from([existing.id.clone()]);
+
+        let synced = backup_marketplace_install_to_hub_in(
+            &hub,
+            &store,
+            &[],
+            &[],
+            &[existing],
+            "new-marketplace-skill",
+            &ConfigScope::Global,
+            &pre_existing_ids,
+        )
+        .unwrap();
+
+        assert!(synced.is_empty());
+        assert!(!hub.exists());
     }
 
     #[test]
