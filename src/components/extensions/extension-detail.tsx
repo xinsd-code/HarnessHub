@@ -346,74 +346,76 @@ export function ExtensionDetail({
             onClick: unsupported
               ? undefined
               : async () => {
-              setProjectDeployingAgents((prev) =>
-                new Set(prev).add(agent.name),
-              );
-              try {
-                if (isInstalled) {
-                  const matches = projectStateInstances.filter(
-                    (instance) =>
-                      instance.scope.type === "project" &&
-                      pathsEqual(
-                        instance.scope.path,
-                        installProjectScope.path,
-                      ) &&
-                      instance.agents.includes(agent.name),
+                  setProjectDeployingAgents((prev) =>
+                    new Set(prev).add(agent.name),
                   );
-                  if (matches.length === 0) {
-                    throw new Error("No project install found for this agent");
-                  }
-                  await deleteExtensionIds(
-                    matches.map((instance) => instance.id),
-                  );
-                  toast.success(
-                    `已从 ${installProjectScope.name} / ${agentDisplayName(agent.name)} 移除`,
-                  );
-                  return;
-                }
-                if (group.kind === "cli") {
-                  if (cliProjectChildren.length === 0) {
-                    throw new Error(
-                      "No CLI child extensions found for project install",
+                  try {
+                    if (isInstalled) {
+                      const matches = projectStateInstances.filter(
+                        (instance) =>
+                          instance.scope.type === "project" &&
+                          pathsEqual(
+                            instance.scope.path,
+                            installProjectScope.path,
+                          ) &&
+                          instance.agents.includes(agent.name),
+                      );
+                      if (matches.length === 0) {
+                        throw new Error(
+                          "No project install found for this agent",
+                        );
+                      }
+                      await deleteExtensionIds(
+                        matches.map((instance) => instance.id),
+                      );
+                      toast.success(
+                        `已从 ${installProjectScope.name} / ${agentDisplayName(agent.name)} 移除`,
+                      );
+                      return;
+                    }
+                    if (group.kind === "cli") {
+                      if (cliProjectChildren.length === 0) {
+                        throw new Error(
+                          "No CLI child extensions found for project install",
+                        );
+                      }
+                      const seen = new Set<string>();
+                      for (const child of cliProjectChildren) {
+                        const dedupeKey = `${child.kind}:${child.name}`;
+                        if (seen.has(dedupeKey)) continue;
+                        seen.add(dedupeKey);
+                        await installToProject(
+                          child.id,
+                          agent.name,
+                          installProjectScope,
+                        );
+                      }
+                    } else if (projectSourceInstance) {
+                      await installToProject(
+                        projectSourceInstance.id,
+                        agent.name,
+                        installProjectScope,
+                      );
+                    } else {
+                      throw new Error(
+                        "No source extension instance found for project install",
+                      );
+                    }
+                    toast.success(
+                      `已同步到 ${installProjectScope.name} / ${agentDisplayName(agent.name)}`,
                     );
+                  } catch (error) {
+                    const message =
+                      error instanceof Error ? error.message : String(error);
+                    toast.error(`同步到项目失败: ${message}`);
+                  } finally {
+                    setProjectDeployingAgents((prev) => {
+                      const next = new Set(prev);
+                      next.delete(agent.name);
+                      return next;
+                    });
                   }
-                  const seen = new Set<string>();
-                  for (const child of cliProjectChildren) {
-                    const dedupeKey = `${child.kind}:${child.name}`;
-                    if (seen.has(dedupeKey)) continue;
-                    seen.add(dedupeKey);
-                    await installToProject(
-                      child.id,
-                      agent.name,
-                      installProjectScope,
-                    );
-                  }
-                } else if (projectSourceInstance) {
-                  await installToProject(
-                    projectSourceInstance.id,
-                    agent.name,
-                    installProjectScope,
-                  );
-                } else {
-                  throw new Error(
-                    "No source extension instance found for project install",
-                  );
-                }
-                toast.success(
-                  `已同步到 ${installProjectScope.name} / ${agentDisplayName(agent.name)}`,
-                );
-              } catch (error) {
-                const message =
-                  error instanceof Error ? error.message : String(error);
-                toast.error(`同步到项目失败: ${message}`);
-              } finally {
-                setProjectDeployingAgents((prev) => {
-                  const next = new Set(prev);
-                  next.delete(agent.name);
-                  return next;
-                });
-              }
-            },
+                },
           };
         })
       : [];
