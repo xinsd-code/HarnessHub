@@ -162,9 +162,7 @@ export function HubDetail() {
   const projectTargetKind: ExtensionKind | null =
     ext.kind === "skill" || ext.kind === "mcp" ? ext.kind : null;
   const projectInstallAgents =
-    projectScope && projectTargetKind
-      ? detectedAgents
-      : [];
+    projectScope && projectTargetKind ? detectedAgents : [];
   const matchingInstancesForAsset = installedExtensions.filter((instance) =>
     sameLogicalAsset(ext, instance),
   );

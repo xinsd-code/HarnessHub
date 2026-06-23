@@ -1736,6 +1736,7 @@ pub fn sync_extensions_to_hub(
 /// that already existed before install. Existing rows are skipped unless they
 /// match the installed marketplace item name, which covers updates or installs
 /// that predate this automatic Hub sync behavior.
+#[allow(clippy::too_many_arguments)]
 pub fn backup_marketplace_install_to_hub_in(
     hub_path: &std::path::Path,
     store: &Mutex<Store>,
